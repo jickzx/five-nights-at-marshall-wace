@@ -151,13 +151,13 @@ namespace Fnmw.UI
 
         public DeathScreen(GameUI ui) : base(ui, "Death") { }
         public override GlassMode Glass => GlassMode.Death;
-        public const string Line = "The tide takes you. Your words remain.";
+        public const string Line = "Unfortunately, after careful consideration, we decided to move forward with other candidates.";
 
         public void Show(Action onRestart)
         {
             Open();
             _onRestart = onRestart;
-            _line = Kit.Label("Line", Root, Line, 16, Pal.Ivory, TextAnchor.MiddleCenter, 20, 170, 600, 16);
+            _line = Kit.Label("Line", Root, Line, 16, Pal.Ivory, TextAnchor.MiddleCenter, 20, 154, 600, 48, wrap: true);
             _line.enabled = false;
             _key = Kit.Pic("Key", Root, Pictograms.Get("enter"), Pal.Ivory, 313, 204, 13, 13);
             _key.enabled = false;
