@@ -113,90 +113,101 @@
         "fbx": "Unity/Assets/Resources/Models/player.fbx",
         "blend": "assets/blender/player.blend",
         "preview": "assets/previews/player.png",
+        "views": "assets/previews/player_views.png",
         "video": "assets/previews/player.mp4"
       },
-      "triangles": 1064,
+      "triangles": 1336,
       "bounding_box": {
         "min": [
-          -0.465,
+          -0.42065,
           0.0,
-          -0.2475
+          -0.235
         ],
         "max": [
-          0.465,
+          0.42065,
           1.8,
-          0.355
+          0.405
         ]
       },
       "clips": [
         {
           "name": "death_martyr",
           "frame_start": 1,
-          "frame_end": 73,
+          "frame_end": 169,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 168,
           "fps": 24,
           "loop": false,
-          "duration_seconds": 3.0,
-          "fbx_frame_start": 0,
-          "fbx_frame_end": 72
+          "duration_seconds": 7.0
         },
         {
           "name": "idle",
           "frame_start": 1,
-          "frame_end": 49,
+          "frame_end": 97,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 96,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 2.0,
-          "fbx_frame_start": 0,
-          "fbx_frame_end": 48
+          "duration_seconds": 4.0
         },
         {
           "name": "run",
           "frame_start": 1,
-          "frame_end": 21,
+          "frame_end": 19,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 18,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 0.8333333333333334,
-          "fbx_frame_start": 0,
-          "fbx_frame_end": 20
+          "duration_seconds": 0.75
         },
         {
           "name": "walk",
           "frame_start": 1,
           "frame_end": 33,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 32,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 1.3333333333333333,
-          "fbx_frame_start": 0,
-          "fbx_frame_end": 32
+          "duration_seconds": 1.3333333333333333
         }
       ],
       "rigged": true,
       "mesh_names": [
         "player_mesh"
       ],
-      "notes": "1.8 m bind height. In-place walk/run. death_martyr is a held kneeling surrender; clamp at its final frame.",
+      "notes": "1.8 m pressure suit. Foot-planted in-place walk/run. death_martyr lasts 7 s: knees settle, arms open, head lifts, then a held final pose. Clamp at its final frame.",
       "preview_segments": [
         {
           "clip": "idle",
-          "start_seconds": 0,
-          "end_seconds": 2
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
         },
         {
           "clip": "walk",
-          "start_seconds": 2,
-          "end_seconds": 4
+          "start_seconds": 4.0,
+          "end_seconds": 5.333333333333333,
+          "playback_speed": 1
         },
         {
           "clip": "run",
-          "start_seconds": 4,
-          "end_seconds": 6
+          "start_seconds": 5.333333333333333,
+          "end_seconds": 6.083333333333333,
+          "playback_speed": 1
         },
         {
           "clip": "death_martyr",
-          "start_seconds": 6,
-          "end_seconds": 8
+          "start_seconds": 6.083333333333333,
+          "end_seconds": 13.083333333333334,
+          "playback_speed": 1
         }
-      ]
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/player_idle_review.png",
+        "walk": "assets/previews/player_walk_review.png",
+        "run": "assets/previews/player_run_review.png",
+        "death_martyr": "assets/previews/player_death_martyr_review.png"
+      }
     },
     "ship": {
       "resource_path": "Models/ship",

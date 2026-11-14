@@ -9,7 +9,7 @@ The revised recordings show front, side and rear views together at natural anima
 | [beast_stage1](beast_stage1.mp4) | 0.00 idle, 4.00 stalk, 7.00 chase, 7.75 lunge |
 | [beast_stage2](beast_stage2.mp4) | 0.00 idle, 4.00 stalk, 7.00 chase, 7.75 lunge |
 | [beast_stage3](beast_stage3.mp4) | 0.00 idle, 4.00 stalk, 7.00 chase, 7.75 lunge |
-| [player](player.mp4) | 0.00 idle, 2.00 walk, 4.00 run, 6.00 death_martyr |
+| [player](player.mp4) | 0.00 idle, 4.00 walk, 5.33 run, 6.08 death_martyr |
 | [ship](ship.mp4) | 0.00 idle, 2.00 hatch_close, 4.00 takeoff |
 | [door_sealed](door_sealed.mp4) | 0.00 open |
 
@@ -20,7 +20,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | Model | Surface review | Animation pose sheets |
 | --- | --- | --- |
 | beast_stage1 | [beast_stage1](beast_stage1_views.png) | [idle](beast_stage1_idle_review.png), [stalk](beast_stage1_stalk_review.png), [chase](beast_stage1_chase_review.png), [lunge](beast_stage1_lunge_review.png) |
-| player | Blockout review pending | — |
+| player | [player](player_views.png) | [idle](player_idle_review.png), [walk](player_walk_review.png), [run](player_run_review.png), [death_martyr](player_death_martyr_review.png) |
 | ship | Blockout review pending | — |
 | console | Blockout review pending | — |
 | beast_stage2 | [beast_stage2](beast_stage2_views.png) | [idle](beast_stage2_idle_review.png), [stalk](beast_stage2_stalk_review.png), [chase](beast_stage2_chase_review.png), [lunge](beast_stage2_lunge_review.png) |
