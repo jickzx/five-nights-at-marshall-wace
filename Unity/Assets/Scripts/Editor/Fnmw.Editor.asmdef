@@ -1,0 +1,7 @@
+{
+    "name": "Fnmw.Editor",
+    "rootNamespace": "Fnmw.EditorTools",
+    "references": [ "Fnmw.Core", "Fnmw.Bootstrap" ],
+    "includePlatforms": [ "Editor" ],
+    "autoReferenced": false
+}

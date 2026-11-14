@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.Game",
+    "rootNamespace": "Fnmw.Game",
+    "references": [ "Fnmw.Core", "Unity.InputSystem" ],
+    "autoReferenced": false
+}

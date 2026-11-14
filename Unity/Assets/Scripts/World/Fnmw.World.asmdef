@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.World",
+    "rootNamespace": "Fnmw.World",
+    "references": [ "Fnmw.Core" ],
+    "autoReferenced": false
+}

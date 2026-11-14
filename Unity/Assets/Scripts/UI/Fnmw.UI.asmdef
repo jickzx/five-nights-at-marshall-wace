@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.UI",
+    "rootNamespace": "Fnmw.UI",
+    "references": [ "Fnmw.Core" ],
+    "autoReferenced": false
+}

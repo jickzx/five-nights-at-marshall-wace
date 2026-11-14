@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.Audio",
+    "rootNamespace": "Fnmw.Audio",
+    "references": [ "Fnmw.Core" ],
+    "autoReferenced": false
+}
