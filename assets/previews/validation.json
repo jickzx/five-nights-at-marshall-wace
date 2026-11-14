@@ -48,11 +48,11 @@
     },
     "console": {
       "status": "passed",
-      "triangles": 430,
+      "triangles": 1142,
       "takes": [],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 1e-07,
+      "rest_bounds_max_error_m": 3.3e-06,
       "animated_bounds_max_error_m": 0,
       "sampled_poses": 0
     },

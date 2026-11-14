@@ -396,40 +396,73 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/console.fbx",
         "blend": "assets/blender/console.blend",
-        "preview": "assets/previews/console.png"
+        "preview": "assets/previews/console.png",
+        "views": "assets/previews/console_views.png"
       },
-      "triangles": 430,
+      "triangles": 1142,
       "bounding_box": {
         "min": [
-          -0.54,
+          -0.64885,
           0.0,
-          -0.34
+          -0.4055
         ],
         "max": [
-          0.54,
-          1.28,
-          0.325
+          0.64885,
+          1.43,
+          0.4247
         ]
       },
       "clips": [],
       "rigged": false,
       "mesh_names": [
-        "pedestal",
         "foot",
-        "terminal_body",
+        "rubber_mount",
+        "pedestal",
+        "pedestal_front_plate",
+        "pedestal_vent",
+        "pedestal_vent.001",
+        "pedestal_vent.002",
+        "pedestal_vent.003",
+        "terminal_casting",
+        "left_cheek",
+        "right_cheek",
         "screen_bezel",
+        "screen_inner_lip",
         "screen",
+        "key_recess",
         "tile_0",
         "tile_1",
         "tile_2",
         "tile_3",
-        "support",
-        "support.001",
+        "guard_mount",
+        "guard_mount.001",
+        "grab_rail",
+        "case_bolt",
+        "case_bolt.001",
+        "guard_mount.002",
+        "guard_mount.003",
+        "grab_rail.001",
+        "case_bolt.002",
+        "case_bolt.003",
+        "brow_strip",
         "status",
         "status.001",
-        "status.002"
+        "status.002",
+        "rear_service_panel",
+        "cooling_fin",
+        "cooling_fin.001",
+        "cooling_fin.002",
+        "cooling_fin.003",
+        "cooling_fin.004",
+        "cooling_fin.005",
+        "armoured_cable",
+        "armoured_cable.001",
+        "armoured_cable.002",
+        "armoured_cable.003",
+        "worn_warning",
+        "worn_warning.001"
       ],
-      "notes": "screen is a blank front-facing UV quad. tile_0..tile_3 are independent meshes. Screen and tile faces point -Z in exports."
+      "notes": "screen is a blank 0.79 x 0.19 m front-facing UV quad. tile_0..tile_3 are independent meshes. Screen and tile faces point -Z in exports. Keys depress 0.025 m along exported +Z."
     },
     "beast_stage2": {
       "resource_path": "Models/beast_stage2",
