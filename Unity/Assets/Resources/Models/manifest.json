@@ -10,23 +10,24 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/beast_stage1.fbx",
         "blend": "assets/blender/beast_stage1.blend",
+        "texture": "Unity/Assets/Resources/Models/Textures/beast_ceo_atlas.png",
         "preview": "assets/previews/beast_stage1.png",
-        "views": "assets/previews/beast_stage1_views.png",
-        "video": "assets/previews/beast_stage1.mp4"
+        "views": "assets/previews/beast_stage1_views.png"
       },
-      "triangles": 668,
+      "triangles": 315,
       "bounding_box": {
         "min": [
-          -0.60255,
+          -0.39333,
           0.0,
-          -0.55759
+          -0.12592
         ],
         "max": [
-          0.60255,
-          2.34637,
-          0.31
+          0.39333,
+          2.35,
+          0.29382
         ]
       },
+      "forward_axis": "+Z (faces Unity forward; the rest of the kit faces -Z)",
       "clips": [
         {
           "name": "chase",
@@ -73,39 +74,9 @@
       "mesh_names": [
         "beast_stage1_mesh"
       ],
-      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
-      "preview_segments": [
-        {
-          "clip": "idle",
-          "start_seconds": 0.0,
-          "end_seconds": 4.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "stalk",
-          "start_seconds": 4.0,
-          "end_seconds": 7.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "chase",
-          "start_seconds": 7.0,
-          "end_seconds": 7.75,
-          "playback_speed": 1
-        },
-        {
-          "clip": "lunge",
-          "start_seconds": 7.75,
-          "end_seconds": 9.25,
-          "playback_speed": 1
-        }
-      ],
-      "review_sheets": {
-        "idle": "assets/previews/beast_stage1_idle_review.png",
-        "stalk": "assets/previews/beast_stage1_stalk_review.png",
-        "chase": "assets/previews/beast_stage1_chase_review.png",
-        "lunge": "assets/previews/beast_stage1_lunge_review.png"
-      }
+      "notes": "The Principal: a faceless, too-thin fund boss in a charcoal suit, lanyard and rival-fund patches (CITADEL pass, POINT72 back patch, MILLENNIUM, BALYASNY, D.E.SHAW, MAN GROUP, RENTEC, Two Sigma tie). Stage 1. In-place stalk/chase; lunge moves the root 0.9 m forward. Texture: Textures/beast_ceo_atlas.png (point filtered).",
+      "source": "tools/blender/ceo_beast.py (atlas: tools/blender/ceo_beast_atlas.py)",
+      "backup_of_previous": "assets/backup/beast_drowned_witness/"
     },
     "player": {
       "resource_path": "Models/player",
@@ -469,23 +440,24 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/beast_stage2.fbx",
         "blend": "assets/blender/beast_stage2.blend",
+        "texture": "Unity/Assets/Resources/Models/Textures/beast_ceo_atlas.png",
         "preview": "assets/previews/beast_stage2.png",
-        "views": "assets/previews/beast_stage2_views.png",
-        "video": "assets/previews/beast_stage2.mp4"
+        "views": "assets/previews/beast_stage2_views.png"
       },
-      "triangles": 936,
+      "triangles": 425,
       "bounding_box": {
         "min": [
-          -1.0743,
+          -0.56723,
           0.0,
-          -0.61759
+          -0.14515
         ],
         "max": [
-          1.0743,
-          2.90637,
-          0.30954
+          0.56723,
+          2.9,
+          0.93746
         ]
       },
+      "forward_axis": "+Z (faces Unity forward; the rest of the kit faces -Z)",
       "clips": [
         {
           "name": "chase",
@@ -532,62 +504,33 @@
       "mesh_names": [
         "beast_stage2_mesh"
       ],
-      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
-      "preview_segments": [
-        {
-          "clip": "idle",
-          "start_seconds": 0.0,
-          "end_seconds": 4.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "stalk",
-          "start_seconds": 4.0,
-          "end_seconds": 7.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "chase",
-          "start_seconds": 7.0,
-          "end_seconds": 7.75,
-          "playback_speed": 1
-        },
-        {
-          "clip": "lunge",
-          "start_seconds": 7.75,
-          "end_seconds": 9.25,
-          "playback_speed": 1
-        }
-      ],
-      "review_sheets": {
-        "idle": "assets/previews/beast_stage2_idle_review.png",
-        "stalk": "assets/previews/beast_stage2_stalk_review.png",
-        "chase": "assets/previews/beast_stage2_chase_review.png",
-        "lunge": "assets/previews/beast_stage2_lunge_review.png"
-      }
+      "notes": "The Principal: a faceless, too-thin fund boss in a charcoal suit, lanyard and rival-fund patches (CITADEL pass, POINT72 back patch, MILLENNIUM, BALYASNY, D.E.SHAW, MAN GROUP, RENTEC, Two Sigma tie). Stage 2. In-place stalk/chase; lunge moves the root 0.9 m forward. Texture: Textures/beast_ceo_atlas.png (point filtered).",
+      "source": "tools/blender/ceo_beast.py (atlas: tools/blender/ceo_beast_atlas.py)",
+      "backup_of_previous": "assets/backup/beast_drowned_witness/"
     },
     "beast_stage3": {
       "resource_path": "Models/beast_stage3",
       "files": {
         "fbx": "Unity/Assets/Resources/Models/beast_stage3.fbx",
         "blend": "assets/blender/beast_stage3.blend",
+        "texture": "Unity/Assets/Resources/Models/Textures/beast_ceo_atlas.png",
         "preview": "assets/previews/beast_stage3.png",
-        "views": "assets/previews/beast_stage3_views.png",
-        "video": "assets/previews/beast_stage3.mp4"
+        "views": "assets/previews/beast_stage3_views.png"
       },
-      "triangles": 1404,
+      "triangles": 967,
       "bounding_box": {
         "min": [
-          -1.2643,
+          -0.97474,
           0.0,
-          -0.78447
+          -0.26857
         ],
         "max": [
-          1.2643,
-          3.56637,
-          0.30954
+          0.97474,
+          3.55,
+          1.52751
         ]
       },
+      "forward_axis": "+Z (faces Unity forward; the rest of the kit faces -Z)",
       "clips": [
         {
           "name": "chase",
@@ -634,39 +577,9 @@
       "mesh_names": [
         "beast_stage3_mesh"
       ],
-      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
-      "preview_segments": [
-        {
-          "clip": "idle",
-          "start_seconds": 0.0,
-          "end_seconds": 4.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "stalk",
-          "start_seconds": 4.0,
-          "end_seconds": 7.0,
-          "playback_speed": 1
-        },
-        {
-          "clip": "chase",
-          "start_seconds": 7.0,
-          "end_seconds": 7.75,
-          "playback_speed": 1
-        },
-        {
-          "clip": "lunge",
-          "start_seconds": 7.75,
-          "end_seconds": 9.25,
-          "playback_speed": 1
-        }
-      ],
-      "review_sheets": {
-        "idle": "assets/previews/beast_stage3_idle_review.png",
-        "stalk": "assets/previews/beast_stage3_stalk_review.png",
-        "chase": "assets/previews/beast_stage3_chase_review.png",
-        "lunge": "assets/previews/beast_stage3_lunge_review.png"
-      }
+      "notes": "The Principal: a faceless, too-thin fund boss in a charcoal suit, lanyard and rival-fund patches (CITADEL pass, POINT72 back patch, MILLENNIUM, BALYASNY, D.E.SHAW, MAN GROUP, RENTEC, Two Sigma tie). Stage 3. In-place stalk/chase; lunge moves the root 0.9 m forward. Texture: Textures/beast_ceo_atlas.png (point filtered).",
+      "source": "tools/blender/ceo_beast.py (atlas: tools/blender/ceo_beast_atlas.py)",
+      "backup_of_previous": "assets/backup/beast_drowned_witness/"
     },
     "rock_a": {
       "resource_path": "Models/rock_a",
