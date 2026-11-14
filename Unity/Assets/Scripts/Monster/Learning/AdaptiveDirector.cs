@@ -99,18 +99,25 @@ namespace Fnmw.Monster.Learning
             _pendingConcepts = concepts?.Where(c => !string.IsNullOrEmpty(c)).Distinct().ToArray();
             if (_pendingConcepts != null && _pendingConcepts.Length == 0) _pendingConcepts = null;
             Model.Register(_pendingConcepts);
+            if (_pendingConcepts != null && _worldConcepts.Count > 0) foreach (var c in _pendingConcepts) _worldConcepts.Add(c);
             _pendingProximity = Mathf.Clamp01(proximity01);
             Recompute();
         }
 
         LanguageWorld _registeredWorld;
+        readonly HashSet<string> _worldConcepts = new HashSet<string>();
+
+        /// <summary>Concepts the current world's puzzles test (empty until a world is known).</summary>
+        public IReadOnlyCollection<string> WorldConcepts => _worldConcepts;
 
         /// <summary>Learn the names of every concept the world's puzzles test, so the overlay can show them all.</summary>
         public void RegisterWorld(LanguageWorld world)
         {
             if (world == null || world == _registeredWorld) return;
             _registeredWorld = world;
-            foreach (var p in world.Puzzles) Model.Register(ConceptsOf(p));
+            _worldConcepts.Clear();
+            foreach (var p in world.Puzzles)
+                foreach (var c in ConceptsOf(p)) { _worldConcepts.Add(c); Model.Belief(c); }
             Recompute();
         }
 
@@ -135,10 +142,9 @@ namespace Fnmw.Monster.Learning
         public void ForgetPlayer()
         {
             int runs = Model.S.Runs;
-            var known = Model.S.Concepts.Select(c => c.Concept).ToArray();
             Store?.Delete();
             Model = new PlayerModel(new LearnerState { Runs = runs });
-            Model.Register(known.Where(c => c != PlayerModel.General));
+            foreach (var c in _worldConcepts) Model.Belief(c);
             LastChange = default;
             Recompute();
             Save();
@@ -153,7 +159,7 @@ namespace Fnmw.Monster.Learning
         void Recompute()
         {
             Version++;
-            FocusConcept = Model.FocusConcept;
+            FocusConcept = Model.Focus(_worldConcepts);
             var focus = FocusConcept != null ? new[] { FocusConcept } : null;
             Difficulty = Model.DifficultyFor(focus);
             PredictedSuccess = Model.Predict(focus, Difficulty);

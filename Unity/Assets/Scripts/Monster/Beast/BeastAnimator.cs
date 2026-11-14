@@ -24,6 +24,8 @@ namespace Fnmw.Monster.Beast
 
         public bool HasClips => _clips.Count > 0;
         public string ClipSummary { get; private set; } = "procedural";
+        /// <summary>The clip currently playing (or the procedural pose).</summary>
+        public string CurrentClip => _clips.Count > 0 ? _clips[IndexFor(_pose)].clip.name : "procedural " + _pose.ToString().ToLowerInvariant();
 
         Transform _body;              // the loaded model, animated procedurally when there are no clips
         Vector3 _baseScale;

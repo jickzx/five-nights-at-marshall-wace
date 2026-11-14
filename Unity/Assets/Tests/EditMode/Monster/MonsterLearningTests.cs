@@ -93,6 +93,24 @@ namespace Fnmw.Tests
         }
 
         [Test]
+        public void Focus_StaysWithinTheCurrentWorld()
+        {
+            var dir = Fresh();
+            // Remembered from an earlier world: terrible at "case-marking".
+            for (int i = 0; i < 5; i++)
+            {
+                dir.NotePuzzle(new[] { "case-marking" }, 0f);
+                dir.Observe(new AnswerEvent { Correct = false, MissedConcept = "case-marking", ResponseTime = 8f, Difficulty = 0.3f });
+            }
+            Assert.AreEqual("case-marking", dir.FocusConcept);
+            var world = new LanguageWorld();
+            world.Puzzles.Add(new LangPuzzle { Tiles = { new Tile { Id = "a", Concepts = new[] { "agreement", "word-order" } } } });
+            dir.RegisterWorld(world);
+            Assert.That(dir.FocusConcept, Is.EqualTo("agreement").Or.EqualTo("word-order"), "never probe a concept this world cannot test");
+            Assert.IsNotNull(dir.Model.Find("case-marking"), "but the memory of it is kept");
+        }
+
+        [Test]
         public void WrongAnswer_BlamesOnlyTheMissedConcept()
         {
             var dir = Fresh();

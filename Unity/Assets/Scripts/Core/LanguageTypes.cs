@@ -39,6 +39,9 @@ namespace Fnmw.Core
         public List<ExamplePhrase> Examples = new List<ExamplePhrase>();
         public List<Tile> Tiles = new List<Tile>(); // shuffled, includes distractors
         public float Difficulty;                    // 0..1 it was generated at
+        public string AlienName;                    // in-fiction name of this console's tongue, e.g. "Vorrak"
+        public string Concept;                      // main grammar concept tested (see LangConcepts)
+        public string[] Concepts = Array.Empty<string>(); // every concept the puzzle exercises
         // Solution stays private to the engine: use ILanguageEngine.Check.
     }
 
@@ -58,6 +61,11 @@ namespace Fnmw.Core
         public string RealText;      // e.g. "扉を開けて"
         public string Translation;   // e.g. "open the door"
         public string Explanation;   // how the alien form exaggerates the real one
+        public string LanguageName;  // e.g. "Japanese"
+        public string AlienName;     // in-fiction name of the tongue that was decoded
+        public string Feature;       // the real feature in one or two plain sentences
+        public string NowYouKnow;    // one true, memorable fact about the real language
+        public string Concept;       // main concept the puzzle tested (see LangConcepts)
     }
 
     /// <summary>"Which language was this based on?"</summary>
@@ -66,6 +74,7 @@ namespace Fnmw.Core
     {
         public string Prompt;
         public string[] Options = Array.Empty<string>();
+        public string Explanation;   // one line to show after the player answers
         // Correct index stays private to the engine: use ILanguageEngine.CheckQuiz.
     }
 
@@ -77,6 +86,7 @@ namespace Fnmw.Core
         public RealLanguage Real;
         public List<string> GrammarSummary = new List<string>(); // judges' overlay
         public List<LangPuzzle> Puzzles = new List<LangPuzzle>();
+        public List<RealLanguage> Languages = new List<RealLanguage>(); // real language per puzzle, same order (judges/debug)
         [NonSerialized] public object EngineData;           // opaque engine-private payload
     }
 }

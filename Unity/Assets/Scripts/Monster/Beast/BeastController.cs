@@ -10,7 +10,8 @@ namespace Fnmw.Monster.Beast
     /// </summary>
     public class BeastController : MonoBehaviour
     {
-        static readonly float[] StageHeight = { 1.6f, 2.3f, 3.0f };
+        // Heights of the art thread's models (manifest.json); placeholders and wrong-unit imports are scaled to these.
+        static readonly float[] StageHeight = { 2.35f, 2.9f, 3.55f };
 
         public static BeastController Instance { get; private set; }
         public BeastIntent LastIntent { get; private set; }
@@ -189,8 +190,10 @@ namespace Fnmw.Monster.Beast
             _model.transform.localRotation = Quaternion.identity;
             var label = _model.transform.Find("label");
             if (label) label.gameObject.SetActive(false); // the beast is not a signpost
+            bool art = ModelLoader.HasArt(name);
             NormaliseHeight(_model, StageHeight[Mathf.Clamp(stage - 1, 0, 2)]);
-            AddEyes(_model);
+            if (!art) AddEyes(_model);   // real models have their own faces
+            else PlaceGlow(_model);
             transform.rotation = rot;
             _anim.Bind(_model, name);
             if (_modelStage != 0) { _flash = 1f; _spawnPop = 0f; }
@@ -229,6 +232,12 @@ namespace Fnmw.Monster.Beast
                 if (mat) eye.GetComponent<Renderer>().sharedMaterial = mat;
             }
             _glow.transform.position = transform.TransformPoint(local + new Vector3(0, 0, 0.4f));
+        }
+
+        void PlaceGlow(GameObject model)
+        {
+            var b = Bounds(model);
+            _glow.transform.position = new Vector3(b.center.x, b.max.y - b.size.y * 0.12f, b.center.z) + transform.forward * (b.extents.z + 0.4f);
         }
 
         static Bounds Bounds(GameObject go)
