@@ -15,13 +15,7 @@ namespace Fnmw.Lang.Languages
         public override string Endonym => "Nihongo";
         public override string Summary => "Verb last; particles after nouns mark their roles (ga, o); words built from meaningful kanji.";
         public override string QuizExplanation => "Japanese: the verb comes last, particles like を (o) and が (ga) mark each noun's role, and kanji build words from meanings.";
-        public override string[] Myths => new[]
-        {
-            "The verb comes first, before the thing it acts on.",
-            "Role words go before the noun, like English prepositions.",
-            "Nouns add -s when there is more than one.",
-            "Only word order shows who does what; nouns carry no role markers.",
-        };
+        public override string[] QuizDistractors => new[] { "Korean", "Mandarin Chinese", "Vietnamese", "Thai" };
 
         sealed class Noun { public string Key, Kanji, Romaji, En; }
         sealed class Verb { public string Key, Kanji, Romaji, En; public string[] Objects; }
@@ -90,9 +84,6 @@ namespace Fnmw.Lang.Languages
             // kana endings that turn a kanji into a verb: 出る deru, 出て dete, 入って haitte
             foreach (var k in new[] { "ru", "te", "tte" }) Add("k." + k, MorphKind.Glyph, k, "(kana ending)");
 
-            Rule(LangConcepts.VerbFinal, "The verb comes last, after the thing it acts on.");
-            Rule(LangConcepts.Particles, "A particle after each noun marks its role: ga for the doer, o for the thing acted on.");
-            Rule(LangConcepts.CompoundMeaning, "Words are built by joining kanji that each carry a meaning, describing part first.");
 
             Kind("verb-last", 0, VerbLast);
             Kind("kanji-compound", 1, Compound);

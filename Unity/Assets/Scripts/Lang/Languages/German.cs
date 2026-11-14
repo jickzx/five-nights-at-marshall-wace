@@ -15,13 +15,7 @@ namespace Fnmw.Lang.Languages
         public override string Endonym => "Deutsch";
         public override string Summary => "Nouns join into one-word compounds, last part names the thing; verb goes to the end of weil 'because' clauses; nouns are capitalised.";
         public override string QuizExplanation => "German: nouns join into compounds whose last part names the thing, and the verb goes to the end of clauses like weil 'because'.";
-        public override string[] Myths => new[]
-        {
-            "In a compound, the first part names what the thing is.",
-            "The verb always stays second, even after weil.",
-            "Compound parts are written as separate words, as in English.",
-            "Only the first word of a sentence takes a capital letter.",
-        };
+        public override string[] QuizDistractors => new[] { "Dutch", "Swedish", "Danish", "Norwegian" };
 
         const string CompoundFeature = "German glues words into one long noun, and the last part names what the thing is: Handtasche, 'hand bag', is a kind of bag, and Hausschuh, 'house shoe', is a kind of shoe (a slipper).";
 
@@ -104,8 +98,6 @@ namespace Fnmw.Lang.Languages
             Add("because", MorphKind.Particle, "weil", "because", LangConcepts.VerbFinal);
             Add("is", MorphKind.Root, "ist", "is", LangConcepts.VerbFinal);
 
-            Rule(LangConcepts.CompoundMeaning, "Nouns join into one word, and the last part names what the thing is.");
-            Rule(LangConcepts.VerbFinal, "After weil 'because', the verb moves to the very end of the clause.");
 
             Kind("compound", 0, (r, t) => CompoundKind(r, TwoPart));
             Kind("verb-final-clause", 2, VerbFinalKind);

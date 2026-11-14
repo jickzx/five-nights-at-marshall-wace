@@ -23,6 +23,9 @@ namespace Fnmw.Core
         void Observe(AnswerEvent answer);
         float Difficulty { get; }       // 0..1, fed to ILanguageEngine.GetPuzzle
         float BeastAggression { get; }  // 0..1, fed to IBeastBrain
+        /// <summary>Grammar concept the director wants probed next (the player's weakest), or null.
+        /// Lang may bias GetPuzzle toward it. Optional: defaults to null.</summary>
+        string FocusConcept => null;
     }
 
     public struct BeastPerception
@@ -35,6 +38,8 @@ namespace Fnmw.Core
         public float Elapsed;
         public float Aggression;
         public int Mistakes;
+        public Vector3 PlayerForward; // camera forward, flattened by the brain
+        public bool Watched;          // beast is on screen, in fog range and not occluded
     }
 
     public struct BeastIntent

@@ -84,8 +84,8 @@ namespace Fnmw.Core.Fakes
                     sb.AppendLine("Number keys to add a tile, Backspace to clear, Enter to submit.");
                     if (_feedback != null) sb.AppendLine($"\n{_feedback}");
                     GUI.Label(new Rect(panel.x + 20, panel.y + 20, panel.width - 40, panel.height - 40), sb.ToString(), _body);
-                    if (digit >= 0 && digit < _puzzle.Tiles.Count) _picked.Add(_puzzle.Tiles[digit].Id);
-                    if (back) _picked.Clear();
+                    if (digit >= 0 && digit < _puzzle.Tiles.Count) { _picked.Add(_puzzle.Tiles[digit].Id); GameEvents.RaiseTilePicked(_puzzle.Tiles[digit]); }
+                    if (back) { _picked.Clear(); GameEvents.RaiseTilesCleared(); }
                     if (enter && _picked.Count > 0) _onSubmit?.Invoke(_picked.ToArray());
                     break;
                 }

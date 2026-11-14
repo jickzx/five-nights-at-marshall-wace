@@ -14,13 +14,7 @@ namespace Fnmw.Lang.Languages
         public override string Code => "zh";
         public override string Endonym => "Zhōngwén";
         public override string Summary => "A counted or pointed-at thing normally needs a measure word between the number and the noun; nouns for things never change for plural.";
-        public override string[] Myths => new[]
-        {
-            "Numbers go straight onto the noun, as in English.",
-            "The noun takes a plural ending after a number.",
-            "The measure word goes after the noun.",
-            "The measure word depends on the number, not on the kind of thing.",
-        };
+        public override string[] QuizDistractors => new[] { "Cantonese", "Japanese", "Vietnamese", "Korean" };
         public override string QuizExplanation => "Mandarin Chinese: numbers and 'this' normally need a measure word that fits the noun's kind, and nouns for animals and things never take a plural ending.";
 
         sealed class Cl { public string Key, Han, Pinyin, Kind; }
@@ -60,7 +54,6 @@ namespace Fnmw.Lang.Languages
             foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Pinyin, n.En);
             foreach (var d in new[] { Two, Three, This }) Add("d." + d.Key, MorphKind.Root, d.Pinyin, d.En);
 
-            Rule(LangConcepts.MeasureWord, "A measure word goes between the number (or 'this') and the noun, chosen by the kind of thing.");
 
             Kind("measure-word", 0, (r, t) => Counting(r, false));
             Kind("measure-word-this", 2, (r, t) => Counting(r, true));

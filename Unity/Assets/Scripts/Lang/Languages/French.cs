@@ -14,13 +14,7 @@ namespace Fnmw.Lang.Languages
         public override string Code => "fr";
         public override string Endonym => "Français";
         public override string Summary => "Most adjectives follow the noun; noun gender shows on 'the' and the adjective; written plural -s on noun and adjective.";
-        public override string[] Myths => new[]
-        {
-            "Adjectives always come before the noun, as in English.",
-            "Only the noun changes for the plural; the adjective stays the same.",
-            "Every noun uses the same word for 'the', whatever its gender.",
-            "The adjective matches the speaker's gender, not the noun's.",
-        };
+        public override string[] QuizDistractors => new[] { "Italian", "Portuguese", "Romanian", "Catalan" };
         public override string QuizExplanation => "French: adjectives follow the noun, articles and adjectives agree in gender and number, and many final letters are silent.";
 
         sealed class Noun { public string Key, Fr, En; public bool Fem; }
@@ -58,9 +52,6 @@ namespace Fnmw.Lang.Languages
             Add("la", MorphKind.Particle, "la", "the.FEM", LangConcepts.GenderAgreement);
             Add("les", MorphKind.Particle, "les", "the.PL", LangConcepts.PluralAgreement);
 
-            Rule(LangConcepts.AdjectiveOrder, "Most adjectives, like colours, come after the noun.");
-            Rule(LangConcepts.GenderAgreement, "'The' and the adjective match the noun's gender: le for masculine, la and an added -e for feminine.");
-            Rule(LangConcepts.PluralAgreement, "In writing, the plural -s goes on the noun and on the adjective, and 'the' becomes les.");
 
             Kind("adjective-after", 0, AdjOrder);
             Kind("gender", 1, GenderKind);

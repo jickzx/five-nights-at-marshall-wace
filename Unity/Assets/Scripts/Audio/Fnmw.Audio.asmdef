@@ -1,6 +1,6 @@
 {
     "name": "Fnmw.Audio",
     "rootNamespace": "Fnmw.Audio",
-    "references": [ "Fnmw.Core" ],
+    "references": [ "Fnmw.Core", "Unity.InputSystem" ],
     "autoReferenced": false
 }

@@ -223,8 +223,8 @@ namespace Fnmw.Tests.Lang
                 Assert.IsFalse(string.IsNullOrWhiteSpace(q.Explanation), ctx);
                 var correct = Enumerable.Range(0, 4).Where(k => eng.CheckQuiz(w, p.Id, k)).ToList();
                 Assert.AreEqual(1, correct.Count, ctx);
-                Assert.AreEqual(b.Language.RuleFor(b.Draft.Concept), q.Options[correct[0]], ctx);
-                CollectionAssert.DoesNotContain(b.Language.Myths, b.Language.RuleFor(b.Draft.Concept), ctx);
+                Assert.AreEqual(r.LanguageName, q.Options[correct[0]], ctx);
+                StringAssert.StartsWith("Which language", q.Prompt, "the UI shows only the prompt's first line " + ctx);
                 Assert.IsFalse(eng.CheckQuiz(w, p.Id, -1));
                 Assert.IsFalse(eng.CheckQuiz(w, p.Id, 4));
             }

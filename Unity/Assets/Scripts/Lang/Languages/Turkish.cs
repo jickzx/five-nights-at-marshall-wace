@@ -15,13 +15,7 @@ namespace Fnmw.Lang.Languages
         public override string Endonym => "Türkçe";
         public override string Summary => "Ideas snap on as suffixes in a fixed order (plural, my, in/from); suffix vowels match the word they join (vowel harmony).";
         public override string QuizExplanation => "Turkish: words grow by chains of suffixes in a fixed order, and the suffix vowels harmonise with the word.";
-        public override string[] Myths => new[]
-        {
-            "'In' and 'from' are separate words before the noun, as in English.",
-            "Suffix vowels never change.",
-            "'My' is a separate word before the noun.",
-            "Suffixes can go on in any order.",
-        };
+        public override string[] QuizDistractors => new[] { "Hungarian", "Finnish", "Mongolian", "Korean" };
 
         sealed class Noun { public string Key, Tr, En, EnPl, Prep; public bool Back; }
         static readonly Noun[] Nouns =
@@ -56,8 +50,6 @@ namespace Fnmw.Lang.Languages
             foreach (var (slot, gloss, forms) in Suffixes)
                 foreach (var f in forms) Add(slot + "." + f, MorphKind.Affix, f, gloss, LangConcepts.SuffixOrder);
 
-            Rule(LangConcepts.SuffixOrder, "Suffixes join the word in a fixed order: plural, then 'my', then 'in' or 'from'.");
-            Rule(LangConcepts.VowelHarmony, "Each suffix's vowel changes to match the word: -ler after e, i, ö, ü and -lar after a, ı, o, u.");
 
             Kind("suffix-order", 0, (r, t) => Chain(r, false, false));
             Kind("long-chain", 1, (r, t) => Chain(r, true, false));

@@ -105,7 +105,8 @@ namespace Fnmw.Lang
             var b = Built(world, puzzleId);
             return new QuizQuestion
             {
-                Prompt = $"{b.Draft.RealText} = “{b.Draft.Translation.TrimEnd('.', '!', '?')}”\nWhich {b.Language.Name} rule makes that right?",
+                // the UI shows only the first line, so the question goes first
+                Prompt = $"Which language is this?\n{b.Draft.RealText} = “{b.Draft.Translation.TrimEnd('.', '!', '?')}”",
                 Options = (string[])b.QuizOptions.Clone(),
                 Explanation = b.Language.QuizExplanation,
             };
@@ -165,15 +166,13 @@ namespace Fnmw.Lang
             return built;
         }
 
-        /// <summary>The rule the puzzle tested, against three false rules (myths) about the same language.</summary>
         static void MakeQuiz(BuiltPuzzle b, Rng rng)
         {
-            string rule = b.Language.RuleFor(b.Draft.Concept);
-            var options = rng.Sample(b.Language.Myths, 3);
-            options.Add(rule);
+            var options = rng.Sample(b.Language.QuizDistractors, 3);
+            options.Add(b.Language.Name);
             rng.Shuffle(options);
             b.QuizOptions = options.ToArray();
-            b.QuizCorrect = options.IndexOf(rule);
+            b.QuizCorrect = options.IndexOf(b.Language.Name);
         }
 
         static void SetCurrent(LanguageWorld world, WorldData data, int index)

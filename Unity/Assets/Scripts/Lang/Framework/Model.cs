@@ -115,13 +115,12 @@ namespace Fnmw.Lang
         public abstract string Code { get; }
         public abstract string Endonym { get; }            // the language's own name, romanised: "Nihongo"
         public abstract string Summary { get; }            // one line for the judges' overlay
-        public abstract string[] Myths { get; }            // false rules about this language: the quiz's wrong options (at least 3)
+        public abstract string[] QuizDistractors { get; }  // plausible wrong answers (other real languages)
         public abstract string QuizExplanation { get; }
 
         readonly List<MorphSpec> _inventory = new List<MorphSpec>();
         readonly Dictionary<string, MorphSpec> _byKey = new Dictionary<string, MorphSpec>();
         readonly List<PuzzleKind> _kinds = new List<PuzzleKind>();
-        readonly Dictionary<string, string> _rules = new Dictionary<string, string>();
 
         public IReadOnlyList<MorphSpec> Inventory => _inventory;
         public IReadOnlyList<PuzzleKind> Kinds => _kinds;
@@ -137,11 +136,6 @@ namespace Fnmw.Lang
         }
 
         protected void Kind(string name, int tier, Func<Rng, int, Draft> build) => _kinds.Add(new PuzzleKind(name, tier, build));
-
-        /// <summary>The true rule shown by puzzles that test this concept, in plain English: the quiz's right option.</summary>
-        protected void Rule(string concept, string text) => _rules.Add(concept, text);
-        public string RuleFor(string concept) =>
-            concept != null && _rules.TryGetValue(concept, out var r) ? r : throw new KeyNotFoundException($"{Name}: no rule for '{concept}'");
 
         /// <summary>The real written form of a word: its morph forms joined. Languages with spelling rules override it.</summary>
         public virtual string Surface(Word w) => string.Concat(w.M.Select(k => Spec(k).Form));

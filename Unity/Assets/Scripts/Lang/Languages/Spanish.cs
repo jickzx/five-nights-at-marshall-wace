@@ -14,13 +14,7 @@ namespace Fnmw.Lang.Languages
         public override string Code => "es";
         public override string Endonym => "Español";
         public override string Summary => "Verb endings carry the subject; questions open with ¿ and close with ?; nouns and adjectives agree in gender (-o/-a).";
-        public override string[] Myths => new[]
-        {
-            "A separate word for 'I' or 'you' must always come before the verb.",
-            "Questions are marked only at the end, as in English.",
-            "Adjectives come before the noun, as in English.",
-            "The verb ending stays the same whoever is acting.",
-        };
+        public override string[] QuizDistractors => new[] { "Portuguese", "Italian", "Catalan", "Romanian" };
         public override string QuizExplanation => "Spanish: the verb ending says who acts, questions open with ¿ and close with ?, and nouns and adjectives agree in -o/-a gender.";
 
         // regular -er verbs: stem + o / es / e / emos
@@ -69,9 +63,6 @@ namespace Fnmw.Lang.Languages
             Add("el", MorphKind.Particle, "el", "the.MASC", LangConcepts.GenderAgreement);
             Add("la", MorphKind.Particle, "la", "the.FEM", LangConcepts.GenderAgreement);
 
-            Rule(LangConcepts.VerbEnding, "The verb ending shows who is acting, so 'I', 'you' or 'we' can be left out.");
-            Rule(LangConcepts.Punctuation, "A question opens with ¿ and closes with ?; an exclamation opens with ¡ and closes with !.");
-            Rule(LangConcepts.GenderAgreement, "'The' and the adjective match the noun's gender: el and -o for masculine, la and -a for feminine.");
 
             Kind("verb-ending", 0, VerbEndingKind);
             Kind("punctuation", 1, PunctuationKind);

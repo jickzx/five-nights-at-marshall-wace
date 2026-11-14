@@ -15,13 +15,7 @@ namespace Fnmw.Lang.Languages
         public override string Endonym => "al-ʿArabiyya";
         public override string Summary => "Meaning lives in 3-consonant roots; vowel patterns around them make 'he did', 'one who does', 'place of'.";
         public override string QuizExplanation => "Arabic: words are built from three-consonant roots set into vowel patterns, like k-t-b in kataba 'he wrote', kātib 'writer' and maktab 'office'.";
-        public override string[] Myths => new[]
-        {
-            "kātib and maktab are unrelated words that only look alike.",
-            "The vowels carry the meaning and the consonants carry the role.",
-            "The role is shown by a separate word before the root, as in English.",
-            "The role is shown only by word order, never inside the word.",
-        };
+        public override string[] QuizDistractors => new[] { "Hebrew", "Persian", "Amharic", "Urdu" };
 
         // the real patterns, C = a root consonant
         static readonly (string key, string shape, string gloss)[] Patterns =
@@ -65,7 +59,6 @@ namespace Fnmw.Lang.Languages
             foreach (var r in Roots) Add("r." + r, MorphKind.Root3, RootGloss[r].Split(' ')[0], RootGloss[r], LangConcepts.ConsonantRoot);
             foreach (var (key, shape, gloss) in Patterns) Add("p." + key, MorphKind.Pattern, shape, gloss, LangConcepts.VowelPattern);
 
-            Rule(LangConcepts.ConsonantRoot, "Three root consonants carry the meaning, and the vowel pattern around them gives the role.");
 
             Kind("root-pattern", 0, (r, t) => RootPattern(r, false));
             Kind("root-pattern-lean", 2, (r, t) => RootPattern(r, true));
@@ -78,8 +71,8 @@ namespace Fnmw.Lang.Languages
 
         static Entry Find(string root, string pattern) => Words.FirstOrDefault(e => e.Root == root && e.Pattern == pattern);
         static Word Wd(string root, string pattern) => W("r." + root, "p." + pattern);
-        // shortcut: the Arabic script (Ar) is left out because Unity's text can't join Arabic letters or run right to left; add it once the UI has a shaping plugin
-        static string Real(Entry e) => e.Tr;
+        // reading first, script in brackets: Lore.SplitReal swaps them, and UI/Rtl.cs joins the letters
+        static string Real(Entry e) => $"{e.Tr} ({e.Ar})";
 
         /// <summary>
         /// Full: examples R1P1, R1P2, R2P1, target R2P2. Lean (harder): examples R1P2, R2P3, target R1P3.

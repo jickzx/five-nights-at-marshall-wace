@@ -1,6 +1,6 @@
 {
     "name": "Fnmw.World",
     "rootNamespace": "Fnmw.World",
-    "references": [ "Fnmw.Core" ],
+    "references": [ "Fnmw.Core", "UnityEngine.UI" ],
     "autoReferenced": false
 }
