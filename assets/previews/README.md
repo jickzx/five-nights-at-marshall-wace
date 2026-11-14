@@ -28,7 +28,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | rock_a | [rock_a](rock_a_views.png) | — |
 | rock_b | [rock_b](rock_b_views.png) | — |
 | ruin_pillar | [ruin_pillar](ruin_pillar_views.png) | — |
-| ruin_arch | Blockout review pending | — |
+| ruin_arch | [ruin_arch](ruin_arch_views.png) | — |
 | door_sealed | Blockout review pending | — |
 | mural_slab | Blockout review pending | — |
 | wreck_debris | Blockout review pending | — |

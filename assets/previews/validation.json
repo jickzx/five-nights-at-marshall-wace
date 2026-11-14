@@ -118,11 +118,11 @@
     },
     "ruin_arch": {
       "status": "passed",
-      "triangles": 544,
+      "triangles": 552,
       "takes": [],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 4.4e-06,
+      "rest_bounds_max_error_m": 1e-07,
       "animated_bounds_max_error_m": 0,
       "sampled_poses": 0
     },

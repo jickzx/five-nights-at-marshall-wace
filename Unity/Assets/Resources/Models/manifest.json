@@ -757,19 +757,20 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/ruin_arch.fbx",
         "blend": "assets/blender/ruin_arch.blend",
-        "preview": "assets/previews/ruin_arch.png"
+        "preview": "assets/previews/ruin_arch.png",
+        "views": "assets/previews/ruin_arch_views.png"
       },
-      "triangles": 544,
+      "triangles": 552,
       "bounding_box": {
         "min": [
-          -1.795,
+          -1.87,
           0.0,
-          -0.48
+          -0.75
         ],
         "max": [
-          1.795,
-          3.3435,
-          0.48
+          2.02,
+          3.53,
+          0.52
         ]
       },
       "clips": [],
@@ -777,7 +778,7 @@
       "mesh_names": [
         "ruin_arch"
       ],
-      "notes": "Clear passage width 2.3 m. Static gateway, suitable for framing a mural or sealed door."
+      "notes": "2.30 m clear opening below 2.12 m; crown rises to 3.53 m. Forked alien seal faces exported -Z. Keep the small fallen chip on the right outside the walking path."
     },
     "door_sealed": {
       "resource_path": "Models/door_sealed",
