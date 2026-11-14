@@ -83,8 +83,22 @@ namespace Fnmw.Game
             GameObject figure = SpawnFigure(player, playerT, fwd, silhouette);
             if (beast) foreach (var rr in beast.GetComponentsInChildren<Renderer>()) if (!(rr is ParticleSystemRenderer)) rr.sharedMaterial = silhouette;
             var side = Vector3.Cross(Vector3.up, fwd);
-            // Orbit toward the sea (-Z), away from the cliffs and their boulders.
-            float orbitSign = Vector3.Dot(Quaternion.AngleAxis(30f, Vector3.up) * -fwd, Vector3.back) > Vector3.Dot(Quaternion.AngleAxis(-30f, Vector3.up) * -fwd, Vector3.back) ? 1f : -1f;
+            // Orbit to whichever side has a clear line to the figure (props have colliders), preferring the sea side.
+            Vector3 head = feet + Vector3.up * 1.4f;
+            float Clearance(float sign)
+            {
+                float score = 0;
+                foreach (var a in new[] { 12f, 23f, 34f })
+                {
+                    Vector3 dir = Quaternion.AngleAxis(a * sign, Vector3.up) * -fwd;
+                    Vector3 ray = (dir * 5.4f + Vector3.up * -0.6f);
+                    score += Physics.Raycast(head, ray.normalized, out var hit, ray.magnitude) ? hit.distance : ray.magnitude;
+                }
+                return score;
+            }
+            float seaSide = Vector3.Dot(Quaternion.AngleAxis(30f, Vector3.up) * -fwd, Vector3.back) > 0 ? 1f : -1f;
+            float orbitSign = Clearance(-seaSide) > Clearance(seaSide) + 1.5f ? -seaSide : seaSide;
+            foreach (var c in playerT.GetComponentsInChildren<Collider>()) c.enabled = false;
             Vector3 beastFrom = beast ? beast.position : Vector3.zero;
             Vector3 beastTo = feet + fwd * 8.5f; beastTo.y = beastFrom.y;
 
@@ -99,6 +113,10 @@ namespace Fnmw.Game
                 Vector3 back = Quaternion.AngleAxis(ang, Vector3.up) * -fwd;
                 float dist = Mathf.Lerp(3.6f, 5.4f, Ease.InOut(k));
                 Vector3 eye = feet + back * dist + Vector3.up * Mathf.Lerp(0.3f, 0.8f, Ease.InOut(k));
+                // Never put a pillar between us and the figure: pull in to just short of whatever is in the way.
+                var toEye = eye - head;
+                if (Physics.Raycast(head, toEye.normalized, out var block, toEye.magnitude))
+                    eye = head + toEye.normalized * Mathf.Max(1.2f, block.distance - 0.35f);
                 Vector3 look = feet + Vector3.up * Mathf.Lerp(1.5f, 2.1f, k) + fwd * 1.5f;
                 cam.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
 

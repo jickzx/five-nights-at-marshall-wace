@@ -13,9 +13,9 @@ namespace Fnmw.World
     {
         public static readonly Color StormFog = new Color(0.085f, 0.012f, 0.014f);
         const float StormDensity = 0.052f;
-        static readonly Color StormAmbient = new Color(0.16f, 0.07f, 0.07f);
+        static readonly Color StormAmbient = new Color(0.22f, 0.10f, 0.095f);
         static readonly Color MoonColor = new Color(0.78f, 0.66f, 0.6f);
-        const float MoonIntensity = 0.32f;
+        const float MoonIntensity = 0.45f;
 
         static readonly Color DawnTop = new Color(0.28f, 0.36f, 0.62f);
         static readonly Color DawnHorizon = new Color(1.0f, 0.70f, 0.50f);
@@ -49,7 +49,7 @@ namespace Fnmw.World
             dome.name = "SkyDome";
             Destroy(dome.GetComponent<Collider>());
             dome.transform.SetParent(go.transform, false);
-            dome.transform.localScale = Vector3.one * 1800f;
+            dome.transform.localScale = Vector3.one * 1800f; // drawn at the far plane by its shader, so its size only needs to clear the near plane
             a._dome = new Material(Ps1Look.Load("SkyDome")) { name = "sky" };
             var dr = dome.GetComponent<MeshRenderer>();
             dr.sharedMaterial = a._dome;

@@ -22,7 +22,7 @@ namespace Fnmw.World
             var far = new GameObject("FarSea");
             far.transform.SetParent(go.transform, false);
             far.transform.localPosition = new Vector3(0, -0.7f, 0);
-            far.AddComponent<MeshFilter>().sharedMesh = Grid(5000f, 5000f, 50, 50);
+            far.AddComponent<MeshFilter>().sharedMesh = Grid(14000f, 14000f, 70, 70);
             var fr = far.AddComponent<MeshRenderer>();
             fr.sharedMaterial = mr.sharedMaterial;
             fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

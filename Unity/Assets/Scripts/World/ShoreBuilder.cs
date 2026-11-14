@@ -50,7 +50,7 @@ namespace Fnmw.World
                     foreach (var r in tile.GetComponentsInChildren<Renderer>())
                     {
                         var mats = r.materials;
-                        foreach (var m in mats) m.SetColor("_BaseColor", Color.Lerp(m.GetColor("_BaseColor"), new Color(0.2f, 0.11f, 0.08f), 0.62f));
+                        foreach (var m in mats) m.SetColor("_BaseColor", Color.Lerp(m.GetColor("_BaseColor"), new Color(0.24f, 0.12f, 0.09f), 0.3f));
                         r.materials = mats;
                     }
                 }
@@ -58,12 +58,12 @@ namespace Fnmw.World
                 {
                     // Placeholder art is a flat plane, which the rising sea would drown at once:
                     // draw the same profile the art uses instead.
-                    var go = HeightfieldObject("shore_tile", ground.transform, cx - 10, cx + 10, -10, 10, 12, 12, groundMat, true, false);
+                    var go = HeightfieldObject("shore_tile", ground.transform, cx - 10, cx + 10, -10, 10, 20, 20, groundMat, true, false);
                     go.name = "terrain_shore (procedural)";
                 }
             }
             // One continuous collider for the walkable strip, exact for both art and placeholder.
-            HeightfieldObject("shore_collider", ground.transform, x0 - 10, x0 + tiles * WorldLayout.TileSize + 10, -10, 10, tiles * 12 + 12, 12, null, false, true);
+            HeightfieldObject("shore_collider", ground.transform, x0 - 10, x0 + tiles * WorldLayout.TileSize + 10, -10, 10, tiles * 20 + 20, 20, null, false, true);
 
             var cliffMat = Ps1Look.Lit(Rock);
             HeightfieldObject("cliffs", ground.transform, -260, 260, 10, 60, 104, 25, cliffMat, true, true);
@@ -154,6 +154,23 @@ namespace Fnmw.World
                 case "ship": c = new Color(0.55f, 0.5f, 0.46f); break;
                 default: return;
             }
+            if (model == "ruin_arch")
+            {
+                // A solid cube reads as a wall you walk through: rebuild it as two posts and a lintel.
+                foreach (Transform child in go.transform) Object.Destroy(child.gameObject);
+                void Block(Vector3 pos, Vector3 size)
+                {
+                    var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.Destroy(b.GetComponent<Collider>());
+                    b.transform.SetParent(go.transform, false);
+                    b.transform.localPosition = pos; b.transform.localScale = size;
+                    b.GetComponent<MeshRenderer>().sharedMaterial = Ps1Look.Lit(c);
+                }
+                Block(new Vector3(-1.5f, 1.5f, 0), new Vector3(0.7f, 3f, 0.7f));
+                Block(new Vector3(1.5f, 1.5f, 0), new Vector3(0.7f, 3f, 0.7f));
+                Block(new Vector3(0, 3.25f, 0), new Vector3(3.9f, 0.6f, 0.8f));
+                return;
+            }
             foreach (var r in go.GetComponentsInChildren<Renderer>())
             {
                 if (r.GetComponent<TextMesh>()) { r.gameObject.SetActive(false); continue; } // no floating labels in the shipped look
@@ -162,25 +179,29 @@ namespace Fnmw.World
             }
         }
 
-        public static void AddBoxCollider(GameObject go)
+        /// <summary>A box around the prop's meshes, measured in its own space so rotation and scale don't inflate it.</summary>
+        public static void AddBoxCollider(GameObject go, float shrink = 0.85f)
         {
-            var rs = go.GetComponentsInChildren<Renderer>();
-            if (rs.Length == 0) return;
             var inv = go.transform.worldToLocalMatrix;
             Bounds lb = default; bool first = true;
-            foreach (var r in rs)
+            void Add(Transform t, Bounds mb)
             {
-                if (r.GetComponent<TextMesh>()) continue;
-                var wb = r.bounds;
+                var m = inv * t.localToWorldMatrix;
                 for (int i = 0; i < 8; i++)
                 {
-                    var corner = wb.center + Vector3.Scale(wb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
-                    var lp = inv.MultiplyPoint3x4(corner);
+                    var corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    var lp = m.MultiplyPoint3x4(corner);
                     if (first) { lb = new Bounds(lp, Vector3.zero); first = false; } else lb.Encapsulate(lp);
                 }
             }
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+                if (mf.sharedMesh && !mf.GetComponent<TextMesh>()) Add(mf.transform, mf.sharedMesh.bounds);
+            foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+                if (smr.sharedMesh) Add(smr.transform, smr.sharedMesh.bounds);
+            if (first) return;
             var bc = go.AddComponent<BoxCollider>();
-            bc.center = lb.center; bc.size = lb.size * 0.92f;
+            bc.center = lb.center;
+            bc.size = new Vector3(lb.size.x * shrink, lb.size.y, lb.size.z * shrink);
         }
 
         static void BuildCrashSite(Transform root, System.Random rng)

@@ -14,18 +14,18 @@ namespace Fnmw.Game
         static FrameRecorder _active;
         string _dir;
         float _interval, _next;
-        int _n, _width;
+        int _n;
 
         public static int Frames => _active ? _active._n : 0;
 
-        public static void Begin(string dir, float fps = 12f, int width = 640)
+        public static void Begin(string dir, float fps = 12f)
         {
             End();
             Directory.CreateDirectory(dir);
             var go = new GameObject("FrameRecorder");
             DontDestroyOnLoad(go);
             _active = go.AddComponent<FrameRecorder>();
-            _active._dir = dir; _active._interval = 1f / Mathf.Max(1f, fps); _active._width = width;
+            _active._dir = dir; _active._interval = 1f / Mathf.Max(1f, fps);
         }
 
         public static int End()
@@ -44,16 +44,10 @@ namespace Fnmw.Game
                 yield return wait;
                 if (Time.unscaledTime < _next) continue;
                 _next = Time.unscaledTime + _interval;
+                // Encode the captured texture as-is: blitting it through a render texture re-applies sRGB and washes it out.
                 var full = ScreenCapture.CaptureScreenshotAsTexture();
-                int h = Mathf.RoundToInt(_width * full.height / (float)full.width);
-                var rt = RenderTexture.GetTemporary(_width, h);
-                Graphics.Blit(full, rt);
-                var prev = RenderTexture.active; RenderTexture.active = rt;
-                var small = new Texture2D(_width, h, TextureFormat.RGB24, false);
-                small.ReadPixels(new Rect(0, 0, _width, h), 0, 0); small.Apply();
-                RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
-                File.WriteAllBytes(Path.Combine(_dir, $"f_{_n++:00000}.jpg"), small.EncodeToJPG(88));
-                Destroy(full); Destroy(small);
+                File.WriteAllBytes(Path.Combine(_dir, $"f_{_n++:00000}.jpg"), full.EncodeToJPG(88));
+                Destroy(full);
             }
         }
     }

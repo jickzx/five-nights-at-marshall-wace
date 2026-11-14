@@ -38,6 +38,8 @@ namespace Fnmw.Game
             var player = Services.Player ? Services.Player.GetComponent<PlayerController>() : null;
             if (player) { player.SetFlashlight(false); player.gameObject.SetActive(false); } // aboard
             cam.SetParent(null, true);
+            var camera = cam.GetComponent<Camera>();
+            if (camera) camera.farClipPlane = 7000f; // the whole red sea, out to where the haze swallows it
 
             GameObject model = null;
             foreach (Transform c in _pivot) if (c.name.StartsWith("ship")) { model = c.gameObject; break; }

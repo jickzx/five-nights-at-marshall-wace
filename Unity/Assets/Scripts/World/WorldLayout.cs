@@ -46,15 +46,22 @@ namespace Fnmw.World
             }
             else
             {
-                h = (yb <= 4f ? 0.10f * (4f - yb) : -0.06f * (yb - 4f)) + 0.36f;
-                if (yb < 3f)
-                {
-                    float i = Mathf.Repeat(x + 10f, TileSize) / TileSize * 12f;
-                    float j = (yb + 10f) / TileSize * 12f;
-                    h += 0.11f * Mathf.Sin(i * Mathf.PI * 2f / 12f) * Mathf.Sin(j * Mathf.PI / 12f);
-                }
+                h = ArtElevation(Mathf.Repeat(x + 10f, TileSize) - 10f, yb) + 0.36f;
             }
             return h;
+        }
+
+        /// <summary>terrain_shore.py elevation(x, y) in tile-local Blender coordinates (y = -Unity z).</summary>
+        public static float ArtElevation(float x, float y)
+        {
+            if (y >= 4f) return -0.06f * (y - 4f);
+            float fade = Mathf.Clamp01((3.2f - y) / 3.5f);
+            float seam = Mathf.Pow(Mathf.Sin((x + 10f) * Mathf.PI / 20f), 2f);
+            float ridge = 0.19f * Mathf.Sin(x * 0.58f + y * 0.12f) * Mathf.Sin((y + 10f) * Mathf.PI / 14f);
+            float channelCenter = 1.2f + 0.17f * (y - 3f);
+            float channel = -0.16f * Mathf.Exp(-Mathf.Pow((x - channelCenter) / 1.6f, 2f));
+            float terrace = 0.20f * Mathf.Clamp01((-y - 3.2f) / 2f) * Mathf.Sin((y + 10f) * Mathf.PI / 14f);
+            return 0.10f * (4f - y) + (ridge + channel + terrace) * fade * seam;
         }
 
         public static Vector3 OnGround(Vector3 p) => new Vector3(p.x, Height(p.x, p.z), p.z);

@@ -68,6 +68,9 @@ Shader "Fnmw/BloodSea"
                 // Grazing facets pick up the red murk; facing ones stay black and wet.
                 half fres = pow(1 - saturate(dot(n, v)), 4);
                 half3 c = albedo * lit + _GlowColor.rgb * (0.5 + i.h) + _CrestColor.rgb * fres * 0.3 + ml.color * spec * half3(0.95, 0.22, 0.16);
+                // From far away (and from the air) the whole sea glows a dull arterial red.
+                float dist = length(GetCameraPositionWS() - i.positionWS);
+                c += _CrestColor.rgb * saturate((dist - 25) / 220) * 0.55;
                 c = MixFog(c, i.fog);
                 return half4(c, 1);
             }

@@ -17,12 +17,12 @@ namespace Fnmw.World
             "Universal Render Pipeline/Baked Lit", "Standard", "Hidden/InternalErrorShader",
         };
 
-        public static Shader LitShader => _lit ? _lit : _lit = Load("PS1Lit");
+        public static Shader LitShader => _lit ? _lit : _lit = Load("Ps1Lit");
 
         public static Shader Load(string name)
         {
             var s = Resources.Load<Shader>("World/" + name);
-            if (!s) s = Shader.Find("Fnmw/" + name);
+            if (!s) s = Shader.Find("Fnmw/" + name.Replace("Ps1", "PS1"));
             return s;
         }
 
