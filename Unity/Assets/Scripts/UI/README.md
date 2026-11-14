@@ -28,15 +28,18 @@ Screens pick a `GlassMode` (Title, Visor, Console, Decode, Death, Escape) and fi
 | `DecodeScreen.cs` | reveal, quiz and payoff (one screen, so the decoded phrase stays in view) |
 | `OtherScreens.cs` | title, HUD, death, escape |
 | `Lore.cs` | reveal text helpers, the "now you know" facts, the run journal |
+| `Rtl.cs` | Arabic joining and right-to-left ordering for the legacy text renderer |
 | `Kit.cs` | palette, fonts, small uGUI factory |
 
 ## For the other threads
 
-- **Lang.** Nothing extra is required. Optional, picked up by name if you add them:
-  a string `Fact`, `NowYouKnow` or `FunFact` on `RevealInfo` replaces the built-in fact for the
-  language; a string `Language` or `LanguageName` on `RevealInfo` names the language for that puzzle.
-  `RealText` may carry a reading in brackets, `"扉を開けて (tobira o akete)"`: it is split and shown
-  on its own line. `RealLanguage.Code` picks the script's stroke style (`GlyphGen.FamilyFor`).
+- **Lang.** The reveal reads `RevealInfo.RealText`, `Translation`, `AlienName`, `LanguageName`,
+  `Feature` (falls back to `Explanation`) and `NowYouKnow` (falls back to a built-in fact for the
+  language). The quiz reads the first line of `Prompt` (the phrase is already on screen), and shows
+  `QuizQuestion.Explanation` after the answer. `RealText` may carry a reading in brackets in either
+  order, `"扉を開けて (tobira o akete)"` or `"sakana (سكن)"`: the native script becomes the big
+  phrase, the reading its own line. `LanguageWorld.Real.Code` (the console in play) picks the
+  script's stroke style (`GlyphGen.FamilyFor`).
 - **Quiz order.** The contract shows the reveal before the quiz, so the reveal blocks out the
   language's name (`DecodeScreen.RedactUntilQuiz`) and the quiz answer pays it off with the name,
   the full explanation and the fact. Set the flag to `false` to name the language straight away.
@@ -58,9 +61,11 @@ or a click continues. The mouse works everywhere (tiles, SEND, quiz options).
 `Unifont` (SIL OFL) is the fallback for every other script in the Basic Multilingual Plane.
 Each has a `.coverage.bytes` bitmap generated from its cmap, because Unity's `Font.HasCharacter`
 also says yes for glyphs it borrows from the operating system. Right-to-left and complex-shaping
-scripts (Arabic, Hebrew, Devanagari, Thai) get their glyphs but not shaping or reordering.
+text goes through `Rtl.Visual`: Arabic letters are joined and right-to-left runs reversed. Scripts
+that need complex shaping (Devanagari, Thai) get their glyphs but not shaping.
 
 ## Tests
 
 `Assets/Tests/EditMode/UI` covers glyph determinism and distinctness, font coverage, the text
-helpers, and a scripted run through every screen with the fake engine.
+helpers, Arabic shaping, a scripted run through every screen with the fake engine, and a
+five-console run with the real one (including a check that every string it emits can be drawn).

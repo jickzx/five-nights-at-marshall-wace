@@ -27,6 +27,7 @@ namespace Fnmw.UI
         float _lock;
         bool _built, _disposed;
         LangPuzzle _lastPuzzle;
+        List<Tile> _lastAnswer;
 
         public static GameUI Create()
         {
@@ -72,8 +73,10 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             Fx.Stage = stage;
-            Fx.Kick(shake: 0.6f, burst: 0.55f, tear: 1f, red: 0.4f);
             _hud.StageChanged(stage);
+            // the title and the two end screens are outside the hunt: nothing jolts them
+            if (_modal == _title || _modal == _escape || _modal == _death) return;
+            Fx.Kick(shake: 0.6f, burst: 0.55f, tear: 1f, red: 0.4f);
         }
 
         // ---- IGameUI --------------------------------------------------------------------
@@ -92,7 +95,7 @@ namespace Fnmw.UI
         public void ShowPuzzle(LangPuzzle puzzle, Action<string[]> onSubmit)
         {
             if (puzzle == null) return;
-            _lastPuzzle = puzzle;
+            _lastPuzzle = puzzle; _lastAnswer = null;
             Swap(_puzzle);
             _puzzle.Show(puzzle, onSubmit, Family());
             Fx.Kick(burst: 0.35f, tear: 0.5f);
@@ -108,7 +111,7 @@ namespace Fnmw.UI
         public void ShowReveal(RevealInfo reveal, Action onContinue)
         {
             Swap(_decode);
-            _decode.ShowReveal(reveal, _lastPuzzle, Family(), onContinue);
+            _decode.ShowReveal(reveal, _lastPuzzle, Family(), _lastAnswer, onContinue);
         }
 
         public void ShowQuiz(QuizQuestion quiz, Action<int> onChoose)
@@ -147,6 +150,8 @@ namespace Fnmw.UI
             var world = (State ?? Services.State)?.World;
             return GlyphGen.FamilyFor(world?.Real?.Code ?? world?.Real?.Name);
         }
+
+        internal void RememberAnswer(List<Tile> tiles) => _lastAnswer = tiles;
 
         /// <summary>Name of the screen in front, for tests and automated play.</summary>
         public string ScreenName => _modal == null ? "None" : _modal == _title ? "Title" : _modal == _puzzle ? "Puzzle"

@@ -82,6 +82,10 @@ namespace Fnmw.UI.Tests
             Assert.AreEqual("", reading);
             Lore.SplitReal(null, out phrase, out reading);
             Assert.AreEqual("", phrase);
+            // the engine sometimes leads with the reading: the native script is still the phrase
+            Lore.SplitReal("sakana (\u0633\u0643\u0646)", out phrase, out reading);
+            Assert.AreEqual("\u0633\u0643\u0646", phrase);
+            Assert.AreEqual("sakana", reading);
         }
 
         [Test]
@@ -91,15 +95,34 @@ namespace Fnmw.UI.Tests
             StringAssert.DoesNotContain("apanese", s);
             StringAssert.Contains("puts the verb last", s);
             Assert.AreEqual("Verb last.", Lore.Redact("Verb last.", "Japanese"));
+            StringAssert.DoesNotContain("andarin", Lore.Redact("Mandarin almost never puts a number straight onto a noun.", "Mandarin Chinese"));
         }
 
         [Test]
-        public void Fact_PrefersTheEngines_ThenTheLanguage_ThenTheWorld()
+        public void Arabic_IsJoinedAndReversedForDrawing()
+        {
+            // s-k-n: start form, middle form, end form, then reversed so a left-to-right renderer draws it right
+            Assert.AreEqual("\uFEE6\uFEDC\uFEB3", Rtl.Visual("\u0633\u0643\u0646"));
+            // kaf + alef + ta + ba: alef does not join onward, so ta starts a new joined pair
+            Assert.AreEqual("\uFE90\uFE97\uFE8E\uFEDB", Rtl.Visual("\u0643\u0627\u062A\u0628"));
+            // lam + alef fuse into one glyph
+            Assert.AreEqual("\uFEFB", Rtl.Visual("\u0644\u0627"));
+            // Latin around it stays where it is
+            Assert.AreEqual("a \uFEE6\uFEDC\uFEB3 b", Rtl.Visual("a \u0633\u0643\u0646 b"));
+            Assert.AreEqual("plain", Rtl.Visual("plain"));
+            Assert.IsTrue(FontBook.Covers(FontBook.Wide, Rtl.Visual("\u0643\u0627\u062A\u0628 \u0645\u0643\u062A\u0628 \u0644\u0627\u0639\u0628")));
+        }
+
+        [Test]
+        public void Fact_PrefersTheEngines_ThenTheLanguage()
         {
             var world = Services.Language.Generate(1);
+            Assert.AreEqual("From the engine.", Lore.FactFor(new RevealInfo { NowYouKnow = " From the engine. " }, "Japanese", world));
             StringAssert.Contains("particle", Lore.FactFor(new RevealInfo(), "Japanese", world));
-            world.Real = new RealLanguage { Name = "Klingon", Code = "tlh" };
-            StringAssert.Contains("Verb always comes last", Lore.FactFor(new RevealInfo(), "Klingon", world));
+            Assert.AreEqual("", Lore.FactFor(new RevealInfo(), "Klingon", world));
+            Assert.AreEqual("The feature.", Lore.PatternFor(new RevealInfo { Feature = "The feature.", Explanation = "longer" }));
+            Assert.AreEqual("longer", Lore.PatternFor(new RevealInfo { Explanation = "longer" }));
+            Assert.AreEqual("Which language?", Lore.FirstLine("Which language?\nx = y"));
             Assert.AreEqual("02:05", Lore.Clock(125.9f));
         }
 
@@ -318,6 +341,119 @@ namespace Fnmw.UI.Tests
             _ui.ShowAnswerFeedback(new AnswerResult { Correct = false, Feedback = "no console is open" });
             Wait(0.2f);
             Assert.AreEqual("None", _ui.ScreenName);
+        }
+    }
+
+    /// <summary>The real language engine, every language it has, pushed through every screen.</summary>
+    public class RealEngineTests
+    {
+        GameUI _ui;
+        Fnmw.Lang.LanguageEngine _engine;
+
+        [SetUp]
+        public void SetUp()
+        {
+            GameEvents.ClearAll();
+            Services.ResetToFakes();
+            _engine = new Fnmw.Lang.LanguageEngine();
+            Services.Language = _engine;
+            _ui = GameUI.Create();
+            Services.UI = _ui;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (_ui) { _ui.Dispose(); Object.DestroyImmediate(_ui.gameObject); }
+            GameEvents.ClearAll();
+            Services.ResetToFakes();
+        }
+
+        void Wait(float seconds) { for (float t = 0; t < seconds; t += 0.05f) _ui.Tick(0.05f, UiInput.None); }
+        void Press(UiInput input) { _ui.Tick(0.05f, input); }
+
+        static void AssertDrawable(string s, string what)
+        {
+            if (string.IsNullOrEmpty(s)) return;
+            string visual = Rtl.Visual(s);
+            Assert.IsTrue(FontBook.Covers(FontBook.For(visual), visual), "a shipped font must draw " + what + ": " + s);
+        }
+
+        [Test]
+        public void EveryStringTheEngineEmits_HasGlyphsInAShippedFont()
+        {
+            var languages = new HashSet<string>();
+            for (int seed = 1; seed <= 12; seed++)
+            {
+                var world = _engine.Generate(seed);
+                for (int i = 0; i < world.Puzzles.Count; i++)
+                    foreach (float difficulty in new[] { 0.1f, 0.9f })
+                    {
+                        var p = _engine.GetPuzzle(world, i, difficulty);
+                        var r = _engine.GetReveal(world, p.Id);
+                        var q = _engine.GetQuiz(world, p.Id);
+                        languages.Add(r.LanguageName);
+                        AssertDrawable(p.TargetMeaning, "meaning"); AssertDrawable(p.AlienName, "alien name");
+                        foreach (var e in p.Examples) { AssertDrawable(e.Picture, "example"); foreach (var w in e.Words) AssertDrawable(w.Alien, "word"); }
+                        foreach (var t in p.Tiles) AssertDrawable(t.Alien, "tile");
+                        AssertDrawable(r.RealText, "real text"); AssertDrawable(r.Translation, "translation");
+                        AssertDrawable(r.Feature, "feature"); AssertDrawable(r.NowYouKnow, "fact"); AssertDrawable(r.Explanation, "explanation");
+                        AssertDrawable(q.Prompt, "quiz prompt"); AssertDrawable(q.Explanation, "quiz explanation");
+                        foreach (var o in q.Options) AssertDrawable(o, "quiz option");
+                        AssertDrawable(_engine.Check(world, p.Id, new[] { p.Tiles[0].Id }).Feedback, "feedback");
+                    }
+            }
+            Assert.That(languages.Count, Is.GreaterThanOrEqualTo(7), "expected every source language to be exercised");
+        }
+
+        [Test]
+        public void FullRun_FiveConsoles_ToTheEscapeSummary()
+        {
+            var state = Services.State;
+            state.World = _engine.Generate(3);
+            state.TotalPuzzles = state.World.Puzzles.Count;
+            _ui.ShowHud(state);
+
+            for (int i = 0; i < state.TotalPuzzles; i++)
+            {
+                var puzzle = _engine.GetPuzzle(state.World, i, 0.5f);
+                bool revealed = false, continued = false; int chosen = -1;
+                state.SetPhase(GamePhase.Puzzle);
+                _ui.ShowPuzzle(puzzle, ids =>
+                {
+                    var result = _engine.Check(state.World, puzzle.Id, ids);
+                    if (!result.Correct) { _ui.ShowAnswerFeedback(result); return; }
+                    revealed = true;
+                    _ui.ShowReveal(_engine.GetReveal(state.World, puzzle.Id), () => { continued = true; _ui.ShowQuiz(_engine.GetQuiz(state.World, puzzle.Id), c => chosen = c); });
+                });
+                Wait(0.6f);
+                foreach (var id in Fnmw.Lang.LanguageEngine.DebugSolution(state.World, puzzle.Id))
+                    Press(UiInput.Key(puzzle.Tiles.FindIndex(t => t.Id == id)));
+                Press(UiInput.PressEnter);
+                Assert.IsTrue(revealed, "console " + (i + 1) + ": the engine's own solution opens the reveal");
+                Wait(5f);
+                Assert.AreEqual("Read", _ui.ScreenName);
+                Press(UiInput.PressEnter);
+                Assert.IsTrue(continued);
+                Wait(0.6f);
+                int right = Fnmw.Lang.LanguageEngine.DebugQuizAnswer(state.World, puzzle.Id);
+                Press(UiInput.Key(i % 2 == 0 ? right : (right + 1) % 4));     // alternate right and wrong guesses
+                Wait(2.2f);
+                Assert.AreEqual("Payoff", _ui.ScreenName);
+                Press(UiInput.PressEnter);
+                Assert.That(chosen, Is.GreaterThanOrEqualTo(0));
+                state.PuzzlesSolved++;
+                _ui.HideAll();
+            }
+
+            Assert.AreEqual(state.TotalPuzzles, _ui.LanguagesLearned, "one journal entry per language, right or wrong");
+            Assert.AreEqual(0, _ui.Cracks, "no wrong answers, no cracks");
+            bool restarted = false;
+            state.SetPhase(GamePhase.Escaped);
+            _ui.ShowEnd(true, state, () => restarted = true);
+            Wait(4f);
+            Press(UiInput.PressEnter);
+            Assert.IsTrue(restarted);
         }
     }
 }

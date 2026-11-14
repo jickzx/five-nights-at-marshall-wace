@@ -94,40 +94,65 @@ namespace Fnmw.UI
             return w;
         }
 
-        /// <summary>Width a plate wants for a meaning, before clamping.</summary>
-        public static float PlateWidth(string meaning)
+        static readonly HashSet<string> Small = new HashSet<string> { "the", "a", "an", "is", "are", "of", "for", "to", "in", "my", "it", "this" };
+
+        /// <summary>The words of a meaning that carry it, if every one of them has a picture; otherwise null.</summary>
+        static List<string> Pictured(string meaning)
         {
-            meaning = (meaning ?? "").Trim();
-            int icons = 0;
-            foreach (var word in meaning.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) if (Pictograms.Has(word)) icons++;
-            return Mathf.Ceil(Mathf.Max(FontBook.Width(meaning.ToUpperInvariant(), 16) + 16, icons * 30 + 12) / 2f) * 2f;
+            var words = new List<string>();
+            foreach (var raw in (meaning ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string word = raw.Trim('.', ',', '!', '?', ':', ';', '(', ')', '\'', '"', '\u2026').ToLowerInvariant();
+                if (word.Length == 0 || Small.Contains(word)) continue;
+                if (!Pictograms.Has(word)) return null;
+                words.Add(word);
+            }
+            return words.Count > 0 && words.Count <= 4 ? words : null;
         }
 
-        /// <summary>The meaning of a phrase: carved pictures where we have them, the words underneath.</summary>
+        /// <summary>Width a plate wants for a meaning: one line if it fits in <paramref name="maxW"/>, otherwise two.</summary>
+        public static float PlateWidth(string meaning, float maxW)
+        {
+            string label = (meaning ?? "").Trim().ToUpperInvariant();
+            float one = Mathf.Ceil((FontBook.Width(label, 16) + 16) / 2f) * 2f;
+            var pics = Pictured(meaning);
+            if (pics != null && one <= maxW) return Mathf.Max(one, pics.Count * 30 + 12);
+            if (one <= maxW) return one;
+            for (float w = 112; w <= maxW; w += 8) if (Kit.Lines(label, 16, w - 14) <= 2) return w;
+            return maxW;
+        }
+
+        /// <summary>
+        /// The meaning of a phrase: carved pictures when every word has one, the words always. Long
+        /// meanings ("The cat looks for the key.") wrap onto two lines.
+        /// </summary>
         public static float Plate(Transform parent, float x, float y, float minW, float maxW, float h, string meaning, bool hot)
         {
             meaning = (meaning ?? "").Trim();
-            var words = meaning.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            int icons = 0;
-            foreach (var word in words) if (Pictograms.Has(word)) icons++;
             string label = meaning.ToUpperInvariant();
-            float w = Mathf.Clamp(PlateWidth(meaning), minW, maxW);
+            float w = Mathf.Clamp(PlateWidth(meaning, maxW), minW, maxW);
             Kit.Box("PlateFill", parent, hot ? Pal.RustDeep.A(0.55f) : Pal.Ash.A(0.6f), x + 1, y + 1, w - 2, h - 2);
             Kit.Frame("Plate", parent, hot ? Pal.Bone : Pal.Rust, x, y, w, h, hot);
             var ink = hot ? Pal.Bone : Pal.Bone.A(0.85f);
-            if (icons > 0 && h >= 42)
+            var pics = Pictured(meaning);
+            int lines = Kit.Lines(label, 16, w - 14);
+            if (pics != null && lines <= 1 && h >= 42)
             {
-                float ix = x + (w - (icons * 26 + (icons - 1) * 4)) / 2f;
-                foreach (var word in words)
+                float ix = x + (w - (pics.Count * 26 + (pics.Count - 1) * 4)) / 2f;
+                foreach (var word in pics)
                 {
-                    var tex = Pictograms.Get(word);
-                    if (!tex) continue;
-                    Kit.Pic("Pic", parent, tex, hot ? Pal.Bone : Pal.RustHot, ix, y + 2, 26, 26);
+                    Kit.Pic("Pic", parent, Pictograms.Get(word), hot ? Pal.Bone : Pal.RustHot, ix, y + 2, 26, 26);
                     ix += 30;
                 }
                 Kit.Label("Gloss", parent, label, 16, ink, TextAnchor.MiddleCenter, x, y + h - 17, w, 16);
             }
-            else Kit.Label("Gloss", parent, label, 16, ink, TextAnchor.MiddleCenter, x, y + (h - 16) / 2f, w, 16);
+            else if (lines <= 1) Kit.Label("Gloss", parent, label, 16, ink, TextAnchor.MiddleCenter, x, y + (h - 16) / 2f, w, 16);
+            else
+            {
+                lines = Mathf.Min(lines, 2);
+                var t = Kit.Label("Gloss", parent, label, 16, ink, TextAnchor.UpperCenter, x + 7, y + (h - lines * 18) / 2f - 3, w - 14, lines * 18 + 4, true);
+                Kit.Pitch(t, 18);
+            }
             return w;
         }
 

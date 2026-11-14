@@ -218,6 +218,7 @@ namespace Fnmw.UI
         public static Text Label(string name, Transform parent, string text, int size, Color c, TextAnchor anchor,
             float x, float y, float w, float h, bool wrap = false)
         {
+            text = Rtl.Visual(text ?? "");
             var rt = Node(name, parent, x, y, w, h);
             var t = rt.gameObject.AddComponent<Text>();
             t.font = FontBook.For(text);
@@ -235,11 +236,29 @@ namespace Fnmw.UI
 
         public static void SetText(Text t, string s)
         {
-            s = s ?? "";
+            s = Rtl.Visual(s ?? "");
             if (t.text == s) return;
             var f = FontBook.For(s);
-            if (t.font != f) t.font = f;
+            if (t.font != f)
+            {
+                float px = t.lineSpacing * NaturalLine(t);
+                t.font = f;
+                if (t.horizontalOverflow == HorizontalWrapMode.Wrap) Pitch(t, px);
+            }
             t.text = s;
+        }
+
+        static float NaturalLine(Text t) =>
+            t.font && t.font.lineHeight > 0 ? t.font.lineHeight * (t.fontSize / (float)Mathf.Max(1, t.font.fontSize)) : t.fontSize * 1.4f;
+
+        /// <summary>
+        /// Line pitch of a wrapped label, in pixels. The two shipped fonts have different natural line
+        /// heights, so paragraphs set this rather than a line-spacing factor.
+        /// </summary>
+        public static Text Pitch(Text t, float px = 18f)
+        {
+            t.lineSpacing = px / NaturalLine(t);
+            return t;
         }
 
         public static RawImage Pic(string name, Transform parent, Texture tex, Color c, float x, float y, float w, float h)

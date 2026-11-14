@@ -1,7 +1,7 @@
 {
     "name": "Fnmw.UI.Tests",
     "rootNamespace": "Fnmw.UI.Tests",
-    "references": [ "Fnmw.Core", "Fnmw.UI", "UnityEngine.TestRunner", "UnityEditor.TestRunner" ],
+    "references": [ "Fnmw.Core", "Fnmw.UI", "Fnmw.Lang", "UnityEngine.TestRunner", "UnityEditor.TestRunner" ],
     "includePlatforms": [ "Editor" ],
     "overrideReferences": true,
     "precompiledReferences": [ "nunit.framework.dll" ],

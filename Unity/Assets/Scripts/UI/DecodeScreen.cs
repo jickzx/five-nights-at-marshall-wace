@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Fnmw.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,7 +10,7 @@ namespace Fnmw.UI
     /// <summary>
     /// The warm half of the game. The alien phrase decodes, glyph by glyph, into the real phrase it
     /// mirrors; the pattern is explained with the language's name blocked out; the quiz asks for the
-    /// name; and the answer pays off with the name, the pattern in full and a "now you know" line.
+    /// name; and the answer pays off with the name, a one-line explanation and a "now you know" fact.
     /// One screen, because the decoded phrase should stay in view the whole time.
     /// </summary>
     internal sealed class DecodeScreen : UiScreen
@@ -30,6 +31,7 @@ namespace Fnmw.UI
         float _stepT;
         RevealInfo _reveal;
         LangPuzzle _puzzle;
+        List<Tile> _answer;
         ScriptFamily _fam;
         Action _onContinue;
         Action<int> _onChoose;
@@ -39,11 +41,12 @@ namespace Fnmw.UI
         RectTransform _top, _alienRow, _lower;
         Text _realText, _readingText, _translation;
         RectTransform _source;
-        string _phrase = "", _reading = "", _alienText = "";
+        string _display = "", _reading = "", _alienText = "";
+        bool _rtl;
         readonly List<Cell> _cells = new List<Cell>();
         readonly List<Texture2D> _pool = new List<Texture2D>();
         float _morphEnd, _shuffleT;
-        int _shown;
+        int _locked;
 
         // bottom: pattern / quiz / payoff
         RectTransform _cue;
@@ -52,14 +55,17 @@ namespace Fnmw.UI
         bool _wasRight;
         Text _stamp;
 
+        GameState State => Ui.State ?? Services.State;
+
         // ---- reveal ---------------------------------------------------------------------
 
-        public void ShowReveal(RevealInfo reveal, LangPuzzle puzzle, ScriptFamily fam, Action onContinue)
+        /// <param name="answer">The tiles the player sent, when known: their glyphs are what decodes.</param>
+        public void ShowReveal(RevealInfo reveal, LangPuzzle puzzle, ScriptFamily fam, List<Tile> answer, Action onContinue)
         {
             Open();
             _reveal = reveal ?? new RevealInfo();
-            _puzzle = puzzle; _fam = fam; _onContinue = onContinue; _onChoose = null; _quiz = null;
-            _chosen = -1; _correct = -1; _cells.Clear(); _options.Clear(); _pool.Clear(); _shown = 0; _shuffleT = 0;
+            _puzzle = puzzle; _fam = fam; _answer = answer; _onContinue = onContinue; _onChoose = null; _quiz = null;
+            _chosen = -1; _correct = -1; _cells.Clear(); _options.Clear(); _pool.Clear(); _locked = -1; _shuffleT = 0;
             _top = Kit.Node("Top", Root, 0, 0, UiRig.StageW, 160);
             _lower = Kit.Node("Lower", Root, 0, 0, UiRig.StageW, UiRig.StageH);
             BuildPhrase();
@@ -68,64 +74,71 @@ namespace Fnmw.UI
 
         void BuildPhrase()
         {
-            Lore.SplitReal(_reveal.RealText, out _phrase, out _reading);
+            Lore.SplitReal(_reveal.RealText, out var phrase, out _reading);
+            _rtl = Rtl.HasRtl(phrase);
+            _display = Rtl.Visual(phrase);             // shaped and in drawing order; set on the label as is
             _alienText = (_reveal.AlienText ?? "").Trim();
-            var words = _alienText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-            // the alien phrase, large
+            // the alien phrase, large: the glyphs the player just sent, or one per word
+            var seeds = new List<int>();
+            if (_answer != null && _answer.Count > 0) foreach (var t in _answer) seeds.Add(t.GlyphSeed);
+            else foreach (var word in _alienText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) seeds.Add(SeedOf(word));
+            if (seeds.Count > 7) seeds.RemoveRange(7, seeds.Count - 7);
+
             _alienRow = Kit.Node("Alien", _top, 0, 0, UiRig.StageW, 160);
             Kit.Group(_alienRow);
             const int g = 48, gap = 12;
-            float total = words.Length * g + Mathf.Max(0, words.Length - 1) * gap;
+            float total = seeds.Count * g + Mathf.Max(0, seeds.Count - 1) * gap;
             float x = (UiRig.StageW - total) / 2f;
-            foreach (var word in words)
+            foreach (int seed in seeds)
             {
-                Kit.Pic("Glyph", _alienRow, GlyphGen.Texture(SeedOf(word), _fam, 24), Pal.Bone, x, 54, g, g);
+                Kit.Pic("Glyph", _alienRow, GlyphGen.Texture(seed, _fam, 24), Pal.Bone, x, 54, g, g);
                 x += g + gap;
             }
 
             // the real phrase it becomes: as large as fits
             int size = 48;
-            var font = FontBook.For(_phrase);
-            while (size > 16 && FontBook.Width(_phrase, size, font) > 560) size -= 16;
-            float pw = FontBook.Width(_phrase, size, font);
+            var font = FontBook.For(_display);
+            while (size > 16 && FontBook.Width(_display, size, font) > 560) size -= 16;
+            float pw = FontBook.Width(_display, size, font);
             float px = Mathf.Round((UiRig.StageW - pw) / 2f);
             int py = 54 + (48 - size) / 2;
-            _realText = Kit.Label("Real", _top, "", size, Pal.Ivory, TextAnchor.MiddleLeft, px, py, pw + 8, size);
+            _realText = _rtl
+                ? Kit.Label("Real", _top, "", size, Pal.Ivory, TextAnchor.MiddleRight, px - 8, py, pw + 8, size)
+                : Kit.Label("Real", _top, "", size, Pal.Ivory, TextAnchor.MiddleLeft, px, py, pw + 8, size);
             _realText.font = font;
 
             // scramble cells sit where each real character will land
-            for (int i = 0; i < 12; i++) _pool.Add(GlyphGen.Texture(SeedOf("pool" + i), _fam, size >= 32 ? size / 2 : 16));
+            for (int i = 0; i < 12; i++) _pool.Add(GlyphGen.Texture(GlyphGen.SeedFor("pool" + i), _fam, size >= 32 ? size / 2 : 16));
             float cx = px;
-            int visible = 0;
-            for (int i = 0; i < _phrase.Length; i++)
+            for (int i = 0; i < _display.Length; i++)
             {
-                float adv = FontBook.Width(_phrase[i].ToString(), size, font);
-                if (!char.IsWhiteSpace(_phrase[i]) && _cells.Count < 48)
+                float adv = FontBook.Width(_display[i].ToString(), size, font);
+                if (!char.IsWhiteSpace(_display[i]) && _cells.Count < 48)
                 {
                     float cell = Mathf.Min(adv, size);
                     var img = Kit.Pic("Cell", _top, _pool[i % _pool.Count], Pal.Amber, cx + (adv - cell) / 2f, py + (size - cell) / 2f, cell, cell);
                     img.enabled = false;
                     _cells.Add(new Cell { Img = img, CharIndex = i });
-                    visible++;
                 }
                 cx += adv;
             }
-            float per = Mathf.Min(0.11f, 1.5f / Mathf.Max(1, visible));
-            for (int i = 0; i < _cells.Count; i++) _cells[i].LockAt = 1.0f + i * per;
-            _morphEnd = 1.0f + visible * per + 0.25f;
+            int count = _cells.Count;
+            float per = Mathf.Min(0.11f, 1.5f / Mathf.Max(1, count));
+            for (int i = 0; i < count; i++) _cells[i].LockAt = 1.0f + (_rtl ? count - 1 - i : i) * per;   // in reading order
+            _morphEnd = 1.0f + count * per + 0.25f;
 
             _readingText = Kit.Label("Reading", _top, _alienText, 16, Pal.RustHot, TextAnchor.MiddleCenter, 20, 108, 600, 16);
 
             // afterwards: where it came from, and what it means
             _source = Kit.Node("Source", _top, 0, 20, UiRig.StageW, 18);
-            var world = (Ui.State ?? Services.State)?.World;
-            string name = (world?.AlienName ?? "ALIEN").ToUpperInvariant();
-            float sw = FontBook.Width(name, 16) + 10 + words.Length * 18 + 6 + FontBook.Width(_alienText, 16);
+            string name = (_reveal.AlienName ?? _puzzle?.AlienName ?? State?.World?.AlienName ?? "ALIEN").ToUpperInvariant();
+            int minis = Mathf.Min(seeds.Count, 7);
+            float sw = FontBook.Width(name, 16) + 10 + minis * 18 + 6 + FontBook.Width(_alienText, 16);
             float sx = Mathf.Round((UiRig.StageW - sw) / 2f);
             Kit.Label("Name", _source, name, 16, Pal.Rust, TextAnchor.MiddleLeft, sx, 0, 200, 16);
             sx += FontBook.Width(name, 16) + 10;
-            foreach (var word in words) { Kit.Pic("Mini", _source, GlyphGen.Texture(SeedOf(word), _fam, 16), Pal.BoneDim, sx, 0, 16, 16); sx += 18; }
+            for (int i = 0; i < minis; i++) { Kit.Pic("Mini", _source, GlyphGen.Texture(seeds[i], _fam, 16), Pal.BoneDim, sx, 0, 16, 16); sx += 18; }
             Kit.Label("Sound", _source, _alienText, 16, Pal.BoneDim, TextAnchor.MiddleLeft, sx + 6, 0, 300, 16);
             Kit.Group(_source).alpha = 0;
 
@@ -144,39 +157,39 @@ namespace Fnmw.UI
             return GlyphGen.SeedFor(alienWord);
         }
 
-        string[] LanguageNames()
-        {
-            var world = (Ui.State ?? Services.State)?.World;
-            return new[] { world?.Real?.Name, Lore.Optional(_reveal, "Language", "LanguageName") };
-        }
+        string[] LanguageNames() => new[] { _reveal?.LanguageName, State?.World?.Real?.Name };
 
         void BuildPattern()
         {
             Kit.Clear(_lower); Hits.Clear();
-            string text = _reveal.Explanation ?? "";
+            string text = Lore.PatternFor(_reveal);
             if (RedactUntilQuiz) text = Lore.Redact(text, LanguageNames());
-            int lines = Mathf.Clamp(Kit.Lines(text, 16, 480), 1, 5);
-            float h = 26 + lines * 18;
-            float y = 172;
-            Kit.Box("Fill", _lower, Pal.Hex(0x2A1A0C).A(0.6f), 61, y + 1, 518, h - 2);
-            Kit.Frame("Frame", _lower, Pal.Rust, 60, y, 520, h);
-            float tw = FontBook.Width("THE PATTERN", 16);
-            Kit.Box("TabBack", _lower, Pal.WarmDark, 76, y - 8, tw + 12, 16);
-            Kit.Label("Tab", _lower, "THE PATTERN", 16, Pal.Amber, TextAnchor.MiddleLeft, 82, y - 8, tw + 4, 16);
-            // the blocked-out name is drawn in rust, so it reads as a gap to fill rather than a glare
-            string marked = text.Replace("<", "\u2039").Replace(">", "\u203A");
-            marked = System.Text.RegularExpressions.Regex.Replace(marked, "\u2588+", m => "<color=#8F3F1F>" + m.Value + "</color>");
-            var body = Kit.Label("Body", _lower, marked, 16, Pal.Ivory, TextAnchor.UpperLeft, 80, y + 12, 480, lines * 18, true);
-            body.supportRichText = true;
-            body.lineSpacing = 0.8f;
-            _cue = Widgets.Cue(_lower, 326, "NAME THE ORIGIN", Pal.Amber);
+            if (text.Length > 0)
+            {
+                int lines = Mathf.Clamp(Kit.Lines(text, 16, 480), 1, 6);
+                float h = 26 + lines * 18;
+                float y = 172;
+                Kit.Box("Fill", _lower, Pal.Hex(0x2A1A0C).A(0.6f), 61, y + 1, 518, h - 2);
+                Kit.Frame("Frame", _lower, Pal.Rust, 60, y, 520, h);
+                float tw = FontBook.Width("THE PATTERN", 16);
+                Kit.Box("TabBack", _lower, Pal.WarmDark, 76, y - 8, tw + 12, 16);
+                Kit.Label("Tab", _lower, "THE PATTERN", 16, Pal.Amber, TextAnchor.MiddleLeft, 82, y - 8, tw + 4, 16);
+                // the blocked-out name is drawn in rust, so it reads as a gap to fill rather than a glare
+                string marked = text.Replace("<", "‹").Replace(">", "›");
+                marked = Regex.Replace(marked, "█+", m => "<color=#8F3F1F>" + m.Value + "</color>");
+                var body = Kit.Label("Body", _lower, marked, 16, Pal.Ivory, TextAnchor.UpperLeft, 80, y + 12, 480, lines * 18, true);
+                body.supportRichText = true;
+                Kit.Pitch(body);
+            }
+            _cue = Widgets.Cue(_lower, 328, "NAME THE ORIGIN", Pal.Amber);
         }
 
         // ---- quiz -----------------------------------------------------------------------
 
         public void ShowQuiz(QuizQuestion quiz, LangPuzzle puzzle, ScriptFamily fam, Action<int> onChoose)
         {
-            if (!Active || _reveal == null)
+            bool alone = !Active || _reveal == null;
+            if (alone)
             {
                 // the quiz arrived on its own (no reveal before it): open with an empty top
                 Open();
@@ -197,7 +210,8 @@ namespace Fnmw.UI
         void BuildQuiz()
         {
             Kit.Clear(_lower); Hits.Clear(); _options.Clear();
-            Kit.Label("Prompt", _lower, _quiz.Prompt ?? "", 16, Pal.Amber, TextAnchor.MiddleCenter, 20, 166, 600, 16);
+            // the phrase is already on screen above, so only the question itself is needed
+            Kit.Label("Prompt", _lower, Lore.FirstLine(_quiz.Prompt), 16, Pal.Amber, TextAnchor.MiddleCenter, 20, 166, 600, 16);
             int n = Mathf.Min(_quiz.Options.Length, 8);
             int rows = (n + 1) / 2;
             int rowH = rows <= 3 ? 40 : 30;
@@ -221,7 +235,7 @@ namespace Fnmw.UI
         {
             if (_step != Step.Quiz || _stepT < 0.2f || index < 0 || index >= _options.Count) return;
             _chosen = index;
-            var world = (Ui.State ?? Services.State)?.World;
+            var world = State?.World;
             int id = _puzzle != null ? _puzzle.Id : 0;
             _wasRight = false; _correct = -1;
             try
@@ -240,45 +254,44 @@ namespace Fnmw.UI
         {
             if (_correct >= 0 && _correct < _quiz.Options.Length) return _quiz.Options[_correct];
             var names = LanguageNames();
-            return names[1] ?? names[0] ?? "";
+            return names[0] ?? names[1] ?? "";
         }
 
         void BuildPayoff()
         {
             Kit.Clear(_lower); Hits.Clear(); _options.Clear();
-            var world = (Ui.State ?? Services.State)?.World;
             string lang = LanguageName();
-            string fact = Lore.FactFor(_reveal, lang, world);
+            string fact = Lore.FactFor(_reveal, lang, State?.World);
             Ui.Journal.Record(lang, _reveal, fact, _wasRight);
 
             string big = lang.ToUpperInvariant();
             float bw = FontBook.Width(big, 32);
-            float bx = Mathf.Round((UiRig.StageW - bw) / 2f);
-            Kit.Pic("Mark", _lower, Pictograms.Get(_wasRight ? "check" : "cross"), _wasRight ? Pal.Amber : Pal.Blood, bx - 34, 166, 26, 26);
-            _stamp = Kit.Label("Language", _lower, big, 32, Pal.Amber, TextAnchor.MiddleCenter, bx - 4, 162, bw + 8, 32);
+            float bx = Mathf.Round((UiRig.StageW - bw) / 2f) + 16;
+            Kit.Pic("Mark", _lower, Pictograms.Get(_wasRight ? "check" : "cross"), _wasRight ? Pal.Amber : Pal.Blood, bx - 34, 163, 26, 26);
+            _stamp = Kit.Label("Language", _lower, big, 32, Pal.Amber, TextAnchor.MiddleCenter, bx - 4, 160, bw + 8, 32);
             Kit.Center(_stamp.rectTransform);
 
-            float y = 202;
-            string why = _reveal?.Explanation ?? "";
+            // the one-liner: the quiz's own explanation when it has one, otherwise the pattern in full
+            float y = 198;
+            string why = !string.IsNullOrWhiteSpace(_quiz?.Explanation) ? _quiz.Explanation.Trim() : Lore.PatternFor(_reveal);
+            int factLines = fact.Length > 0 ? Mathf.Clamp(Kit.Lines(fact, 16, 560), 1, 4) : 0;
             if (why.Length > 0)
             {
-                int lines = Mathf.Clamp(Kit.Lines(why, 16, 500), 1, 4);
-                var t = Kit.Label("Why", _lower, why, 16, Pal.Ivory, TextAnchor.UpperCenter, 70, y, 500, lines * 18, true);
-                t.lineSpacing = 0.8f;
-                y += lines * 18 + 8;
+                int lines = Mathf.Clamp(Kit.Lines(why, 16, 560), 1, factLines >= 4 ? 2 : 3);
+                Kit.Pitch(Kit.Label("Why", _lower, why, 16, Pal.Ivory, TextAnchor.UpperCenter, 40, y, 560, lines * 17, true), 17);
+                y += lines * 17 + 6;
             }
-            if (fact.Length > 0)
+            if (factLines > 0)
             {
                 float tw = FontBook.Width("NOW YOU KNOW", 16);
                 Kit.Box("Rule", _lower, Pal.Rust, 120, y + 8, 400, 1);
                 Kit.Box("TagBack", _lower, Pal.WarmDark, (UiRig.StageW - tw) / 2f - 8, y, tw + 16, 16);
                 Kit.Label("Tag", _lower, "NOW YOU KNOW", 16, Pal.Amber, TextAnchor.MiddleCenter, 20, y, 600, 16);
-                y += 20;
-                int lines = Mathf.Clamp(Kit.Lines(fact, 16, 500), 1, 4);
-                var t = Kit.Label("Fact", _lower, fact, 16, Pal.Bone, TextAnchor.UpperCenter, 70, y, 500, lines * 18, true);
-                t.lineSpacing = 0.8f;
+                y += 19;
+                Kit.Pitch(Kit.Label("Fact", _lower, fact, 16, Pal.Bone, TextAnchor.UpperCenter, 40, y, 560, factLines * 17, true), 17);
+                y += factLines * 17;
             }
-            _cue = Widgets.Cue(_lower, 330, "BACK INTO THE DARK", Pal.Amber);
+            _cue = Widgets.Cue(_lower, Mathf.Clamp(y + 8, 318, 340), "BACK INTO THE DARK", Pal.Amber);
             Ui.Fx.Kick(shake: 0.18f);
         }
 
@@ -291,11 +304,19 @@ namespace Fnmw.UI
             if (s == Step.Payoff) BuildPayoff();
         }
 
+        void ShowLocked(int cellIndex)
+        {
+            // everything up to (or, right to left, from) the last character that has locked in
+            if (cellIndex < 0) { _realText.text = ""; return; }
+            int ch = _cells[cellIndex].CharIndex;
+            _realText.text = _rtl ? _display.Substring(ch) : _display.Substring(0, Mathf.Min(ch + 1, _display.Length));
+        }
+
         void FinishMorph()
         {
             if (_reveal == null) return;
             foreach (var c in _cells) { c.Locked = true; if (c.Img) c.Img.enabled = false; }
-            Kit.SetText(_realText, _phrase);
+            _realText.text = _display;
             Kit.Group(_alienRow).alpha = 0;
             Kit.SetText(_readingText, _reading);
             _readingText.color = Pal.Amber;
@@ -338,25 +359,18 @@ namespace Fnmw.UI
             _shuffleT += dt;
             bool reshuffle = _shuffleT > 0.055f;
             if (reshuffle) _shuffleT = 0;
-            int shown = 0;
+            int newest = -1; float newestAt = -1;
             for (int i = 0; i < _cells.Count; i++)
             {
                 var c = _cells[i];
-                if (c.Locked) { shown = c.CharIndex + 1; continue; }
-                if (t >= c.LockAt)
-                {
-                    c.Locked = true; c.Img.enabled = false; shown = c.CharIndex + 1;
-                    continue;
-                }
+                if (!c.Locked && t >= c.LockAt) { c.Locked = true; c.Img.enabled = false; }
+                if (c.Locked) { if (c.LockAt > newestAt) { newestAt = c.LockAt; newest = i; } continue; }
                 c.Img.enabled = t > 0.7f;
                 if (reshuffle) c.Img.texture = _pool[UnityEngine.Random.Range(0, _pool.Count)];
                 c.Img.color = Color.Lerp(Pal.Rust, Pal.Amber, Kit.Ramp(t, c.LockAt - 0.35f, 0.35f));
             }
-            if (shown != _shown)
-            {
-                _shown = shown;
-                Kit.SetText(_realText, _phrase.Substring(0, Mathf.Min(shown, _phrase.Length)));
-            }
+            if (newest != _locked) { _locked = newest; ShowLocked(newest); }
+
             // the sound line re-types itself from the alien sounds into the real ones
             float rp = Kit.Ramp(t, 1.0f, Mathf.Max(0.2f, _morphEnd - 1.25f));
             if (_reading.Length > 0)
@@ -411,7 +425,6 @@ namespace Fnmw.UI
                     o.Frame.color = Pal.Blood; o.Label.color = Pal.Blood; o.Key.color = Pal.Blood;
                     o.Fill.color = Pal.BloodDeep.A(0.5f);
                     o.Mark.texture = Pictograms.Get("cross"); o.Mark.color = Pal.Blood;
-                    o.Rt.localPosition += new Vector3(Mathf.Sin(t * 60f) * (1f - Kit.Ramp(t, 0f, 0.3f)) * 2f, 0, 0);
                 }
                 else if (right && t > 0.35f)
                 {

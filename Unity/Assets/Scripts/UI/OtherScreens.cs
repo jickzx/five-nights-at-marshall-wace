@@ -193,7 +193,7 @@ namespace Fnmw.UI
             if (_gradient) return _gradient;
             const int n = 90;
             _gradient = new Texture2D(1, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.HideAndDontSave };
-            var stops = new[] { (0f, Pal.Hex(0x0A0D1F)), (0.5f, Pal.Hex(0x1B1F45)), (0.76f, Pal.Hex(0x4A3460)), (0.83f, Pal.Hex(0xB86B62)), (0.855f, Pal.Hex(0xF2C79A)), (0.86f, Pal.Hex(0x3A0C16)), (1f, Pal.Hex(0x0E0408)) };
+            var stops = new[] { (0f, Pal.Hex(0x0A0D1F)), (0.5f, Pal.Hex(0x1B1F45)), (0.78f, Pal.Hex(0x4A3460)), (0.845f, Pal.Hex(0xB86B62)), (0.87f, Pal.Hex(0xF2C79A)), (0.875f, Pal.Hex(0x3A0C16)), (1f, Pal.Hex(0x0E0408)) };
             for (int y = 0; y < n; y++)
             {
                 float t = 1f - y / (float)(n - 1);       // 0 at the top of the screen
@@ -227,52 +227,56 @@ namespace Fnmw.UI
             _trail = Kit.Box("Trail", Root, Pal.Amber.A(0.5f), 541, 200, 2, 60);
             _ship = Kit.Pic("Ship", Root, Pictograms.Get("ship"), Pal.Ivory, 529, 190, 26, 26).rectTransform;
 
-            float y = 34;
+            // a run decodes up to five tongues: with more than two, the list drops to two lines each
+            int count = journal != null ? Mathf.Min(journal.Entries.Count, 5) : 0;
+            bool roomy = count <= 2;
+            float y = roomy ? 34 : 24;
             Fade(Kit.Label("Title", Root, "LIFT-OFF", 32, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, 400, 32), 0.6f);
-            y += 40;
-            Fade(Kit.Label("Sub", Root, "The ship tears free of the blood sea.", 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
-            y += 24;
+            y += 38;
+            if (roomy)
+            {
+                Fade(Kit.Label("Sub", Root, "The ship tears free of the blood sea.", 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
+                y += 22;
+            }
             if (state != null)
             {
-                string stats = "CONSOLES " + state.PuzzlesSolved + "/" + state.TotalPuzzles + "  ·  MISFIRES " + state.Mistakes + "  ·  " + Lore.Clock(state.Elapsed);
+                string stats = "CONSOLES " + state.PuzzlesSolved + "/" + state.TotalPuzzles + "  \u00B7  MISFIRES " + state.Mistakes + "  \u00B7  " + Lore.Clock(state.Elapsed);
                 Fade(Kit.Label("Stats", Root, stats, 16, Pal.BoneDim, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.5f);
             }
-            y += 30;
-            Fade(Kit.Label("Tag", Root, journal != null && journal.Entries.Count > 0 ? "WHAT YOU CARRY OUT" : "NO TONGUE DECODED THIS TIME", 16, Pal.Amber, TextAnchor.MiddleLeft, 44, y, 420, 16), 2.0f);
+            y += roomy ? 30 : 24;
+            Fade(Kit.Label("Tag", Root, count > 0 ? "WHAT YOU CARRY OUT" : "NO TONGUE DECODED THIS TIME", 16, Pal.Amber, TextAnchor.MiddleLeft, 44, y, 420, 16), 2.0f);
             Fade(Kit.Box("Rule", Root, Pal.Amber.A(0.6f), 44, y + 19, 250, 1), 2.0f);
-            y += 28;
+            y += roomy ? 28 : 25;
 
-            if (journal != null)
+            float at = 2.4f;
+            for (int i = 0; i < count; i++)
             {
-                int count = Mathf.Min(journal.Entries.Count, 5);
-                bool roomy = count <= 2;
-                float at = 2.4f;
-                for (int i = 0; i < count && y < 290; i++)
+                var e = journal.Entries[i];
+                float nw = FontBook.Width(e.Language.ToUpperInvariant(), 16);
+                Fade(Kit.Label("Lang", Root, e.Language.ToUpperInvariant(), 16, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, nw + 4, 16), at);
+                if (e.Named) Fade(Kit.Pic("Named", Root, Pictograms.Get("check"), Pal.Amber, 44 + nw + 8, y + 1, 13, 13), at);
+                y += roomy ? 20 : 17;
+                int phrases = Mathf.Min(e.Phrases.Count, roomy ? 3 : 1);
+                for (int p = 0; p < phrases; p++)
                 {
-                    var e = journal.Entries[i];
-                    Fade(Kit.Label("Lang", Root, e.Language.ToUpperInvariant(), 16, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, 300, 16), at);
-                    y += 20;
-                    int phrases = Mathf.Min(e.Phrases.Count, roomy ? 3 : 1);
-                    for (int p = 0; p < phrases; p++)
-                    {
-                        var ph = e.Phrases[p];
-                        float rw = FontBook.Width(ph.Real, 16);
-                        Fade(Kit.Label("Real", Root, ph.Real, 16, Pal.Amber, TextAnchor.MiddleLeft, 56, y, rw + 4, 16), at + 0.15f);
-                        Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 56 + rw + 14, y, 300, 16), at + 0.15f);
-                        y += 19;
-                    }
-                    if (roomy && !string.IsNullOrEmpty(e.Fact))
-                    {
-                        int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 430), 1, 3);
-                        var t = Kit.Label("Fact", Root, e.Fact, 16, Pal.Dawn, TextAnchor.UpperLeft, 56, y + 2, 430, lines * 18, true);
-                        t.lineSpacing = 0.8f;
-                        Fade(t, at + 0.3f);
-                        y += lines * 18 + 4;
-                    }
-                    y += 8; at += 0.5f;
+                    var ph = e.Phrases[p];
+                    float rw = FontBook.Width(Rtl.Visual(ph.Real), 16);
+                    Fade(Kit.Label("Real", Root, ph.Real, 16, Pal.Amber, TextAnchor.MiddleLeft, 56, y, rw + 4, 16), at + 0.15f);
+                    Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 56 + rw + 14, y, 460 - rw, 16), at + 0.15f);
+                    y += roomy ? 19 : 17;
                 }
+                if (roomy && !string.IsNullOrEmpty(e.Fact))
+                {
+                    int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 430), 1, 3);
+                    var t = Kit.Label("Fact", Root, e.Fact, 16, Pal.Dawn, TextAnchor.UpperLeft, 56, y + 2, 430, lines * 18, true);
+                    Kit.Pitch(t, 18);
+                    Fade(t, at + 0.3f);
+                    y += lines * 18 + 4;
+                }
+                y += roomy ? 8 : 3;
+                at += roomy ? 0.5f : 0.3f;
             }
-            _cue = Widgets.Cue(Root, 330, "AGAIN", Pal.Ivory);
+            _cue = Widgets.Cue(Root, 334, "AGAIN", Pal.Ivory);
         }
 
         void Fade(Graphic g, float at)

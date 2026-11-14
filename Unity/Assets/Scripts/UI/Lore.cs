@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Fnmw.Core;
 
@@ -19,16 +18,31 @@ namespace Fnmw.UI
             var m = Regex.Match(real, @"^(.*?)\s*[\(（]([^\)）]*)[\)）]\s*$");
             if (m.Success && m.Groups[1].Value.Length > 0) { phrase = m.Groups[1].Value.Trim(); reading = m.Groups[2].Value.Trim(); }
             else { phrase = real; reading = ""; }
+            // "sakana (سكن)": the engine sometimes leads with the reading. The native script is the phrase.
+            if (NativeScript(reading) && !NativeScript(phrase)) { var swap = phrase; phrase = reading; reading = swap; }
+        }
+
+        /// <summary>True when the text has letters from outside the Latin alphabet and its phonetic extras.</summary>
+        public static bool NativeScript(string s)
+        {
+            if (s != null) foreach (char c in s) if (c >= 0x370 && char.IsLetter(c)) return true;
+            return false;
         }
 
         /// <summary>Blocks out every mention of the language, so the quiz that follows is a real question.</summary>
         public static string Redact(string text, params string[] names)
         {
             if (string.IsNullOrEmpty(text)) return "";
+            // whole names first ("Mandarin Chinese"), then their words ("Mandarin"), so no half is left showing
+            var all = new List<string>();
+            foreach (var name in names) if (!string.IsNullOrWhiteSpace(name)) all.Add(name.Trim());
             foreach (var name in names)
+                if (!string.IsNullOrWhiteSpace(name))
+                    foreach (var word in name.Split(' ')) if (word.Length >= 4) all.Add(word);
+            foreach (var name in all)
             {
-                if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3) continue;
-                text = Regex.Replace(text, Regex.Escape(name.Trim()), m => new string('█', Math.Max(4, m.Value.Length)), RegexOptions.IgnoreCase);
+                if (name.Length < 3) continue;
+                text = Regex.Replace(text, Regex.Escape(name), m => new string('█', Math.Max(4, m.Value.Length)), RegexOptions.IgnoreCase);
             }
             return text;
         }
@@ -59,7 +73,7 @@ namespace Fnmw.UI
         static readonly Dictionary<string, string> NameToCode = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             { "Japanese", "ja" }, { "French", "fr" }, { "Spanish", "es" }, { "Finnish", "fi" }, { "German", "de" }, { "Italian", "it" },
-            { "Portuguese", "pt" }, { "Turkish", "tr" }, { "Korean", "ko" }, { "Chinese", "zh" }, { "Mandarin", "zh" }, { "Arabic", "ar" },
+            { "Portuguese", "pt" }, { "Turkish", "tr" }, { "Korean", "ko" }, { "Chinese", "zh" }, { "Mandarin", "zh" }, { "Mandarin Chinese", "zh" }, { "Arabic", "ar" },
             { "Russian", "ru" }, { "Hindi", "hi" }, { "Swahili", "sw" }, { "Welsh", "cy" }, { "Hungarian", "hu" }, { "Latin", "la" },
             { "Greek", "el" }, { "Hawaiian", "haw" },
         };
@@ -71,37 +85,30 @@ namespace Fnmw.UI
         }
 
         /// <summary>
-        /// The "now you know" line. An engine can supply its own by adding a string field called Fact,
-        /// NowYouKnow or FunFact to RevealInfo; otherwise a built-in fact for the language is used, then
-        /// the world's own grammar summary.
+        /// The "now you know" line: the engine's own (RevealInfo.NowYouKnow) when it has one, otherwise a
+        /// built-in fact for the language.
         /// </summary>
         public static string FactFor(RevealInfo reveal, string languageName, LanguageWorld world)
         {
-            var own = Optional(reveal, "Fact", "NowYouKnow", "FunFact");
-            if (!string.IsNullOrWhiteSpace(own)) return own.Trim();
+            if (!string.IsNullOrWhiteSpace(reveal?.NowYouKnow)) return reveal.NowYouKnow.Trim();
             var code = CodeFor(languageName, world?.Real != null && string.Equals(world.Real.Name, languageName, StringComparison.OrdinalIgnoreCase) ? world.Real.Code : null);
             if (!string.IsNullOrEmpty(code))
             {
                 if (code.Length > 2 && code[2] == '-') code = code.Substring(0, 2);
                 if (Facts.TryGetValue(code, out var fact)) return fact;
             }
-            if (world?.GrammarSummary != null && world.GrammarSummary.Count > 0) return world.GrammarSummary[0] + ".";
             return "";
         }
 
-        /// <summary>Reads an optional string member by name, so newer engines can carry more than the contract.</summary>
-        public static string Optional(object source, params string[] names)
+        /// <summary>What the reveal says about the language: its real feature, or the engine's longer explanation.</summary>
+        public static string PatternFor(RevealInfo reveal) =>
+            !string.IsNullOrWhiteSpace(reveal?.Feature) ? reveal.Feature.Trim() : (reveal?.Explanation ?? "").Trim();
+
+        public static string FirstLine(string s)
         {
-            if (source == null) return null;
-            var type = source.GetType();
-            foreach (var name in names)
-            {
-                var f = type.GetField(name, BindingFlags.Public | BindingFlags.Instance);
-                if (f != null && f.FieldType == typeof(string)) return f.GetValue(source) as string;
-                var p = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
-                if (p != null && p.PropertyType == typeof(string) && p.CanRead) return p.GetValue(source) as string;
-            }
-            return null;
+            s = (s ?? "").Trim();
+            int i = s.IndexOf('\n');
+            return i < 0 ? s : s.Substring(0, i).Trim();
         }
 
         public static string Clock(float seconds)

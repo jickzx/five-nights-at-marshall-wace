@@ -79,7 +79,7 @@ namespace Fnmw.UI
 
             // header: the tongue's name, and how much of the ship is awake
             var head = Section("Head");
-            Kit.Label("Tongue", head, (world?.AlienName ?? "UNKNOWN TONGUE").ToUpperInvariant(), 16, Pal.RustHot, TextAnchor.MiddleLeft, L, 14, 300, 16);
+            Kit.Label("Tongue", head, (_p.AlienName ?? world?.AlienName ?? "UNKNOWN TONGUE").ToUpperInvariant(), 16, Pal.RustHot, TextAnchor.MiddleLeft, L, 14, 300, 16);
             int total = state != null ? state.TotalPuzzles : 0, solved = state != null ? state.PuzzlesSolved : 0;
             Widgets.Power(head, R - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
             Kit.Box("Rule", head, Pal.Rust, L, 36, R - L, 1);
@@ -101,9 +101,10 @@ namespace Fnmw.UI
             int yEx = 44 + Mathf.Max(0, (yAnswer - 4 - 44 - exRows * rowH) / 2);
 
             // one plate width for the whole mural, so the glyph columns line up
-            float plateW = Widgets.PlateWidth(_p.TargetMeaning);
-            for (int i = 0; i < ex; i++) plateW = Mathf.Max(plateW, Widgets.PlateWidth(_p.Examples[i].Picture));
-            plateW = Mathf.Clamp(plateW, 84, twoCol ? 110 : 200);
+            float plateMax = twoCol ? 120 : 216;
+            float plateW = Widgets.PlateWidth(_p.TargetMeaning, plateMax);
+            for (int i = 0; i < ex; i++) plateW = Mathf.Max(plateW, Widgets.PlateWidth(_p.Examples[i].Picture, plateMax));
+            plateW = Mathf.Clamp(plateW, 84, plateMax);
             float wordX = L + plateW + 22;
             for (int i = 0; i < ex; i++)
             {
@@ -151,7 +152,7 @@ namespace Fnmw.UI
 
             var foot = Section("Foot");
             _msg = Kit.Label("Message", foot, Hint, 16, Pal.BoneDim, TextAnchor.UpperCenter, L, 324, R - L, 34, true);
-            _msg.lineSpacing = 0.8f;
+            Kit.Pitch(_msg, 17);
 
             RefreshSlots();
             RefreshTiles();
@@ -258,6 +259,7 @@ namespace Fnmw.UI
             if (_picks.Count == 0) { Ui.Fx.Kick(tear: 0.3f, burst: 0.1f); return; }
             var ids = new string[_picks.Count];
             for (int i = 0; i < ids.Length; i++) ids[i] = _p.Tiles[_picks[i]].Id;
+            Ui.RememberAnswer(PickedTiles());
             _onSubmit?.Invoke(ids);   // the director answers with ShowAnswerFeedback or ShowReveal
         }
 
