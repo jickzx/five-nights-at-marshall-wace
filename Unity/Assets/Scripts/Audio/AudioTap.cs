@@ -39,6 +39,7 @@ namespace Fnmw.Audio
             Close();
             var listener = FindAnyObjectByType<AudioListener>();
             if (listener == null) throw new InvalidOperationException("No AudioListener yet");
+            MasterLimiter.Ensure(); // record after the limiter, i.e. exactly what is played
             _tap = listener.GetComponent<ListenerTap>() ?? listener.gameObject.AddComponent<ListenerTap>();
             _sr = AudioSettings.outputSampleRate;
             _channels = AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2;

@@ -108,7 +108,7 @@ namespace Fnmw.Audio.Synth
                     _ksIdx = next;
                     s = y0 * 1.6f;
                     float relEnv = _t < _dur ? 1f : 1f - (_t - _dur) / _rel;
-                    s *= Math.Max(relEnv, 0f) * Dsp.Clamp01(_t / 0.002f);
+                    s *= Math.Max(relEnv, 0f) * Dsp.SmoothStep(_t / 0.005f); // 5 ms: a pluck, not a click
                     break;
                 }
                 case VoiceKind.Flute:

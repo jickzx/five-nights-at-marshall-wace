@@ -92,7 +92,7 @@ namespace Fnmw.Audio.Synth
         Svf _riserF;
 
         // bass (panic)
-        float _bassPh, _bassHz, _bassEnv, _bassEnvK;
+        float _bassPh, _bassHz, _bassEnv, _bassEnvK, _bassAmp, _bassAmpK;
         Svf _bassF;
 
         // groans
@@ -153,6 +153,7 @@ namespace Fnmw.Audio.Synth
             _hpL1.SetCutoff(30f, _sr); _hpL2.SetCutoff(30f, _sr); _hpR1.SetCutoff(30f, _sr); _hpR2.SetCutoff(30f, _sr);
             _rainHpL.SetCutoff(900f, _sr); _rainHpR.SetCutoff(1000f, _sr);
             _rainLpL.SetCutoff(6500f, _sr); _rainLpR.SetCutoff(6000f, _sr);
+            _bassAmpK = 1f - (float)Math.Exp(-1.0 / (0.002 * _sr));
             _relK = (float)Math.Exp(-1.0 / (0.25 * _sr));
             _attK = (float)Math.Exp(-1.0 / (0.002 * _sr));
             SetCluster(0, true);
@@ -765,7 +766,9 @@ namespace Fnmw.Audio.Synth
                 _bassPh += _bassHz / _sr; if (_bassPh >= 1f) _bassPh -= 1f;
                 _bassEnv *= _bassEnvK;
                 _bassF.Process(Dsp.Saw(_bassPh, _bassHz / _sr));
-                float o = _bassF.Low * (0.2f + 0.8f * _bassEnv) * g * 0.7f;
+                // 2 ms attack on the gain so each new 16th swells in instead of stepping (no clicks)
+                _bassAmp += (0.2f + 0.8f * _bassEnv - _bassAmp) * _bassAmpK;
+                float o = _bassF.Low * _bassAmp * g * 0.7f;
                 dl += o; dr += o;
             }
 

@@ -36,6 +36,7 @@ namespace Fnmw.Audio
 
         internal SpatialAudio Spatial { get; private set; }
         AudioSource _scoreSource;
+        MasterLimiter _limiter;
 
         public static AudioDirector Create()
         {
@@ -56,7 +57,6 @@ namespace Fnmw.Audio
             var src = music.AddComponent<AudioSource>();
             src.clip = AudioClip.Create("fnmw_silence", SampleRate, 1, SampleRate, false);
             src.loop = true; src.spatialBlend = 0f; src.priority = 0; src.playOnAwake = false;
-            src.bypassListenerEffects = true;
             music.AddComponent<ScoreFilter>().Engine = Engine;
             src.Play();
             _scoreSource = src;
@@ -140,6 +140,7 @@ namespace Fnmw.Audio
         void Update()
         {
             if (_scoreSource != null && !_scoreSource.isPlaying && _scoreSource.isActiveAndEnabled) OnAudioConfigChanged(false);
+            if (!_limiter) _limiter = MasterLimiter.Ensure();
             var s = Services.State;
             if (OverrideActive)
             {
@@ -314,7 +315,7 @@ namespace Fnmw.Audio
     /// <summary>Renders the score on Unity's audio thread.</summary>
     public sealed class ScoreFilter : MonoBehaviour
     {
-        public ScoreEngine Engine;
+        [System.NonSerialized] public ScoreEngine Engine;
         void OnAudioFilterRead(float[] data, int channels) => Engine?.Process(data, channels);
     }
 }

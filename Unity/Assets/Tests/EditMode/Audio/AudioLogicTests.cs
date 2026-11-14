@@ -319,4 +319,22 @@ namespace Fnmw.Tests.Audio
             return (float)Math.Sqrt(s / b.Length);
         }
     }
+    public class MasterLimiterTests
+    {
+        [Test]
+        public void Knee_IsTransparentBelowThreshold_AndNeverReachesFullScale()
+        {
+            Assert.AreEqual(0.5f, Fnmw.Audio.MasterLimiter.Knee(0.5f), 1e-6);
+            Assert.AreEqual(-0.79f, Fnmw.Audio.MasterLimiter.Knee(-0.79f), 1e-6);
+            float prev = 0f;
+            for (float x = 0f; x < 8f; x += 0.01f)
+            {
+                float y = Fnmw.Audio.MasterLimiter.Knee(x);
+                Assert.GreaterOrEqual(y, prev - 1e-6f, "monotonic");
+                Assert.LessOrEqual(y, 0.97f, "below full scale");
+                Assert.AreEqual(-y, Fnmw.Audio.MasterLimiter.Knee(-x), 1e-6, "symmetric");
+                prev = y;
+            }
+        }
+    }
 }

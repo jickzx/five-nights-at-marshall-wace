@@ -351,15 +351,21 @@ namespace Fnmw.Audio.Synth
         {
             var b = Buf(sr, 0.7f);
             var bp = new Svf();
-            float gate = 0f;
+            float gate = 0f, gs = 0f, crackEnv = 0f;
+            float gateK = 1f - (float)Math.Exp(-1.0 / (0.002 * sr)), crackK = (float)Math.Exp(-1.0 / (0.0012 * sr));
+            var crackF = new Svf(); crackF.Set(3500f, 0.7f, sr);
             for (int i = 0; i < b.Length; i++)
             {
                 float t = (float)i / sr;
                 if (rng.Chance(0.004f)) gate = rng.Chance(0.6f) ? 1f : 0f;
+                gs += gateK * (gate - gs); // 2 ms gate smoothing: crackly, not clicky
                 bp.Set(2500f + 1500f * Dsp.Sin(t * 5f), 0.9f, sr);
                 bp.Process(rng.Bi());
-                float crack = rng.Chance(0.002f) ? rng.Bi() * 2f : 0f;
-                b[i] = (bp.Band * gate + crack) * Dsp.AHR(t, 0.01f, 0.45f, 0.2f);
+                if (rng.Chance(0.002f)) crackEnv = rng.Range(0.8f, 2f);
+                crackEnv *= crackK;
+                crackF.Process(rng.Bi());
+                float crack = crackF.Band * crackEnv;
+                b[i] = (bp.Band * gs + crack) * Dsp.AHR(t, 0.01f, 0.45f, 0.2f);
             }
             return b;
         }

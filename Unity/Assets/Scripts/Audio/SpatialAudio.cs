@@ -96,7 +96,7 @@ namespace Fnmw.Audio
                     _beastStride = 0f;
                     var bank = Director.Sfx;
                     _beastFeet.pitch = Random.Range(0.9f, 1.05f) * (stage >= 3 ? 0.85f : 1f);
-                    _beastFeet.PlayOneShot(bank.Clip("beast_step", bank.NextVariant("beast_step")), stage >= 3 ? 1f : 0.7f);
+                    _beastFeet.PlayOneShot(bank.Clip("beast_step", bank.NextVariant("beast_step")), stage >= 3 ? 0.85f : 0.65f);
                 }
             }
 
@@ -158,7 +158,7 @@ namespace Fnmw.Audio
         {
             int stage = _orbit != null ? Director.OverrideStage : Services.State.BeastStage;
             string name = "beast_vocal_" + Mathf.Clamp(stage, 1, 3);
-            BeastSay(name, stage >= 3 ? 1f : 0.8f, Director.Sfx.NextVariant(name));
+            BeastSay(name, stage >= 3 ? 0.85f : 0.75f, Director.Sfx.NextVariant(name));
         }
 
         public void BeastSay(string name, float volume, int variant = 0)

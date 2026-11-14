@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Renders the score, the endings, the motifs and every stinger to WAV outside Unity.
+       usage: dotnet run -c Release, then pass an output folder   (Unity ships a .NET 8 SDK at Unity.app/Contents/Resources/Scripting/DotNetSdk) -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>disable</Nullable><LangVersion>9.0</LangVersion><Optimize>true</Optimize><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Synth/*.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>
