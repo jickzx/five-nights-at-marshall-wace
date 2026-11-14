@@ -1,0 +1,413 @@
+{
+  "blender_version": "5.2.1 LTS",
+  "source_sha256": {
+    "tools/blender/creature.py": "41e2024d9c78faeabb5d108da6bf77d31fadbceaa6c323b99a31b67447291094",
+    "tools/blender/common.py": "43064e4715227ca6ac6231255a64f87a02675e612712a875e864c341948c53a1"
+  },
+  "method": "Rebuilt each stage from source in memory; evaluated skinned vertices and pose matrices at every baked frame. Foot clearance is measured against world Z=0. Stance phases use the gait source schedule.",
+  "models": {
+    "beast_stage1": {
+      "sampled_frames": 226,
+      "clips": {
+        "idle": {
+          "frames": 97,
+          "duration_seconds": 4.0,
+          "lowest_vertex": {
+            "z_m": 3.1766418384648887e-09,
+            "frame": 1,
+            "vertex": 195,
+            "bones": [
+              "foot.L"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 0,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "end_to_start_matrix_difference": 1.3478688051508647e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "stalk": {
+          "frames": 73,
+          "duration_seconds": 3.0,
+          "lowest_vertex": {
+            "z_m": -8.755583991160165e-08,
+            "frame": 11,
+            "vertex": 357,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 1.365132504815847e-07,
+          "max_joint_gap_m": 5.136039239053156e-07,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "max_stance_location": {
+            "frame": 69,
+            "bone": "foot.R"
+          },
+          "max_joint_location": {
+            "frame": 56,
+            "bone": "shin.L"
+          },
+          "end_to_start_matrix_difference": 4.8919894869027034e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "chase": {
+          "frames": 19,
+          "duration_seconds": 0.75,
+          "lowest_vertex": {
+            "z_m": -8.97310314940114e-09,
+            "frame": 17,
+            "vertex": 344,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 1.8060172806144692e-05,
+          "max_joint_gap_m": 2.0235425766270653e-06,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [
+            18
+          ],
+          "max_stance_location": {
+            "frame": 1,
+            "bone": "foot.L"
+          },
+          "max_joint_location": {
+            "frame": 14,
+            "bone": "foot.L"
+          },
+          "frame18_hand_min_z_m": {
+            "L": 0.1235445886850357,
+            "R": 0.07181674242019653
+          },
+          "end_to_start_matrix_difference": 5.224182243053794e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "lunge": {
+          "frames": 37,
+          "duration_seconds": 1.5,
+          "lowest_vertex": {
+            "z_m": -1.324322909113107e-07,
+            "frame": 32,
+            "vertex": 357,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 9.443151663395678e-07,
+          "lunge_final_feet_m": {
+            "35": {
+              "L": -1.5829868971195538e-08,
+              "R": -1.0311215703495691e-07
+            },
+            "37": {
+              "L": -1.5829868971195538e-08,
+              "R": -1.0311215703495691e-07
+            }
+          },
+          "both_feet_above_2cm_frames": [
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ],
+          "max_joint_location": {
+            "frame": 24,
+            "bone": "shin.L"
+          },
+          "end_to_start_matrix_difference": 2.213181108236313,
+          "loop": false,
+          "status": "passed"
+        }
+      }
+    },
+    "beast_stage2": {
+      "sampled_frames": 226,
+      "clips": {
+        "idle": {
+          "frames": 97,
+          "duration_seconds": 4.0,
+          "lowest_vertex": {
+            "z_m": 3.383355817732081e-09,
+            "frame": 1,
+            "vertex": 195,
+            "bones": [
+              "foot.L"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 0,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "end_to_start_matrix_difference": 1.3568523174754356e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "stalk": {
+          "frames": 73,
+          "duration_seconds": 3.0,
+          "lowest_vertex": {
+            "z_m": -8.229305592521996e-08,
+            "frame": 11,
+            "vertex": 451,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 3.544855928794277e-07,
+          "max_joint_gap_m": 2.1101985731958517e-06,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "max_stance_location": {
+            "frame": 57,
+            "bone": "foot.R"
+          },
+          "max_joint_location": {
+            "frame": 61,
+            "bone": "foot.L"
+          },
+          "end_to_start_matrix_difference": 4.8919891560304584e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "chase": {
+          "frames": 19,
+          "duration_seconds": 0.75,
+          "lowest_vertex": {
+            "z_m": -3.337308385198412e-07,
+            "frame": 17,
+            "vertex": 438,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 6.541735615428479e-07,
+          "max_joint_gap_m": 4.945389869854818e-06,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [
+            18
+          ],
+          "max_stance_location": {
+            "frame": 10,
+            "bone": "foot.R"
+          },
+          "max_joint_location": {
+            "frame": 1,
+            "bone": "shin.R"
+          },
+          "frame18_hand_min_z_m": {
+            "L": 0.3078169822692871,
+            "R": 0.24994942545890808
+          },
+          "end_to_start_matrix_difference": 5.253535905143096e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "lunge": {
+          "frames": 37,
+          "duration_seconds": 1.5,
+          "lowest_vertex": {
+            "z_m": -7.496319653910177e-08,
+            "frame": 32,
+            "vertex": 195,
+            "bones": [
+              "foot.L"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 4.67176950971429e-06,
+          "lunge_final_feet_m": {
+            "35": {
+              "L": -6.496166804481618e-08,
+              "R": -4.3297305296619015e-08
+            },
+            "37": {
+              "L": -6.496166804481618e-08,
+              "R": -4.3297305296619015e-08
+            }
+          },
+          "both_feet_above_2cm_frames": [
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ],
+          "max_joint_location": {
+            "frame": 19,
+            "bone": "foot.R"
+          },
+          "end_to_start_matrix_difference": 2.54903544485569,
+          "loop": false,
+          "status": "passed"
+        }
+      }
+    },
+    "beast_stage3": {
+      "sampled_frames": 226,
+      "clips": {
+        "idle": {
+          "frames": 97,
+          "duration_seconds": 4.0,
+          "lowest_vertex": {
+            "z_m": -6.216427927974166e-10,
+            "frame": 1,
+            "vertex": 182,
+            "bones": [
+              "foot.L"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 0,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "end_to_start_matrix_difference": 2.081440531067594e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "stalk": {
+          "frames": 73,
+          "duration_seconds": 3.0,
+          "lowest_vertex": {
+            "z_m": -3.33891421178123e-07,
+            "frame": 9,
+            "vertex": 555,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 6.298142807281693e-07,
+          "max_joint_gap_m": 6.660302326675037e-06,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [],
+          "max_stance_location": {
+            "frame": 62,
+            "bone": "foot.R"
+          },
+          "max_joint_location": {
+            "frame": 63,
+            "bone": "foot.L"
+          },
+          "end_to_start_matrix_difference": 4.8919891560304584e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "chase": {
+          "frames": 19,
+          "duration_seconds": 0.75,
+          "lowest_vertex": {
+            "z_m": -1.5988337054295698e-06,
+            "frame": 17,
+            "vertex": 542,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 2.0127974948991323e-06,
+          "max_joint_gap_m": 1.6810411994925927e-05,
+          "lunge_final_feet_m": {},
+          "both_feet_above_2cm_frames": [
+            18
+          ],
+          "max_stance_location": {
+            "frame": 10,
+            "bone": "foot.R"
+          },
+          "max_joint_location": {
+            "frame": 2,
+            "bone": "shin.R"
+          },
+          "frame18_hand_min_z_m": {
+            "L": 0.4779011607170105,
+            "R": 0.4126995801925659
+          },
+          "end_to_start_matrix_difference": 5.3037573488536405e-17,
+          "loop": true,
+          "status": "passed"
+        },
+        "lunge": {
+          "frames": 37,
+          "duration_seconds": 1.5,
+          "lowest_vertex": {
+            "z_m": -2.8940644369868096e-07,
+            "frame": 32,
+            "vertex": 542,
+            "bones": [
+              "foot.R"
+            ]
+          },
+          "max_stance_toe_height_m": 0,
+          "max_joint_gap_m": 1.6986360141570415e-05,
+          "lunge_final_feet_m": {
+            "35": {
+              "L": 0.0007512326119467616,
+              "R": -1.999998175961082e-07
+            },
+            "37": {
+              "L": 0.0007512326119467616,
+              "R": -1.999998175961082e-07
+            }
+          },
+          "both_feet_above_2cm_frames": [
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ],
+          "max_joint_location": {
+            "frame": 19,
+            "bone": "foot.R"
+          },
+          "end_to_start_matrix_difference": 2.9448634535074234,
+          "loop": false,
+          "status": "passed"
+        }
+      }
+    }
+  },
+  "sampled_frames": 678
+}

@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from mathutils import Vector, Quaternion, Matrix
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(os.environ.get('ART_OUTPUT_ROOT', Path(__file__).resolve().parents[2]))
 FPS = 24
 PALETTE = {
     'coal': ((.018, .024, .028), 0, .88),
@@ -68,6 +68,8 @@ def reset(name):
     WEIGHTS.clear()
     MATERIALS.clear()
     random.seed(1337)
+    for directory in ['assets/blender', 'assets/previews', 'Unity/Assets/Resources/Models']:
+        (ROOT/directory).mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
     scene.unit_settings.system = enum(scene.unit_settings, 'system', 'METRIC')
     scene.unit_settings.scale_length = 1
@@ -368,48 +370,102 @@ def ffmpeg_path():
     raise RuntimeError('No working ffmpeg found. Set FFMPEG to an installed executable.')
 
 
+REVIEW_ANGLES = [('front', .22), ('side', 1.55), ('rear', 3.65)]
+
+
+def review_camera(camera, focus, span, angle):
+    camera.location = focus + Vector((math.sin(angle)*span*1.8,
+                                     math.cos(angle)*span*1.8, span*.65))
+    aim(camera, focus)
+
+
+def compose_sheets(spec, directory):
+    path = directory/'sheets.json'
+    path.write_text(json.dumps(spec))
+    subprocess.run([os.environ.get('ART_PYTHON', 'python3'),
+                    str(Path(__file__).with_name('review_sheets.py')), str(path)], check=True)
+
+
+def preview_views(name, camera, center, span):
+    import shutil
+    scene = bpy.context.scene
+    directory = ROOT/'assets/previews'/('.views_'+name)
+    directory.mkdir(exist_ok=True)
+    cells = []
+    old_location, old_rotation = camera.location.copy(), camera.rotation_euler.copy()
+    for label, angle in REVIEW_ANGLES:
+        review_camera(camera, center, span, angle)
+        scene.render.filepath = str(directory/f'{label}.png')
+        bpy.ops.render.render(write_still=True)
+        cells.append({'path':scene.render.filepath, 'label':label})
+    compose_sheets([{'title':f'{name} / silhouette and surface review', 'cells':cells,
+                     'output':str(ROOT/'assets/previews'/f'{name}_views.png')}], directory)
+    shutil.rmtree(directory)
+    camera.location, camera.rotation_euler = old_location, old_rotation
+
+
 def preview_video(name, rig, camera, center, span):
     if os.environ.get('ART_SKIP_VIDEO') == '1':
         return
+    import shutil
     scene = bpy.context.scene
     scene.render.resolution_x = 480
     scene.render.resolution_y = 480
-    # Temporal preview uses the same materials and lighting as the stills.
     frame_dir = ROOT/'assets/previews'/('.frames_'+name)
     frame_dir.mkdir(exist_ok=True)
     scene.eevee.taa_render_samples = 16
     clip_order = ['idle','walk','run','death_martyr','stalk','chase','lunge','hatch_close','takeoff','open']
     acts = sorted(bpy.data.actions, key=lambda a: clip_order.index(a.name))
-    frames_per_clip = 24
+    segments, sheets = [], []
     number = 0
-    for clip_index, act in enumerate(acts):
+    for act in acts:
         rig.animation_data.action = act
-        for i in range(frames_per_clip):
+        camera.data.ortho_scale = span*1.4*(1.3 if act.name == 'lunge' else 1)
+        count = max(1, round((act['frame_end']-1)/FPS*12))
+        start_number = number
+        key_indices = {round((count-1)*fraction) for fraction in [0,.25,.5,.75,1]}
+        cells = []
+        for i in range(count):
             number += 1
-            scene.frame_set(round(1+(act['frame_end']-1)*i/(frames_per_clip-1)))
-            angle = .35 + .65*math.sin((number-1)/(len(acts)*frames_per_clip)*math.tau)
+            scene.frame_set(1 + min(act['frame_end']-1, i*2))
             focus = center.copy()
+            if act.name == 'lunge':
+                focus.y += .5
             if act.name == 'takeoff':
                 focus += rig.pose.bones['root'].matrix.translation
-            camera.location = focus+Vector((math.sin(angle)*span*1.8,math.cos(angle)*span*1.8,span*.65))
-            aim(camera, focus)
-            scene.render.filepath = str(frame_dir/f'{number:04d}.png')
-            bpy.ops.render.render(write_still=True)
-    filters = []
+            for label, angle in REVIEW_ANGLES:
+                review_camera(camera, focus, span, angle)
+                scene.render.filepath = str(frame_dir/f'{label}_{number:04d}.png')
+                bpy.ops.render.render(write_still=True)
+                if i in key_indices:
+                    cells.append({'path':scene.render.filepath,
+                                  'label':f'{label} / {i/12:.2f}s / frame {scene.frame_current}'})
+        segments.append({'clip':act.name,'start_seconds':start_number/12,
+                         'end_seconds':number/12,'playback_speed':1})
+        sheets.append({'title':f'{name} / {act.name} / natural speed key poses',
+                       'cells':cells, 'cell_size':280,
+                       'output':str(ROOT/'assets/previews'/f'{name}_{act.name}_review.png')})
+    compose_sheets(sheets, frame_dir)
+    inputs = []
+    for label, angle in REVIEW_ANGLES:
+        inputs.extend(['-framerate','12','-i',str(frame_dir/f'{label}_%04d.png')])
+    filters = ['[0:v][1:v][2:v]hstack=inputs=3']
     font = '/System/Library/Fonts/Menlo.ttc'
-    for idx, act in enumerate(acts):
-        filters.append(f"drawtext=fontfile={font}:text='{name} / {act.name}':fontcolor=white:fontsize=15:x=14:y=18:box=1:boxcolor=black@0.6:enable='between(t,{idx*2},{idx*2+1.999})'")
-    subprocess.run([ffmpeg_path(),'-y','-loglevel','error','-framerate','12',
-                    '-i',str(frame_dir/'%04d.png'),'-vf',','.join(filters),'-c:v','libx264',
+    for seg in segments:
+        filters.append(f"drawtext=fontfile={font}:text='{name} / {seg['clip']} / real time':fontcolor=white:fontsize=18:x=14:y=18:box=1:boxcolor=black@0.6:enable='between(t,{seg['start_seconds']},{seg['end_seconds']-.001})'")
+    for index, (label, angle) in enumerate(REVIEW_ANGLES):
+        filters.append(f"drawtext=fontfile={font}:text='{label}':fontcolor=white:fontsize=16:x={index*480+14}:y=450")
+    subprocess.run([ffmpeg_path(),'-y','-loglevel','error',*inputs,
+                    '-filter_complex',','.join(filters),'-c:v','libx264',
                     '-pix_fmt','yuv420p','-movflags','+faststart','-crf','20',
                     str(ROOT/'assets/previews'/f'{name}.mp4')],check=True)
-    import shutil
     shutil.rmtree(frame_dir)
     manifest_path = ROOT/'Unity/Assets/Resources/Models/manifest.json'
     manifest = json.loads(manifest_path.read_text())
-    manifest['models'][name]['files']['video'] = f'assets/previews/{name}.mp4'
-    manifest['models'][name]['preview_segments'] = [
-        {'clip':act.name, 'start_seconds':i*2, 'end_seconds':(i+1)*2} for i,act in enumerate(acts)]
+    entry = manifest['models'][name]
+    entry['files']['video'] = f'assets/previews/{name}.mp4'
+    entry['preview_segments'] = segments
+    entry['review_sheets'] = {act.name:f'assets/previews/{name}_{act.name}_review.png' for act in acts}
     manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
 
 
@@ -473,6 +529,7 @@ def deliver(name, rig=None, notes=None):
         'resource_path':f'Models/{name}',
         'files':{'fbx':f'Unity/Assets/Resources/Models/{name}.fbx',
                  'blend':f'assets/blender/{name}.blend','preview':f'assets/previews/{name}.png',
+                 'views':f'assets/previews/{name}_views.png',
                  **({'video':f'assets/previews/{name}.mp4'} if rig and os.environ.get('ART_SKIP_VIDEO') != '1' else {})},
         'triangles':tris,
         'bounding_box':{'min':[round(lo.x,5),round(lo.z,5),round(-hi.y,5)],
@@ -489,6 +546,7 @@ def deliver(name, rig=None, notes=None):
     scene.render.filepath = str(ROOT/'assets/previews'/f'{name}.png')
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'assets/blender'/f'{name}.blend'))
     bpy.ops.render.render(write_still=True)
+    preview_views(name,camera,center,span)
     if rig:
         preview_video(name,rig,camera,center,span)
     print(f'ASSET_DONE {name}: {tris} triangles, clips {[c["name"] for c in clips]}',flush=True)

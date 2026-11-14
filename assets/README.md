@@ -6,13 +6,13 @@ The kit includes the 1.8 m astronaut, three evolving creatures, escape ship, int
 
 ## Rebuild
 
-Requires Blender 5.2.1 LTS and ffmpeg. Sources are procedural; edit the scripts rather than the generated files.
+Requires Blender 5.2.1 LTS, ffmpeg, and a system `python3` with Pillow for the review sheets. Set `ART_PYTHON` to another Python executable if needed. Sources are procedural; edit the scripts rather than the generated files.
 
 ```sh
 /Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python-exit-code 1 --python tools/blender/build_all.py
 ```
 
-Use `-- --pass1` for the original four unblockers, or `-- --only player ship` to rebuild selected assets. Each asset script also runs directly with `--python tools/blender/<name>.py`. `ART_SKIP_VIDEO=1` skips recording generation for a quick modelling iteration. To regenerate just the videos:
+Use `-- --pass1` for the original four unblockers, or `-- --only player ship` to rebuild selected assets. Each asset script also runs directly with `--python tools/blender/<name>.py`. `ART_SKIP_VIDEO=1` skips recording generation for a quick modelling iteration. `ART_OUTPUT_ROOT=/absolute/scratch/path` isolates all generated outputs for parallel art experiments. To regenerate just the videos:
 
 ```sh
 /Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python-exit-code 1 --python tools/blender/render_recordings.py
@@ -54,6 +54,6 @@ python3 tools/blender/contact_sheet.py
 
 The contact sheet command needs Pillow. It uses the saved PNGs and decoded MP4 frames.
 
-`assets/previews/validation.json` records checks against the actual binary FBX and a fresh Blender FBX import: identity roots, metre units, take names, triangle counts, bounds, UVs, one armature, and sampled animated bounds. All six MP4s are decoded as H.264/yuv420p. These checks do not replace a Unity runtime test; the Unity project is owned by another thread.
+`assets/previews/validation.json` records checks against the actual binary FBX and a fresh Blender FBX import: identity roots, metre units, take names, triangle counts, bounds, UVs, one armature, and sampled animated bounds. All six MP4s are decoded as H.264/yuv420p. Revised recordings show three simultaneous views at 12 fps with the original clip timing; key poses and static views also have dedicated PNG review sheets. These checks do not replace a Unity runtime test; the Unity project is owned by another thread.
 
 The [contact sheet](previews/contact_sheet.png) shows every model. The [pose sheet](previews/animation_poses.png) samples the recordings. [Review notes](previews/README.md) link each recording and identify its clip timestamps.

@@ -11,8 +11,7 @@ import math
 import subprocess
 from mathutils import Vector
 from inspect_fbx import inspect
-from common import ffmpeg_path
-ROOT=Path(__file__).resolve().parents[2]
+from common import ffmpeg_path, ROOT
 EXPECTED={
  'player':{'idle','walk','run','death_martyr'},
  'beast_stage1':{'idle','stalk','chase','lunge'},
@@ -100,6 +99,7 @@ def verify(name, entry):
         obj.data.calc_loop_triangles()
         count+=len(obj.data.loop_triangles)
     assert count==entry['triangles'],(name,count,entry['triangles'])
+    assert count <= 1500, (name,'triangle budget exceeded',count)
     if name=='player':
         assert abs(bounds[4]-bounds[1]-1.8)<.0001
     if name in {'terrain_shore','blood_sea'}:
@@ -125,8 +125,13 @@ def verify(name, entry):
             'sampled_poses':sum(len(v) for v in samples.values())}
 
 
+selected = sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
 manifest=json.loads((ROOT/'Unity/Assets/Resources/Models/manifest.json').read_text())
-assert set(manifest['models'])==set(EXPECTED)
+assert set(manifest['models']) <= set(EXPECTED)
+if selected:
+    manifest['models'] = {name:manifest['models'][name] for name in selected}
+else:
+    assert set(manifest['models']) == set(EXPECTED)
 report={'scope':'Binary FBX inspection and Blender FBX reimport, not a Unity runtime test',
         'blender_version':bpy.app.version_string,'models':{}}
 for name,entry in manifest['models'].items():
@@ -142,9 +147,17 @@ for name,entry in manifest['models'].items():
     info=json.loads(subprocess.check_output([probe,'-v','error','-show_streams','-show_format','-of','json',str(video)]))
     stream=next(s for s in info['streams'] if s['codec_type']=='video')
     assert stream['codec_name']=='h264' and stream['pix_fmt']=='yuv420p'
-    assert stream['width']==480 and stream['height']==480
-    assert abs(float(info['format']['duration'])-2*len(entry['clips']))<.05
+    expected_width = 1440 if entry.get('preview_segments',[{}])[0].get('playback_speed') == 1 else 480
+    assert stream['width']==expected_width and stream['height']==480
+    expected_duration = entry['preview_segments'][-1]['end_seconds']
+    assert abs(float(info['format']['duration'])-expected_duration)<.05
     subprocess.run([encoder,'-v','error','-i',str(video),'-f','null','-'],check=True)
-    report['recordings'][name]={'status':'decoded','codec':'h264','duration_seconds':float(info['format']['duration']),'resolution':[480,480]}
-(ROOT/'assets/previews/validation.json').write_text(json.dumps(report,indent=2)+'\n')
-print('ALL 15 ASSETS VALIDATED',flush=True)
+    report['recordings'][name]={'status':'decoded','codec':'h264','duration_seconds':float(info['format']['duration']),'resolution':[stream['width'],stream['height']]}
+report_path = ROOT/'assets/previews/validation.json'
+if selected and report_path.exists():
+    previous = json.loads(report_path.read_text())
+    for key in ['models','recordings']:
+        previous.setdefault(key,{}).update(report[key])
+    report = previous
+report_path.write_text(json.dumps(report,indent=2)+'\n')
+print(f'VALIDATED {len(manifest["models"])} ASSETS',flush=True)
