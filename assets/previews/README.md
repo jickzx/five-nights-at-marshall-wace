@@ -27,7 +27,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | beast_stage3 | [beast_stage3](beast_stage3_views.png) | [idle](beast_stage3_idle_review.png), [stalk](beast_stage3_stalk_review.png), [chase](beast_stage3_chase_review.png), [lunge](beast_stage3_lunge_review.png) |
 | rock_a | [rock_a](rock_a_views.png) | — |
 | rock_b | [rock_b](rock_b_views.png) | — |
-| ruin_pillar | Blockout review pending | — |
+| ruin_pillar | [ruin_pillar](ruin_pillar_views.png) | — |
 | ruin_arch | Blockout review pending | — |
 | door_sealed | Blockout review pending | — |
 | mural_slab | Blockout review pending | — |

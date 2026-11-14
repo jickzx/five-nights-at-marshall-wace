@@ -108,11 +108,11 @@
     },
     "ruin_pillar": {
       "status": "passed",
-      "triangles": 392,
+      "triangles": 198,
       "takes": [],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 2.6e-06,
+      "rest_bounds_max_error_m": 1e-07,
       "animated_bounds_max_error_m": 0,
       "sampled_poses": 0
     },

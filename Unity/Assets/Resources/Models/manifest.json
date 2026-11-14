@@ -729,19 +729,20 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/ruin_pillar.fbx",
         "blend": "assets/blender/ruin_pillar.blend",
-        "preview": "assets/previews/ruin_pillar.png"
+        "preview": "assets/previews/ruin_pillar.png",
+        "views": "assets/previews/ruin_pillar_views.png"
       },
-      "triangles": 392,
+      "triangles": 198,
       "bounding_box": {
         "min": [
-          -0.6,
+          -0.92,
           0.0,
-          -0.64603
+          -0.76
         ],
         "max": [
-          0.80774,
-          2.99755,
-          0.525
+          0.6439,
+          3.18,
+          0.6576
         ]
       },
       "clips": [],
@@ -749,7 +750,7 @@
       "mesh_names": [
         "ruin_pillar"
       ],
-      "notes": ""
+      "notes": "3.1 m eroded monolith. Forked sacrificial seal faces exported -Z; lower 0.19 m carries a blood-tide band. Base origin at ground."
     },
     "ruin_arch": {
       "resource_path": "Models/ruin_arch",
