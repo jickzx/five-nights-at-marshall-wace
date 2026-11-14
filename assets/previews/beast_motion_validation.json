@@ -2,7 +2,7 @@
   "blender_version": "5.2.1 LTS",
   "source_sha256": {
     "tools/blender/creature.py": "41e2024d9c78faeabb5d108da6bf77d31fadbceaa6c323b99a31b67447291094",
-    "tools/blender/common.py": "43064e4715227ca6ac6231255a64f87a02675e612712a875e864c341948c53a1"
+    "tools/blender/common.py": "ce46523b7caf28dbf8ab4de89ddab02b0f22fea30e93c6ad07b48e29d04a2522"
   },
   "method": "Rebuilt each stage from source in memory; evaluated skinned vertices and pose matrices at every baked frame. Foot clearance is measured against world Z=0. Stance phases use the gait source schedule.",
   "models": {

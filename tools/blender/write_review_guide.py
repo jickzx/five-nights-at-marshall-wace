@@ -23,7 +23,9 @@ for name,entry in manifest['models'].items():
     clips=', '.join(f'[{clip}]({Path(path).name})' for clip,path in entry.get('review_sheets',{}).items()) or '—'
     lines.append(f'| {name} | {views} | {clips} |')
 if 'escape_video' in manifest['models']['ship']['files']:
-    lines += ['', '![Escape over the blood sea](ship_escape.png)', '', '[Nine-second cinematic takeoff](ship_escape.mp4). This uses the exported takeoff action with preview-only scenery and a warm horizon.', '']
+    lines += ['', '![Escape over the blood sea](ship_escape.png)', '', '[Nine-second cinematic takeoff](ship_escape.mp4). This uses the same authored takeoff action with preview-only scenery and a warm horizon.', '']
+    if 'ship_escape' in attachments:
+        lines += [f"[Watch the PR attachment]({attachments['ship_escape']['url']}).", '']
 lines += ['', '![Selected animation poses](animation_poses.png)', '',
           'The [asset README](../README.md) contains build and integration instructions. The [validation report](validation.json) covers the actual binary FBX files, fresh imports and decoded recordings. Unity runtime import has not been tested in this worktree.', '']
 (ROOT/'assets/previews/README.md').write_text('\n'.join(lines))

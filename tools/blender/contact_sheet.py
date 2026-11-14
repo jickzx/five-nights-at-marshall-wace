@@ -4,6 +4,7 @@ Run with system Python and Pillow after build_all.py or render_recordings.py.
 """
 import io
 import json
+import os
 import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -29,7 +30,15 @@ canvas.save(PREVIEWS/'contact_sheet.png')
 video_names=['player','beast_stage1','beast_stage2','beast_stage3','ship','door_sealed']
 canvas=Image.new('RGB',(960,1680),'#100e12')
 draw=ImageDraw.Draw(canvas)
-ffmpeg='/opt/homebrew/opt/ffmpeg@6/bin/ffmpeg'
+ffmpeg=None
+for candidate in [os.environ.get('FFMPEG'), '/opt/homebrew/bin/ffmpeg',
+                  '/opt/homebrew/opt/ffmpeg@6/bin/ffmpeg']:
+    if candidate and Path(candidate).is_file():
+        if subprocess.run([candidate,'-version'],capture_output=True).returncode==0:
+            ffmpeg=candidate
+            break
+if not ffmpeg:
+    raise RuntimeError('No working ffmpeg found. Set FFMPEG to an installed executable.')
 for row,name in enumerate(video_names):
     segments=manifest['models'][name]['preview_segments']
     if len(segments)==1:
