@@ -81,7 +81,6 @@ namespace Fnmw.Game
                     foreach (var r in exhausts) r.enabled = true;
                     if (model) ClipPlayer.Play(model, "ship", "takeoff");
                     spray = MakeSpray(basePos);
-                    Services.Audio.PlayStinger("engines");
                 }
                 float u = t - LiftStart;
                 float alt = u <= 0 ? 0 : (u < ClimbTime ? CruiseAlt * Ease.InOut(u / ClimbTime) : CruiseAlt);

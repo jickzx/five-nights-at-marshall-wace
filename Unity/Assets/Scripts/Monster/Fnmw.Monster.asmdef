@@ -1,6 +1,6 @@
 {
     "name": "Fnmw.Monster",
     "rootNamespace": "Fnmw.Monster",
-    "references": [ "Fnmw.Core" ],
+    "references": [ "Fnmw.Core", "Unity.InputSystem" ],
     "autoReferenced": false
 }

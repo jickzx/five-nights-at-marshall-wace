@@ -88,7 +88,6 @@ namespace Fnmw.World
             {
                 _nextBolt = Time.time + Random.Range(9f, 20f);
                 _bolt = 1f;
-                Services.Audio.PlayStinger("thunder");
             }
             _bolt = Mathf.Max(0, _bolt - Time.deltaTime * 2.2f);
             float flash = _bolt > 0 ? (Mathf.Sin(_bolt * 40f) > 0 ? _bolt : _bolt * 0.2f) : 0f;

@@ -203,7 +203,7 @@ namespace Fnmw.Game
             var c = CurrentConsole;
             if (c) c.Enabled = false;
             S.PuzzlesSolved = Mathf.Min(S.PuzzlesSolved + 1, S.TotalPuzzles);
-            Stinger("power_up");
+            Stinger("ship_power");
         }
 
         void ShowReveal()
@@ -249,7 +249,6 @@ namespace Fnmw.Game
             if (S.IsOver) return;
             S.SetPhase(GamePhase.Chase);
             if (_ship) _ship.Enabled = true;
-            Stinger("ship_ready");
             Stinger("beast_roar");
         }
 
