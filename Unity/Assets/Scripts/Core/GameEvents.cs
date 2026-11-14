@@ -21,6 +21,14 @@ namespace Fnmw.Core
         public string RealLanguage;
     }
 
+    /// <summary>One footfall of the player. Raised by the Game thread's controller; Audio can play a step.</summary>
+    public struct FootstepEvent
+    {
+        public string Surface;         // "shore", "blood" (wading), "metal"
+        public float Speed;            // m/s at the time of the step
+        public Vector3 Position;
+    }
+
     /// <summary>Static event bus. Subscribe in OnEnable/Install, unsubscribe on destroy.</summary>
     public static class GameEvents
     {
@@ -33,6 +41,7 @@ namespace Fnmw.Core
         public static event Action<int> ConsoleActivated;                // console index
         public static event Action PlayerCaught;
         public static event Action Escaped;
+        public static event Action<FootstepEvent> Footstep;
         /// <summary>UI raises this when the player places a tile in a puzzle (audio plays the word's motif).</summary>
         public static event Action<Tile> TilePicked;
         /// <summary>UI raises this when the player clears their placed tiles.</summary>
@@ -47,6 +56,7 @@ namespace Fnmw.Core
         public static void RaiseConsoleActivated(int i) => Safe(() => ConsoleActivated?.Invoke(i));
         public static void RaisePlayerCaught() => Safe(() => PlayerCaught?.Invoke());
         public static void RaiseEscaped() => Safe(() => Escaped?.Invoke());
+        public static void RaiseFootstep(FootstepEvent e) => Safe(() => Footstep?.Invoke(e));
         public static void RaiseTilePicked(Tile t) => Safe(() => TilePicked?.Invoke(t));
         public static void RaiseTilesCleared() => Safe(() => TilesCleared?.Invoke());
 
@@ -55,7 +65,7 @@ namespace Fnmw.Core
         {
             PhaseChanged = null; PuzzleStarted = null; AnswerSubmitted = null; QuizAnswered = null;
             BeastStageChanged = null; ThreatChanged = null; ConsoleActivated = null;
-            PlayerCaught = null; Escaped = null; TilePicked = null; TilesCleared = null;
+            PlayerCaught = null; Escaped = null; Footstep = null; TilePicked = null; TilesCleared = null;
         }
 
         static void Safe(Action a)

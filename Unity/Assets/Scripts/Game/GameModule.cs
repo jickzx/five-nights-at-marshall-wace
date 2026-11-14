@@ -3,15 +3,18 @@ using UnityEngine;
 
 namespace Fnmw.Game
 {
-    /// <summary>Game thread entry point. Spawns the player and the phase director.</summary>
+    /// <summary>Game thread entry point. Spawns the player, the phase director and the endings.</summary>
     public static class GameModule
     {
         public static void Install()
         {
+            DemoMode.ReadLaunchFlags();
+            DemoMode.Install();
             var player = new GameObject("Player");
-            player.transform.position = new Vector3(0, 0, 0);
             player.AddComponent<PlayerController>();
-            new GameObject("GameDirector").AddComponent<GameDirector>();
+            var director = new GameObject("GameDirector");
+            director.AddComponent<GameDirector>();
+            director.AddComponent<DevKeys>();
         }
     }
 }
