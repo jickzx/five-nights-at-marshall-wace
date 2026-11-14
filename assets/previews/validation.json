@@ -34,7 +34,7 @@
     },
     "ship": {
       "status": "passed",
-      "triangles": 1486,
+      "triangles": 1262,
       "takes": [
         "hatch_close",
         "idle",
@@ -42,8 +42,8 @@
       ],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 3e-07,
-      "animated_bounds_max_error_m": 8e-07,
+      "rest_bounds_max_error_m": 4.1e-06,
+      "animated_bounds_max_error_m": 1.9e-06,
       "sampled_poses": 12
     },
     "console": {
@@ -201,9 +201,9 @@
     "ship": {
       "status": "decoded",
       "codec": "h264",
-      "duration_seconds": 6.0,
+      "duration_seconds": 15.0,
       "resolution": [
-        480,
+        1440,
         480
       ]
     },
@@ -232,6 +232,15 @@
       "resolution": [
         480,
         480
+      ]
+    },
+    "ship_escape": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 9.0,
+      "resolution": [
+        1280,
+        720
       ]
     }
   }

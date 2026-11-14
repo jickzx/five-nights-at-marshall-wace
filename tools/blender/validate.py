@@ -153,6 +153,17 @@ for name,entry in manifest['models'].items():
     assert abs(float(info['format']['duration'])-expected_duration)<.05
     subprocess.run([encoder,'-v','error','-i',str(video),'-f','null','-'],check=True)
     report['recordings'][name]={'status':'decoded','codec':'h264','duration_seconds':float(info['format']['duration']),'resolution':[stream['width'],stream['height']]}
+if 'ship' in manifest['models'] and 'escape_video' in manifest['models']['ship']['files']:
+    entry=manifest['models']['ship']
+    video=ROOT/entry['files']['escape_video']
+    info=json.loads(subprocess.check_output([probe,'-v','error','-show_streams','-show_format','-of','json',str(video)]))
+    stream=next(s for s in info['streams'] if s['codec_type']=='video')
+    assert stream['codec_name']=='h264' and stream['pix_fmt']=='yuv420p'
+    assert [stream['width'],stream['height']]==entry['escape_recording']['resolution']
+    assert abs(float(info['format']['duration'])-entry['escape_recording']['duration_seconds'])<.05
+    subprocess.run([encoder,'-v','error','-i',str(video),'-f','null','-'],check=True)
+    report['recordings']['ship_escape']={'status':'decoded','codec':'h264',
+        'duration_seconds':float(info['format']['duration']),'resolution':[stream['width'],stream['height']]}
 report_path = ROOT/'assets/previews/validation.json'
 if selected and report_path.exists():
     previous = json.loads(report_path.read_text())

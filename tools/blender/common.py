@@ -35,8 +35,11 @@ WEIGHTS = {}
 
 def enum(owner, prop, wanted):
     """Resolve Blender's runtime enum identifiers, including dynamic operator enums."""
-    rna = owner.get_rna_type() if hasattr(owner, 'get_rna_type') else owner.bl_rna
-    items = rna.properties[prop].enum_items
+    if hasattr(owner, 'parameters'):
+        items = owner.parameters[prop].enum_items
+    else:
+        rna = owner.get_rna_type() if hasattr(owner, 'get_rna_type') else owner.bl_rna
+        items = rna.properties[prop].enum_items
     match = next((i.identifier for i in items if i.identifier == wanted or i.name == wanted), None)
     if match is None and not hasattr(owner, 'get_rna_type'):
         try:
@@ -112,7 +115,7 @@ def box(name, at, size, material, bone=None, bevel=0, rotation=None):
         obj.rotation_euler = rotation
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     if bevel:
-        mod = obj.modifiers.new('chipped_edges', 'BEVEL')
+        mod = obj.modifiers.new('chipped_edges', enum(bpy.types.Modifier,'type','BEVEL'))
         mod.width = bevel
         mod.segments = 1
         bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -140,7 +143,7 @@ def rod(name, a, b, r1, r2, material, bone=None, vertices=6):
     bpy.ops.mesh.primitive_cone_add(vertices=vertices, radius1=r1, radius2=r2,
                                     depth=delta.length, location=(Vector(a) + Vector(b)) / 2)
     obj = bpy.context.object
-    obj.rotation_mode = 'QUATERNION'
+    obj.rotation_mode = enum(obj,'rotation_mode','QUATERNION')
     obj.rotation_quaternion = delta.to_track_quat('Z', 'Y')
     return finish_mesh(obj, name, material, bone)
 
@@ -151,7 +154,7 @@ def mesh(name, verts, faces, material, bone=None, uv=False):
     data.update()
     obj = bpy.data.objects.new(name, data)
     bpy.context.collection.objects.link(obj)
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action=enum(bpy.ops.object.select_all,'action','DESELECT'))
     obj.select_set(True)
     if uv:
         layer = data.uv_layers.new(name='UVMap')
@@ -168,32 +171,32 @@ def front_quad(name, cx, y, z, w, h, material, bone=None):
 
 
 def skeleton(name, bones):
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action=enum(bpy.ops.object.select_all,'action','DESELECT'))
     data = bpy.data.armatures.new(name + '_skeleton')
     rig = bpy.data.objects.new(name + '_rig', data)
     bpy.context.collection.objects.link(rig)
     rig.select_set(True)
     bpy.context.view_layer.objects.active = rig
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode=enum(bpy.ops.object.mode_set,'mode','EDIT'))
     for bn, head, tail, parent in bones:
         b = data.edit_bones.new(bn)
         b.head, b.tail = head, tail
         if parent:
             b.parent = data.edit_bones[parent]
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode=enum(bpy.ops.object.mode_set,'mode','OBJECT'))
     rig.show_in_front = True
     for obj in PARTS:
         bn = WEIGHTS.get(obj.name, 'root')
         group = obj.vertex_groups.new(name=bn)
-        group.add(list(range(len(obj.data.vertices))), 1, 'REPLACE')
-        mod = obj.modifiers.new('rig', 'ARMATURE')
+        group.add(list(range(len(obj.data.vertices))), 1, enum(group.bl_rna.functions['add'],'type','REPLACE'))
+        mod = obj.modifiers.new('rig', enum(bpy.types.Modifier,'type','ARMATURE'))
         mod.object = rig
         obj.parent = rig
     return rig
 
 
 def join_parts(name):
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action=enum(bpy.ops.object.select_all,'action','DESELECT'))
     for o in PARTS:
         o.select_set(True)
     bpy.context.view_layer.objects.active = PARTS[0]
@@ -207,7 +210,7 @@ def join_parts(name):
 def world_rotate(rig, bone, axis, angle):
     p = rig.pose.bones.get(bone)
     if p:
-        p.rotation_mode = 'QUATERNION'
+        p.rotation_mode = enum(p,'rotation_mode','QUATERNION')
         local_axis = p.bone.matrix_local.to_quaternion().inverted() @ Vector(axis)
         p.rotation_quaternion = Quaternion(local_axis, angle)
 
@@ -220,7 +223,7 @@ def action(rig, name, end, pose):
     for frame in range(1, end+1):
         t = (frame-1)/(end-1)
         for p in rig.pose.bones:
-            p.rotation_mode = 'QUATERNION'
+            p.rotation_mode = enum(p,'rotation_mode','QUATERNION')
             p.location = (0, 0, 0)
             p.rotation_quaternion = (1, 0, 0, 0)
             p.scale = (1, 1, 1)
@@ -343,7 +346,7 @@ def setup_preview(lo, hi):
         ('cold_fill',(1.4,1,.8),(.45,.68,.75),650,1.4),
         ('blood_rim',(-.6,-1,1.5),(1,.035,.015),1500,1.1),
     ]:
-        bpy.ops.object.light_add(type='AREA', location=center+Vector(offset)*span)
+        bpy.ops.object.light_add(type=enum(bpy.ops.object.light_add,'type','AREA'), location=center+Vector(offset)*span)
         light = bpy.context.object
         light.name = name
         light.data.energy = power*span*span/18
@@ -412,11 +415,14 @@ def preview_video(name, rig, camera, center, span):
     scene.render.resolution_x = 480
     scene.render.resolution_y = 480
     frame_dir = ROOT/'assets/previews'/('.frames_'+name)
+    if frame_dir.exists():
+        shutil.rmtree(frame_dir)
     frame_dir.mkdir(exist_ok=True)
     scene.eevee.taa_render_samples = 16
     clip_order = ['idle','walk','run','death_martyr','stalk','chase','lunge','hatch_close','takeoff','open']
     acts = sorted(bpy.data.actions, key=lambda a: clip_order.index(a.name))
     segments, sheets = [], []
+    lights = [(obj, obj.location.copy()) for obj in scene.objects if obj.type == 'LIGHT']
     number = 0
     for act in acts:
         rig.animation_data.action = act
@@ -433,6 +439,9 @@ def preview_video(name, rig, camera, center, span):
                 focus.y += .5
             if act.name == 'takeoff':
                 focus += rig.pose.bones['root'].matrix.translation
+            light_offset = rig.pose.bones['root'].matrix.translation if act.name == 'takeoff' else Vector((0,0,0))
+            for light, original in lights:
+                light.location = original + light_offset
             for label, angle in REVIEW_ANGLES:
                 review_camera(camera, focus, span, angle)
                 scene.render.filepath = str(frame_dir/f'{label}_{number:04d}.png')
@@ -445,6 +454,8 @@ def preview_video(name, rig, camera, center, span):
         sheets.append({'title':f'{name} / {act.name} / natural speed key poses',
                        'cells':cells, 'cell_size':280,
                        'output':str(ROOT/'assets/previews'/f'{name}_{act.name}_review.png')})
+    for light, original in lights:
+        light.location = original
     compose_sheets(sheets, frame_dir)
     inputs = []
     for label, angle in REVIEW_ANGLES:
@@ -456,7 +467,7 @@ def preview_video(name, rig, camera, center, span):
     for index, (label, angle) in enumerate(REVIEW_ANGLES):
         filters.append(f"drawtext=fontfile={font}:text='{label}':fontcolor=white:fontsize=16:x={index*480+14}:y=450")
     subprocess.run([ffmpeg_path(),'-y','-loglevel','error',*inputs,
-                    '-filter_complex',','.join(filters),'-c:v','libx264',
+                    '-filter_complex',','.join(filters),'-frames:v',str(number),'-c:v','libx264',
                     '-pix_fmt','yuv420p','-movflags','+faststart','-crf','20',
                     str(ROOT/'assets/previews'/f'{name}.mp4')],check=True)
     shutil.rmtree(frame_dir)
@@ -486,7 +497,7 @@ def deliver(name, rig=None, notes=None):
               'fbx_frame_start':0,'fbx_frame_end':a['frame_end']-1,
               'fps':FPS,'loop':bool(a['loop']), 'duration_seconds':(a['frame_end']-1)/FPS}
              for a in bpy.data.actions]
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action=enum(bpy.ops.object.select_all,'action','DESELECT'))
     for o in PARTS + ([rig] if rig else []):
         o.select_set(True)
     model_dir = ROOT/'Unity/Assets/Resources/Models'

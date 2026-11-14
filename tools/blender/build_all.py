@@ -12,9 +12,13 @@ args=argparse.ArgumentParser()
 args.add_argument('--pass1',action='store_true')
 args.add_argument('--only',nargs='+',choices=ALL)
 options=args.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
-for name in options.only or (ALL[:4] if options.pass1 else ALL):
+selected=options.only or (ALL[:4] if options.pass1 else ALL)
+for name in selected:
     mod=importlib.import_module(name)
     if name.startswith('beast_stage'):
         mod.build_creature(int(name[-1]))
     else:
         mod.build()
+
+if 'ship' in selected:
+    importlib.import_module('render_escape').main()
