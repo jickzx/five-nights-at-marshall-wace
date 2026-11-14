@@ -31,7 +31,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | ruin_arch | [ruin_arch](ruin_arch_views.png) | — |
 | door_sealed | [door_sealed](door_sealed_views.png) | [open](door_sealed_open_review.png) |
 | mural_slab | [mural_slab](mural_slab_views.png) | — |
-| wreck_debris | Blockout review pending | — |
+| wreck_debris | [wreck_debris](wreck_debris_views.png) | — |
 | terrain_shore | Blockout review pending | — |
 | blood_sea | Blockout review pending | — |
 

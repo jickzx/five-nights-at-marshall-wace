@@ -933,19 +933,20 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/wreck_debris.fbx",
         "blend": "assets/blender/wreck_debris.blend",
-        "preview": "assets/previews/wreck_debris.png"
+        "preview": "assets/previews/wreck_debris.png",
+        "views": "assets/previews/wreck_debris_views.png"
       },
-      "triangles": 384,
+      "triangles": 736,
       "bounding_box": {
         "min": [
-          -1.0,
+          -1.46,
           0.0,
-          -0.81818
+          -1.13131
         ],
         "max": [
-          1.2,
-          0.97019,
-          0.65
+          1.58,
+          0.98598,
+          0.68046
         ]
       },
       "clips": [],
@@ -953,7 +954,7 @@
       "mesh_names": [
         "wreck_debris"
       ],
-      "notes": ""
+      "notes": "Ruptured pressure-vessel section, open interior and bent ribs. Low scattered plates and a severed cable extend beyond the main hull; use a simple hull collider if collision is required."
     },
     "terrain_shore": {
       "resource_path": "Models/terrain_shore",
