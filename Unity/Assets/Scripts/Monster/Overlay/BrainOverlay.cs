@@ -141,7 +141,8 @@ namespace Fnmw.Monster.Overlay
                 r = Row(24);
                 Label(new Rect(r.x, r.y, 230, 24), brain.Stage >= 3 ? "Fully evolved" : $"Evolving to stage {brain.Stage + 1}", _small);
                 Bar(new Rect(r.x + 230, r.y + 6, _w - 230, 12), brain.EvolutionToNext, new Color(0.8f, 0.15f, 0.1f));
-                Label(Row(26), brain.Why, _small);
+                var anim = BeastController.Instance ? BeastController.Instance.GetComponent<BeastAnimator>() : null;
+                Label(Row(26), anim ? $"{brain.Why}   ·   anim: {anim.CurrentClip}" : brain.Why, _small);
             }
             else Label(Row(26), "(another brain is driving the beast)", _small);
 
