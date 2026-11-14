@@ -291,6 +291,22 @@ namespace Fnmw.UI.Tests
         }
 
         [Test]
+        public void Mouse_ClickOnAQuizOption_ChoosesIt()
+        {
+            int chosen = -1;
+            Services.State.World = Services.Language.Generate(1);
+            _ui.ShowQuiz(Services.Language.GetQuiz(Services.State.World, 1), i => chosen = i);
+            Wait(0.6f);
+            // option 4 sits in the right column, second row; stage space has its origin at the centre, y up
+            var overOption4 = new UiInput { Digit = -1, HasPointer = true, Pointer = new Vector2(326 + 125 - 320, 180 - (234 + 17)), Click = true };
+            Press(overOption4);
+            Assert.AreEqual("Verdict", _ui.ScreenName);
+            Wait(2f);
+            Press(new UiInput { Digit = -1, HasPointer = true, Pointer = new Vector2(-300, 170), Click = true });
+            Assert.AreEqual(3, chosen, "a click anywhere continues past the payoff");
+        }
+
+        [Test]
         public void StageChange_AndHideAll_DoNotThrow()
         {
             Services.State.SetPhase(GamePhase.Explore);

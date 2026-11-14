@@ -114,7 +114,7 @@ namespace Fnmw.UI
             float w = Mathf.Clamp(PlateWidth(meaning), minW, maxW);
             Kit.Box("PlateFill", parent, hot ? Pal.RustDeep.A(0.55f) : Pal.Ash.A(0.6f), x + 1, y + 1, w - 2, h - 2);
             Kit.Frame("Plate", parent, hot ? Pal.Bone : Pal.Rust, x, y, w, h, hot);
-            var ink = hot ? Pal.Bone : Pal.BoneDim;
+            var ink = hot ? Pal.Bone : Pal.Bone.A(0.85f);
             if (icons > 0 && h >= 42)
             {
                 float ix = x + (w - (icons * 26 + (icons - 1) * 4)) / 2f;

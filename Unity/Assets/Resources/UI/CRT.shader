@@ -104,7 +104,7 @@ Shader "Fnmw/UI/CRT"
                 float crk = tex2D(_CrackTex, uv).r;
                 float2 cg = float2(tex2D(_CrackTex, uv + float2(ct.x, 0)).r - tex2D(_CrackTex, uv - float2(ct.x, 0)).r,
                                    tex2D(_CrackTex, uv + float2(0, ct.y)).r - tex2D(_CrackTex, uv - float2(0, ct.y)).r);
-                suv += cg * 0.012 * _Crack;
+                suv += cg * 0.005 * _Crack;
 
                 float band = floor(uv.y * 28.0);
                 float th = hash11(band * 3.1 + floor(t * 18.0) * 7.3);
