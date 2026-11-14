@@ -115,7 +115,7 @@ namespace Fnmw.UI
             {
                 if (Rt) { Cam.targetTexture = null; Rt.Release(); Kit.Kill(Rt); }
                 W = v.x; H = v.y;
-                Rt = new RenderTexture(W, H, 0, RenderTextureFormat.ARGB32)
+                Rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32)
                 {
                     name = "FnmwUi", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp,
                     useMipMap = false, antiAliasing = 1, hideFlags = HideFlags.HideAndDontSave,
@@ -126,8 +126,17 @@ namespace Fnmw.UI
                 Mat.SetTexture("_UiTex", Rt);
             }
             Mat.SetVector("_UiSize", new Vector4(W, H, screenW / (float)W, screenH / (float)H));
-            // Never let a scanline be thinner than three screen pixels, or it turns to moire.
-            Mat.SetFloat("_ScanLines", Mathf.Min(H, Mathf.Max(60, screenH / 3)));
+            // One scanline per virtual row when the window is big enough to show the gap between rows;
+            // otherwise one per k rows, and shallower, so small windows keep their text readable.
+            float pxPerRow = screenH / (float)H;
+            int k = Mathf.Max(1, Mathf.CeilToInt(2.5f / pxPerRow));
+            Mat.SetFloat("_ScanLines", H / (float)k);
+            Mat.SetFloat("_ScanDepth", k == 1 ? 1f : 0.45f);
+            // Overscan the glass a few pixels past the window so no edge of the world can leak around it.
+            const float over = 8f;
+            var glass = Presenter.rectTransform;
+            glass.offsetMin = new Vector2(-over, -over); glass.offsetMax = new Vector2(over, over);
+            Presenter.uvRect = new Rect(-over / screenW, -over / screenH, 1f + 2f * over / screenW, 1f + 2f * over / screenH);
         }
 
         public void Dispose()

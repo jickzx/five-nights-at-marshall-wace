@@ -81,10 +81,10 @@ namespace Fnmw.UI
             _promptFrame = Kit.Frame("Frame", _prompt, Pal.Bone, 0, 0, 100, 28);
             _promptText = Kit.Label("Text", _prompt, "", 16, Pal.Bone, TextAnchor.MiddleCenter, 0, 6, 100, 16);
             _prompt.gameObject.SetActive(false);
-            _power = Kit.Node("Power", Root, 34, 316, 200, 16);
+            _power = Kit.Node("Power", Root, 30, 312, 200, 23);
             for (int i = 0; i < 3; i++)
             {
-                var claw = Kit.Box("Claw", Root, Pal.Blood, 548 + i * 16, 22, 3, 46);
+                var claw = Kit.Box("Claw", Root, Pal.Blood, 520 + i * 18, 30, 4, 58);
                 claw.rectTransform.localRotation = Quaternion.Euler(0, 0, -18);
                 claw.enabled = false;
                 _claws.Add(claw);
@@ -118,7 +118,8 @@ namespace Fnmw.UI
                 if (_solved >= 0 && s.PuzzlesSolved > _solved) _cellFlash = 1f;
                 _solved = s.PuzzlesSolved; _total = s.TotalPuzzles;
                 Kit.Clear(_power); _cells.Clear();
-                Widgets.Power(_power, 0, 0, _solved, _total, Pal.Bone, Pal.Rust.A(0.7f), _cells);
+                Kit.Box("Back", _power, Pal.Void.A(0.6f), 0, 0, Widgets.PowerWidth(_total) + 12, 23);
+                Widgets.Power(_power, 6, 4, _solved, _total, Pal.Bone, _cells);
             }
             _cellFlash = Mathf.MoveTowards(_cellFlash, 0, dt * 0.6f);
             if (_solved > 0 && _solved <= _cells.Count)
@@ -133,10 +134,10 @@ namespace Fnmw.UI
                 _claws[i].enabled = on;
                 if (!on) continue;
                 bool fresh = i == _stage - 2;
-                float a = fresh ? Mathf.Lerp(1f, 0.55f, Kit.Ramp(_clawT, 0.4f, 2f)) : 0.55f;
-                float len = fresh ? 46f * Kit.EaseOut(Kit.Ramp(_clawT, i * 0.05f, 0.18f)) : 46f;
+                float a = fresh ? Mathf.Lerp(1f, 0.7f, Kit.Ramp(_clawT, 0.4f, 2f)) : 0.7f;
+                float len = fresh ? 58f * Kit.EaseOut(Kit.Ramp(_clawT, i * 0.05f, 0.18f)) : 58f;
                 _claws[i].color = Pal.Blood.A(a);
-                _claws[i].rectTransform.sizeDelta = new Vector2(3, len);
+                _claws[i].rectTransform.sizeDelta = new Vector2(4, len);
             }
         }
     }
@@ -192,7 +193,7 @@ namespace Fnmw.UI
             if (_gradient) return _gradient;
             const int n = 90;
             _gradient = new Texture2D(1, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.HideAndDontSave };
-            var stops = new[] { (0f, Pal.Hex(0x0A0D1F)), (0.45f, Pal.Hex(0x1B1F45)), (0.68f, Pal.Hex(0x4A3460)), (0.77f, Pal.Hex(0xB86B62)), (0.80f, Pal.Hex(0xF2C79A)), (0.805f, Pal.Hex(0x3A0C16)), (1f, Pal.Hex(0x0E0408)) };
+            var stops = new[] { (0f, Pal.Hex(0x0A0D1F)), (0.5f, Pal.Hex(0x1B1F45)), (0.76f, Pal.Hex(0x4A3460)), (0.83f, Pal.Hex(0xB86B62)), (0.855f, Pal.Hex(0xF2C79A)), (0.86f, Pal.Hex(0x3A0C16)), (1f, Pal.Hex(0x0E0408)) };
             for (int y = 0; y < n; y++)
             {
                 float t = 1f - y / (float)(n - 1);       // 0 at the top of the screen
@@ -220,7 +221,7 @@ namespace Fnmw.UI
             var rng = new System.Random(11);
             for (int i = 0; i < 46; i++)
             {
-                var star = Kit.Box("Star", Root, Pal.Dawn, rng.Next(8, 632), rng.Next(8, 230), 1 + (i % 9 == 0 ? 1 : 0), 1 + (i % 9 == 0 ? 1 : 0));
+                var star = Kit.Box("Star", Root, Pal.Dawn, rng.Next(8, 632), rng.Next(8, 250), 1 + (i % 9 == 0 ? 1 : 0), 1 + (i % 9 == 0 ? 1 : 0));
                 _stars.Add(star);
             }
             _trail = Kit.Box("Trail", Root, Pal.Amber.A(0.5f), 541, 200, 2, 60);
@@ -246,7 +247,7 @@ namespace Fnmw.UI
                 int count = Mathf.Min(journal.Entries.Count, 5);
                 bool roomy = count <= 2;
                 float at = 2.4f;
-                for (int i = 0; i < count && y < 300; i++)
+                for (int i = 0; i < count && y < 290; i++)
                 {
                     var e = journal.Entries[i];
                     Fade(Kit.Label("Lang", Root, e.Language.ToUpperInvariant(), 16, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, 300, 16), at);
@@ -262,8 +263,8 @@ namespace Fnmw.UI
                     }
                     if (roomy && !string.IsNullOrEmpty(e.Fact))
                     {
-                        int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 400), 1, 3);
-                        var t = Kit.Label("Fact", Root, e.Fact, 16, Pal.BoneDim, TextAnchor.UpperLeft, 56, y + 2, 400, lines * 18, true);
+                        int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 430), 1, 3);
+                        var t = Kit.Label("Fact", Root, e.Fact, 16, Pal.Dawn, TextAnchor.UpperLeft, 56, y + 2, 430, lines * 18, true);
                         t.lineSpacing = 0.8f;
                         Fade(t, at + 0.3f);
                         y += lines * 18 + 4;

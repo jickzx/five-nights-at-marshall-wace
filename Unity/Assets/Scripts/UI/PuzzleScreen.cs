@@ -81,7 +81,7 @@ namespace Fnmw.UI
             var head = Section("Head");
             Kit.Label("Tongue", head, (world?.AlienName ?? "UNKNOWN TONGUE").ToUpperInvariant(), 16, Pal.RustHot, TextAnchor.MiddleLeft, L, 14, 300, 16);
             int total = state != null ? state.TotalPuzzles : 0, solved = state != null ? state.PuzzlesSolved : 0;
-            Widgets.Power(head, R - (18 + total * 9), 15, solved, total, Pal.Bone, Pal.RustDeep);
+            Widgets.Power(head, R - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
             Kit.Box("Rule", head, Pal.Rust, L, 36, R - L, 1);
 
             // tile rows first: they decide how much room the mural gets
@@ -100,27 +100,29 @@ namespace Fnmw.UI
             int rowH = exRows > 0 ? Mathf.Clamp((yAnswer - 4 - 44) / exRows, 46, 54) : 52;
             int yEx = 44 + Mathf.Max(0, (yAnswer - 4 - 44 - exRows * rowH) / 2);
 
-            float wordX = 0;
+            // one plate width for the whole mural, so the glyph columns line up
+            float plateW = Widgets.PlateWidth(_p.TargetMeaning);
+            for (int i = 0; i < ex; i++) plateW = Mathf.Max(plateW, Widgets.PlateWidth(_p.Examples[i].Picture));
+            plateW = Mathf.Clamp(plateW, 84, twoCol ? 110 : 200);
+            float wordX = L + plateW + 22;
             for (int i = 0; i < ex; i++)
             {
                 var e = _p.Examples[i];
                 int col = twoCol ? i % 2 : 0, row = twoCol ? i / 2 : i;
                 var node = Section("Example" + i);
                 float x = L + col * 292, y = yEx + row * rowH;
-                float pw = Widgets.Plate(node, x, y, twoCol ? 84 : 140, twoCol ? 110 : 190, 44, e.Picture, false);
-                float wx = twoCol ? x + pw + 16 : L + 190 + 16;
-                wordX = wx;
-                Colon(node, wx - 10, y + 14, Pal.Rust);
+                Widgets.Plate(node, x, y, plateW, plateW, 44, e.Picture, false);
+                float wx = x + plateW + 22;
+                Colon(node, wx - 13, y + 14, Pal.Rust);
                 foreach (var w in e.Words)
                     wx += Widgets.Word(node, wx, y - 2, w, _fam, Pal.Bone, Pal.BoneDim, out _, out _) + 6;
             }
-            if (ex == 0 || twoCol) wordX = L + 190 + 16;
 
             // the row the player must complete
             var ans = Section("Answer");
             Kit.Box("AnswerRule", ans, Pal.RustDeep, L, yAnswer - 4, R - L, 1);
-            Widgets.Plate(ans, L, yAnswer, 140, 190, 44, _p.TargetMeaning, true);
-            Colon(ans, wordX - 10, yAnswer + 14, Pal.Bone);
+            Widgets.Plate(ans, L, yAnswer, plateW, plateW, 44, _p.TargetMeaning, true);
+            Colon(ans, wordX - 13, yAnswer + 14, Pal.Bone);
             _slotRow = Kit.Node("Slots", ans, wordX, yAnswer, R - wordX - 70, 52);
             _slotCursor = Kit.Frame("Cursor", ans, Pal.RustHot, 0, 0, 32, 32);
 
@@ -148,7 +150,7 @@ namespace Fnmw.UI
             }
 
             var foot = Section("Foot");
-            _msg = Kit.Label("Message", foot, Hint, 16, Pal.Rust, TextAnchor.UpperCenter, L, 324, R - L, 34, true);
+            _msg = Kit.Label("Message", foot, Hint, 16, Pal.BoneDim, TextAnchor.UpperCenter, L, 324, R - L, 34, true);
             _msg.lineSpacing = 0.8f;
 
             RefreshSlots();
@@ -179,7 +181,7 @@ namespace Fnmw.UI
             v.Glyph = Kit.Pic("Glyph", v.Rt, GlyphGen.Texture(tile.GlyphSeed, _fam, Widgets.GlyphPx), Pal.Bone, (w - 32) / 2f, h >= 58 ? 6 : 2, 32, 32);
             v.Cap = Kit.Label("Sound", v.Rt, tile.Alien ?? "", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 0, h - 19, w, 16);
             string key = index < 9 ? (index + 1).ToString() : index == 9 ? "0" : "";
-            v.Key = Kit.Label("Key", v.Rt, key, 16, Pal.RustHot, TextAnchor.MiddleLeft, 4, 1, 10, 16);
+            v.Key = Kit.Label("Key", v.Rt, key, 16, Pal.RustHot, TextAnchor.MiddleLeft, 5, 2, 10, 16);
             int captured = index;
             AddHit(v.Rt, () => Place(captured), over => { if (over && Interactive) { _cursor = captured; RefreshTiles(); } });
             return v;
@@ -268,7 +270,7 @@ namespace Fnmw.UI
             _msgT = 0;
             Ui.Fx.Kick(shake: 1f, burst: 0.75f, tear: 0.9f, red: 0.55f);
             Ui.Fx.Bleed();
-            Ui.Fx.Crack(new Vector2(UnityEngine.Random.Range(0.2f, 0.8f), UnityEngine.Random.Range(0.3f, 0.8f)));
+            Ui.Fx.Crack(new Vector2(UnityEngine.Random.Range(0.15f, 0.85f), UnityEngine.Random.Range(0.42f, 0.9f)));   // above the tile row
         }
 
         protected override void OnTick(float dt, UiInput input)
@@ -326,7 +328,7 @@ namespace Fnmw.UI
                 int chars = Mathf.Min(full.Length, (int)(_msgT * 48f));
                 Kit.SetText(_msg, full.Substring(0, chars) + (chars < full.Length && Kit.Blink(_msgT, 9f) ? "█" : ""));
                 _msg.color = Color.Lerp(Pal.Hex(0xFF5040), Pal.RustHot, Kit.Ramp(_msgT, 2.5f, 3f));
-                if (_msgT > 9f) { _msgT = -1; Kit.SetText(_msg, Hint); _msg.color = Pal.Rust; }
+                if (_msgT > 9f) { _msgT = -1; Kit.SetText(_msg, Hint); _msg.color = Pal.BoneDim; }
             }
 
             if (!Interactive) return;

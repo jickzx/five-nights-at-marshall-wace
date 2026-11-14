@@ -69,13 +69,30 @@ namespace Fnmw.UI
             if (f && f.material && f.material.mainTexture) f.material.mainTexture.filterMode = FilterMode.Point;
         }
 
+        // Unity quietly borrows missing glyphs from fonts installed on the machine, so Font.HasCharacter
+        // says yes to nearly everything. To know what the shipped file itself can draw, each font has a
+        // 64K-bit coverage map beside it, generated from its cmap.
+        static byte[] _pixelMap, _wideMap;
+
+        static byte[] Map(string path)
+        {
+            var asset = Resources.Load<TextAsset>(path);
+            return asset ? asset.bytes : null;
+        }
+
+        static bool InMap(byte[] map, char ch) => map == null || (ch >> 3) >= map.Length || (map[ch >> 3] & (1 << (ch & 7))) != 0;
+
+        /// <summary>True when the font file itself (not an operating-system stand-in) has every character.</summary>
         public static bool Covers(Font f, string s)
         {
             if (!f || string.IsNullOrEmpty(s)) return true;
+            byte[] map = null;
+            if (f == Pixel) map = _pixelMap ?? (_pixelMap = Map("UI/Fonts/DotGothic16.coverage"));
+            else if (f == Wide) map = _wideMap ?? (_wideMap = Map("UI/Fonts/Unifont.coverage"));
             foreach (char ch in s)
             {
                 if (char.IsWhiteSpace(ch) || char.IsControl(ch) || char.IsSurrogate(ch)) continue;
-                if (!f.HasCharacter(ch)) return false;
+                if (map != null ? !InMap(map, ch) : !f.HasCharacter(ch)) return false;
             }
             return true;
         }

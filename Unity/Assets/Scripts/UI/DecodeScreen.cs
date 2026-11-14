@@ -163,7 +163,11 @@ namespace Fnmw.UI
             float tw = FontBook.Width("THE PATTERN", 16);
             Kit.Box("TabBack", _lower, Pal.WarmDark, 76, y - 8, tw + 12, 16);
             Kit.Label("Tab", _lower, "THE PATTERN", 16, Pal.Amber, TextAnchor.MiddleLeft, 82, y - 8, tw + 4, 16);
-            var body = Kit.Label("Body", _lower, text, 16, Pal.Ivory, TextAnchor.UpperLeft, 80, y + 12, 480, lines * 18, true);
+            // the blocked-out name is drawn in rust, so it reads as a gap to fill rather than a glare
+            string marked = text.Replace("<", "\u2039").Replace(">", "\u203A");
+            marked = System.Text.RegularExpressions.Regex.Replace(marked, "\u2588+", m => "<color=#8F3F1F>" + m.Value + "</color>");
+            var body = Kit.Label("Body", _lower, marked, 16, Pal.Ivory, TextAnchor.UpperLeft, 80, y + 12, 480, lines * 18, true);
+            body.supportRichText = true;
             body.lineSpacing = 0.8f;
             _cue = Widgets.Cue(_lower, 326, "NAME THE ORIGIN", Pal.Amber);
         }

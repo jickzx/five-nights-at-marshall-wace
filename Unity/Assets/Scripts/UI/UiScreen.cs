@@ -94,6 +94,15 @@ namespace Fnmw.UI
             return w;
         }
 
+        /// <summary>Width a plate wants for a meaning, before clamping.</summary>
+        public static float PlateWidth(string meaning)
+        {
+            meaning = (meaning ?? "").Trim();
+            int icons = 0;
+            foreach (var word in meaning.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) if (Pictograms.Has(word)) icons++;
+            return Mathf.Ceil(Mathf.Max(FontBook.Width(meaning.ToUpperInvariant(), 16) + 16, icons * 30 + 12) / 2f) * 2f;
+        }
+
         /// <summary>The meaning of a phrase: carved pictures where we have them, the words underneath.</summary>
         public static float Plate(Transform parent, float x, float y, float minW, float maxW, float h, string meaning, bool hot)
         {
@@ -102,9 +111,7 @@ namespace Fnmw.UI
             int icons = 0;
             foreach (var word in words) if (Pictograms.Has(word)) icons++;
             string label = meaning.ToUpperInvariant();
-            float textW = FontBook.Width(label, 16);
-            float w = Mathf.Clamp(Mathf.Max(textW + 14, icons * 30 + 10), minW, maxW);
-            w = Mathf.Ceil(w / 2f) * 2f;
+            float w = Mathf.Clamp(PlateWidth(meaning), minW, maxW);
             Kit.Box("PlateFill", parent, hot ? Pal.RustDeep.A(0.55f) : Pal.Ash.A(0.6f), x + 1, y + 1, w - 2, h - 2);
             Kit.Frame("Plate", parent, hot ? Pal.Bone : Pal.Rust, x, y, w, h, hot);
             var ink = hot ? Pal.Bone : Pal.BoneDim;
@@ -124,20 +131,24 @@ namespace Fnmw.UI
             return w;
         }
 
-        /// <summary>Ship power: one cell per console, lit as each is decoded.</summary>
-        public static float Power(Transform parent, float x, float y, int solved, int total, Color lit, Color dark, List<Image> cells = null)
+        /// <summary>Ship power: one cell per console, lit as each is decoded. Returns the width used.</summary>
+        public static float Power(Transform parent, float x, float y, int solved, int total, Color lit, List<Image> cells = null)
         {
             total = Mathf.Clamp(total, 0, 12);
-            Kit.Pic("Ship", parent, Pictograms.Get("ship"), lit, x, y, 13, 13);
+            Kit.Pic("Ship", parent, Pictograms.Get("ship"), lit, x, y + 1, 13, 13);
             float cx = x + 18;
             for (int i = 0; i < total; i++)
             {
-                var cell = Kit.Box("Cell", parent, i < solved ? lit : dark, cx, y + 1, 6, 11);
+                bool on = i < solved;
+                Kit.Box("CellEdge", parent, on ? lit : lit.A(0.55f), cx, y, 7, 15);
+                var cell = Kit.Box("Cell", parent, on ? lit : Pal.Void, cx + 1, y + 1, 5, 13);
                 cells?.Add(cell);
-                cx += 9;
+                cx += 10;
             }
-            return cx - x;
+            return cx - 3 - x;
         }
+
+        public static float PowerWidth(int total) => 18 + Mathf.Clamp(total, 0, 12) * 10 - 3;
 
         /// <summary>"ENTER > DO THE THING", blinking. Returns the node so it can be shown late.</summary>
         public static RectTransform Cue(Transform parent, float y, string text, Color c)

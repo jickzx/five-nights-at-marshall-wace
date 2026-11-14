@@ -32,7 +32,7 @@ Shader "Fnmw/UI/CRT"
             sampler2D _CrackTex;
             float4 _UiSize;      // xy = texture size in texels, zw = screen pixels per texel
             float _T;            // unscaled seconds
-            float _Curve, _Backplate, _Scan, _ScanLines, _Glow;
+            float _Curve, _Backplate, _Scan, _ScanLines, _ScanDepth, _Glow;
             float _Threat, _Pulse, _Vignette, _Static, _Burst, _Flicker, _Aberr, _Tear, _Dropout;
             float _Tide, _Wash, _WashA, _WashSeed, _Crack, _RedFlash;
             float _White, _Ink;
@@ -146,8 +146,9 @@ Shader "Fnmw/UI/CRT"
 
                 // --- scanlines ----------------------------------------------------------------
                 float sl = 0.5 + 0.5 * cos(suv.y * _ScanLines * 6.28318);
-                P *= 1.0 - _Scan * sl;
-                A = saturate(A + _Scan * 0.12 * sl * (1.0 - bp));
+                float scan = _Scan * _ScanDepth;
+                P *= 1.0 - scan * sl;
+                A = saturate(A + scan * 0.12 * sl * (1.0 - bp));
 
                 float lumP = max3(P);
 
@@ -158,7 +159,7 @@ Shader "Fnmw/UI/CRT"
                 float under = smoothstep(level + 0.003, level - 0.003, uv.y) * step(0.0005, _Tide);
                 float depth = saturate((level - uv.y) / max(level, 0.001));
                 float3 blood = lerp(_Blood.rgb, _BloodDeep.rgb, saturate(depth * 1.3));
-                P = lerp(P, blood * (0.8 + 0.9 * lumP), under * 0.92);
+                P = lerp(P, blood * 0.85 + P * float3(0.95, 0.62, 0.58), under);
                 A = lerp(A, 1.0, under * 0.94);
                 float edge = smoothstep(0.007, 0.0, abs(uv.y - level)) * step(0.0005, _Tide);
                 P += edge * float3(1.0, 0.32, 0.26) * 0.45;
@@ -190,7 +191,7 @@ Shader "Fnmw/UI/CRT"
 
                 // --- static: at the edges while roaming, everywhere on a burst -----------
                 float n = hash21(floor(uv * _UiSize.xy * 0.5) + floor(t * 30.0) * 17.0);
-                float sAmt = saturate(_Static * (0.15 + v * 1.6) + _Burst);
+                float sAmt = saturate(_Static * (0.004 + v * v * 2.2) + _Burst);
                 float sMask = step(1.0 - sAmt * 0.55, n);
                 float n2 = hash21(floor(uv * _UiSize.xy * 0.5) * 1.3 + floor(t * 30.0) * 5.0);
                 P = lerp(P, n2 * float3(0.9, 0.84, 0.78), sMask * 0.85);

@@ -64,7 +64,7 @@ namespace Fnmw.UI
             {
                 case GlassMode.Title: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.55f; tide = 0.17f; calm = 0.4f; break;
                 case GlassMode.Visor: backplate = 0; curve = 0.05f; scan = 0.14f; glow = 0.45f; vignette = 0.22f; tide = 0; calm = 0; break;
-                case GlassMode.Console: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.45f; tide = 0.02f + 0.24f * _threat; calm = 0; break;
+                case GlassMode.Console: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.45f; tide = 0.02f + 0.17f * _threat; calm = 0; break;
                 case GlassMode.Decode: backplate = 1; curve = 0.14f; scan = 0.16f; glow = 0.7f; vignette = 0.35f; tide = 0; calm = 0.8f; break;
                 case GlassMode.Death: backplate = 0; curve = 0.05f; scan = 0.05f; glow = 0.2f; vignette = 0.2f; tide = 0; calm = 0.6f; break;
                 case GlassMode.Escape: backplate = 1; curve = 0.10f; scan = 0.12f; glow = 0.6f; vignette = 0.3f; tide = 0; calm = 1f; break;
@@ -178,8 +178,8 @@ namespace Fnmw.UI
             _mat.SetFloat("_Glow", _glow);
             _mat.SetFloat("_Threat", Dread);
             _mat.SetFloat("_Pulse", Pulse);
-            _mat.SetFloat("_Vignette", _vignette + 0.5f * Dread);
-            _mat.SetFloat("_Static", 0.015f + 0.6f * Dread * Dread);
+            _mat.SetFloat("_Vignette", _vignette + 0.8f * Dread);
+            _mat.SetFloat("_Static", (0.002f + 0.3f * Dread * Dread) * (1f - 0.9f * _calm));
             _mat.SetFloat("_Burst", _burst * 0.8f);
             _mat.SetFloat("_Flicker", (0.03f + 0.4f * Dread) * (1f - 0.7f * _calm));
             _mat.SetFloat("_Aberr", 0.002f + 0.012f * Dread + _shake * 0.02f + fit * 0.01f);
@@ -188,7 +188,7 @@ namespace Fnmw.UI
             _mat.SetFloat("_Tide", Mathf.Max(0, _tide + (_tide > 0.01f ? _splash + Pulse * 0.006f * Dread : 0)));
             _mat.SetFloat("_Wash", _washFront);
             _mat.SetFloat("_WashA", Kit.Ease(_washA));
-            _mat.SetFloat("_Crack", Cracks > 0 ? 1f : 0f);
+            _mat.SetFloat("_Crack", Cracks > 0 ? 1f - 0.88f * _calm : 0f);   // the warm screens stay legible
             _mat.SetFloat("_RedFlash", _redFlash);
             _mat.SetFloat("_White", Kit.Ease(_white));
             _mat.SetFloat("_Ink", _ink);
