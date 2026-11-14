@@ -989,7 +989,8 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/blood_sea.fbx",
         "blend": "assets/blender/blood_sea.blend",
-        "preview": "assets/previews/blood_sea.png"
+        "preview": "assets/previews/blood_sea.png",
+        "views": "assets/previews/blood_sea_views.png"
       },
       "triangles": 2,
       "bounding_box": {
@@ -1009,7 +1010,7 @@
       "mesh_names": [
         "blood_sea"
       ],
-      "notes": "Flat 20 x 20 m plane, 2 triangles. Tile at water height y=0. No baked waves. Unity can replace the material with animated blood."
+      "notes": "Flat 20 x 20 m plane, two triangles, UVs span 0..1. Deep saturated blood colour and low roughness. No baked ripples or waves. Tile at water height Unity y=0, or y=0.36 to meet terrain_shore. The game may replace the material with animated blood."
     }
   },
   "frame_range_convention": "frame_start/end are Blender action frames; fbx_frame_start/end are zero-based FBX takes"
