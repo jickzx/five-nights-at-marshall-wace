@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.Lang",
+    "rootNamespace": "Fnmw.Lang",
+    "references": [ "Fnmw.Core" ],
+    "autoReferenced": false
+}

@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.Monster",
+    "rootNamespace": "Fnmw.Monster",
+    "references": [ "Fnmw.Core" ],
+    "autoReferenced": false
+}
