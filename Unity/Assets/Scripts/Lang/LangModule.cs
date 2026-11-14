@@ -1,5 +1,8 @@
 namespace Fnmw.Lang
 {
-    /// <summary>Lang thread entry point. Replace the fake: Fnmw.Core.Services.Language = new YourEngine();</summary>
-    public static class LangModule { public static void Install() { /* placeholder: FakeLanguageEngine stays registered */ } }
+    /// <summary>Lang thread entry point: registers the real language engine in place of the fake.</summary>
+    public static class LangModule
+    {
+        public static void Install() => Fnmw.Core.Services.Language = new LanguageEngine();
+    }
 }
