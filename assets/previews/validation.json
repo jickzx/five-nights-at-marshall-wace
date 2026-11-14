@@ -128,13 +128,13 @@
     },
     "door_sealed": {
       "status": "passed",
-      "triangles": 516,
+      "triangles": 1360,
       "takes": [
         "open"
       ],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 1e-07,
+      "rest_bounds_max_error_m": 2e-07,
       "animated_bounds_max_error_m": 0.0,
       "sampled_poses": 4
     },
@@ -228,9 +228,9 @@
     "door_sealed": {
       "status": "decoded",
       "codec": "h264",
-      "duration_seconds": 2.0,
+      "duration_seconds": 3.5,
       "resolution": [
-        480,
+        1440,
         480
       ]
     },

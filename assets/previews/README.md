@@ -29,7 +29,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | rock_b | [rock_b](rock_b_views.png) | — |
 | ruin_pillar | [ruin_pillar](ruin_pillar_views.png) | — |
 | ruin_arch | [ruin_arch](ruin_arch_views.png) | — |
-| door_sealed | Blockout review pending | — |
+| door_sealed | [door_sealed](door_sealed_views.png) | [open](door_sealed_open_review.png) |
 | mural_slab | Blockout review pending | — |
 | wreck_debris | Blockout review pending | — |
 | terrain_shore | Blockout review pending | — |
@@ -37,7 +37,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 
 ![Escape over the blood sea](ship_escape.png)
 
-[Nine-second cinematic takeoff](ship_escape.mp4). This uses the exported takeoff action with preview-only scenery and a warm horizon.
+[Nine-second cinematic takeoff](ship_escape.mp4). This uses the same authored takeoff action with preview-only scenery and a warm horizon.
 
 [Watch the PR attachment](https://github.com/user-attachments/assets/bee29ce4-0952-4d1b-8d5c-b26248aa0c45).
 

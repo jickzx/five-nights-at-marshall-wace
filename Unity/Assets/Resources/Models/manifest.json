@@ -786,63 +786,103 @@
         "fbx": "Unity/Assets/Resources/Models/door_sealed.fbx",
         "blend": "assets/blender/door_sealed.blend",
         "preview": "assets/previews/door_sealed.png",
+        "views": "assets/previews/door_sealed_views.png",
         "video": "assets/previews/door_sealed.mp4"
       },
-      "triangles": 516,
+      "triangles": 1360,
       "bounding_box": {
         "min": [
-          -1.635,
+          -2.3,
           0.0,
-          -0.425
+          -0.495
         ],
         "max": [
-          1.635,
-          2.93,
-          0.425
+          2.3,
+          3.09,
+          0.445
         ]
       },
       "clips": [
         {
           "name": "open",
           "frame_start": 1,
-          "frame_end": 49,
+          "frame_end": 85,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 84,
           "fps": 24,
           "loop": false,
-          "duration_seconds": 2.0,
-          "fbx_frame_start": 0,
-          "fbx_frame_end": 48
+          "duration_seconds": 3.5
         }
       ],
       "rigged": true,
       "mesh_names": [
-        "frame_post",
+        "frame_post_L",
         "frame_foot",
+        "frame_cheek",
+        "frame_inner_seal",
         "door_leaf_L",
-        "raised_panel",
-        "crossbar",
-        "crossbar.001",
-        "crossbar.002",
-        "seal_half",
+        "stamped_panel_L",
+        "pressed_chevron_L",
+        "central_seal",
+        "hinge_lock",
+        "lock_pin",
+        "hinge_lock.001",
+        "lock_pin.001",
+        "vent",
+        "vent.001",
+        "vent.002",
+        "split_seal_L",
+        "seal_cut",
         "warning",
-        "frame_post.001",
+        "frame_bolt",
+        "frame_bolt.001",
+        "frame_bolt.002",
+        "frame_bolt.003",
+        "upper_roller",
+        "frame_post_R",
         "frame_foot.001",
+        "frame_cheek.001",
+        "frame_inner_seal.001",
         "door_leaf_R",
-        "raised_panel.001",
-        "crossbar.003",
-        "crossbar.004",
-        "crossbar.005",
-        "seal_half.001",
+        "stamped_panel_R",
+        "pressed_chevron_R",
+        "central_seal.001",
+        "hinge_lock.002",
+        "lock_pin.002",
+        "hinge_lock.003",
+        "lock_pin.003",
+        "vent.003",
+        "vent.004",
+        "vent.005",
+        "split_seal_R",
+        "seal_cut.001",
         "warning.001",
-        "lintel"
+        "frame_bolt.004",
+        "frame_bolt.005",
+        "frame_bolt.006",
+        "frame_bolt.007",
+        "upper_roller.001",
+        "lintel",
+        "guide_rail",
+        "lower_guide",
+        "header_plate",
+        "worn_header_mark",
+        "worn_header_mark.001",
+        "worn_header_mark.002",
+        "worn_header_mark.003"
       ],
-      "notes": "open slides each leaf 1.15 m outwards. Hold the last pose. Allow space beside the frame for the leaves.",
+      "notes": "open lasts 3.5 seconds: holds, unseals 0.06 m rearward, then slides each leaf 1.19 m outwards and holds. Conservative clear opening is 2.04 m wide by 2.60 m high above a 0.11 m threshold. Rails require a 4.6 m-wide placement envelope; hold the last pose.",
       "preview_segments": [
         {
           "clip": "open",
-          "start_seconds": 0,
-          "end_seconds": 2
+          "start_seconds": 0.0,
+          "end_seconds": 3.5,
+          "playback_speed": 1
         }
-      ]
+      ],
+      "review_sheets": {
+        "open": "assets/previews/door_sealed_open_review.png"
+      }
     },
     "mural_slab": {
       "resource_path": "Models/mural_slab",
