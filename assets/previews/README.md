@@ -32,7 +32,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | door_sealed | [door_sealed](door_sealed_views.png) | [open](door_sealed_open_review.png) |
 | mural_slab | [mural_slab](mural_slab_views.png) | — |
 | wreck_debris | [wreck_debris](wreck_debris_views.png) | — |
-| terrain_shore | Blockout review pending | — |
+| terrain_shore | [terrain_shore](terrain_shore_views.png) | — |
 | blood_sea | Blockout review pending | — |
 
 ![Escape over the blood sea](ship_escape.png)

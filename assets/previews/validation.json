@@ -160,7 +160,7 @@
     },
     "terrain_shore": {
       "status": "passed",
-      "triangles": 288,
+      "triangles": 836,
       "takes": [],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,

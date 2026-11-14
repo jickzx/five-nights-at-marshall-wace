@@ -961,9 +961,10 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/terrain_shore.fbx",
         "blend": "assets/blender/terrain_shore.blend",
-        "preview": "assets/previews/terrain_shore.png"
+        "preview": "assets/previews/terrain_shore.png",
+        "views": "assets/previews/terrain_shore_views.png"
       },
-      "triangles": 288,
+      "triangles": 836,
       "bounding_box": {
         "min": [
           -10.0,
@@ -981,7 +982,7 @@
       "mesh_names": [
         "terrain_shore"
       ],
-      "notes": "20 x 20 m, origin at the lowest base. Waterline is y=0.36 in Unity, at z=-4. Dry edge z=+10, submerged edge z=-10. Place blood_sea at (0, 0.36, -14) to meet the shore. Repeat shore along X in 20 m steps."
+      "notes": "20 x 20 m. Origin at lowest base, waterline remains Unity y=0.36 at z=-4; dry edge z=+10 and submerged edge z=-10. Place blood_sea at (0,0.36,-14). Repeats along X every 20 m with matching edge heights. Eroded channels stay shallow for walking; the wet band is geometry colour, not a separate water surface."
     },
     "blood_sea": {
       "resource_path": "Models/blood_sea",
