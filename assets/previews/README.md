@@ -11,7 +11,7 @@ The revised recordings show front, side and rear views together at natural anima
 | [beast_stage3](beast_stage3.mp4) | 0.00 idle, 4.00 stalk, 7.00 chase, 7.75 lunge | [Video](https://github.com/user-attachments/assets/d53c4bb5-fc9c-4c70-9e3e-18ddbeaf9487) |
 | [player](player.mp4) | 0.00 idle, 4.00 walk, 5.33 run, 6.08 death_martyr | [Video](https://github.com/user-attachments/assets/83db6acc-533f-4d1f-b664-a87f256f3d86) |
 | [ship](ship.mp4) | 0.00 idle, 3.00 hatch_close, 6.00 takeoff | [Video](https://github.com/user-attachments/assets/54307939-754e-4873-8194-a39f46e84da1) |
-| [door_sealed](door_sealed.mp4) | 0.00 open | Pending |
+| [door_sealed](door_sealed.mp4) | 0.00 open | [Video](https://github.com/user-attachments/assets/75ec0a8d-b781-40ef-add4-6a2a5906e0bf) |
 
 The beasts share a forked crown, wedge mask, long hooked fingers and a protruding spine. Stage 2 opens the rib cage and raises two secondary arms. Stage 3 exposes the torso cavity, splits the jaw, and adds collar eyes, torn skin and moving viscera. Stalk uses long planted steps; chase lowers the body into an asymmetric, snapping gait.
 
@@ -30,7 +30,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | ruin_pillar | [ruin_pillar](ruin_pillar_views.png) | — |
 | ruin_arch | [ruin_arch](ruin_arch_views.png) | — |
 | door_sealed | [door_sealed](door_sealed_views.png) | [open](door_sealed_open_review.png) |
-| mural_slab | Blockout review pending | — |
+| mural_slab | [mural_slab](mural_slab_views.png) | — |
 | wreck_debris | Blockout review pending | — |
 | terrain_shore | Blockout review pending | — |
 | blood_sea | Blockout review pending | — |

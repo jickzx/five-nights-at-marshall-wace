@@ -889,36 +889,44 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/mural_slab.fbx",
         "blend": "assets/blender/mural_slab.blend",
-        "preview": "assets/previews/mural_slab.png"
+        "preview": "assets/previews/mural_slab.png",
+        "views": "assets/previews/mural_slab_views.png"
       },
-      "triangles": 338,
+      "triangles": 399,
       "bounding_box": {
         "min": [
-          -0.8,
+          -0.84,
           0.0,
-          -0.37
+          -0.64
         ],
         "max": [
-          0.98874,
-          2.19,
-          0.33
+          0.99,
+          2.52,
+          0.365
         ]
       },
       "clips": [],
       "rigged": false,
       "mesh_names": [
-        "slab",
-        "border",
+        "broken_slab",
+        "drowned_foot",
+        "picture_border",
+        "edge_moulding",
+        "picture_border.001",
+        "edge_moulding.001",
+        "picture_border.002",
+        "picture_border.003",
         "picture",
-        "base_support",
-        "corner_rivet",
-        "corner_rivet.001",
-        "base_support.001",
-        "corner_rivet.002",
-        "corner_rivet.003",
-        "chip"
+        "recessed_pin",
+        "recessed_pin.001",
+        "votive_cut",
+        "recessed_pin.002",
+        "recessed_pin.003",
+        "votive_cut.001",
+        "rear_fault",
+        "fallen_corner"
       ],
-      "notes": "picture is a blank UV quad, 1.22 m wide and 1.60 m high, facing exported -Z. Replace its material with the game mural."
+      "notes": "picture is a blank UV quad, 1.22 m wide and 1.60 m high, centered at Unity (0, 1.24, -0.247), facing -Z. Picture rectangle is completely unobstructed; assign the game mural material to that mesh."
     },
     "wreck_debris": {
       "resource_path": "Models/wreck_debris",

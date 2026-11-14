@@ -34,5 +34,11 @@
     "sha256": "ef3b3e9f34fe40a447d83ef54a4d14cb64754a963b59f78d1f8e7a715d9a65f4",
     "url": "https://github.com/user-attachments/assets/bee29ce4-0952-4d1b-8d5c-b26248aa0c45",
     "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882152248"
+  },
+  "door_sealed": {
+    "file": "assets/previews/door_sealed.mp4",
+    "sha256": "3f57a632a1656718076e62b2eaa33d310992f539acfedb7a826cc0731e923348",
+    "url": "https://github.com/user-attachments/assets/75ec0a8d-b781-40ef-add4-6a2a5906e0bf",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882210347"
   }
 }
