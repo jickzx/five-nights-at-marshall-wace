@@ -5,15 +5,22 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Spanish, exaggerated: subject pronouns are banned (the verb ending says who acts), every question and
-    /// exclamation is wrapped in a mirrored pair of marks (¿…?, ¡…!), and nouns and adjectives end in a gender vowel.
+    /// Spanish: the verb ending says who acts, so 'I', 'you' or 'we' is usually left out (no pronoun tiles are
+    /// offered); questions and exclamations open with ¿ or ¡; and these nouns and adjectives end in -o or -a for gender.
     /// </summary>
     public sealed class Spanish : SourceLanguage
     {
         public override string Name => "Spanish";
         public override string Code => "es";
-        public override string Summary => "Verb endings carry the subject; questions wrapped in mirrored marks (¿…?); nouns and adjectives end in a gender vowel (-o/-a).";
-        public override string[] QuizDistractors => new[] { "Portuguese", "Italian", "Catalan", "Romanian" };
+        public override string Endonym => "Español";
+        public override string Summary => "Verb endings carry the subject; questions open with ¿ and close with ?; nouns and adjectives agree in gender (-o/-a).";
+        public override string[] Myths => new[]
+        {
+            "A separate word for 'I' or 'you' must always come before the verb.",
+            "Questions are marked only at the end, as in English.",
+            "Adjectives come before the noun, as in English.",
+            "The verb ending stays the same whoever is acting.",
+        };
         public override string QuizExplanation => "Spanish: the verb ending says who acts, questions open with ¿ and close with ?, and nouns and adjectives agree in -o/-a gender.";
 
         // regular -er verbs: stem + o / es / e / emos
@@ -49,18 +56,22 @@ namespace Fnmw.Lang.Languages
 
         public Spanish()
         {
-            foreach (var v in Verbs) Add("v." + v.Key, MorphKind.Root, v.En);
-            foreach (var p in Persons) Add(p, MorphKind.Affix, Subject[p], LangConcepts.VerbEnding);
-            Add("Q.O", MorphKind.Punct, "question-open", LangConcepts.Punctuation).Group = "Q";
-            var qc = Add("Q.C", MorphKind.Punct, "question-close", LangConcepts.Punctuation); qc.Group = "Q"; qc.Closing = true;
-            Add("E.O", MorphKind.Punct, "exclaim-open", LangConcepts.Punctuation).Group = "E";
-            var ec = Add("E.C", MorphKind.Punct, "exclaim-close", LangConcepts.Punctuation); ec.Group = "E"; ec.Closing = true;
-            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Key);
-            foreach (var a in Adjs) Add("a." + a.Key, MorphKind.Root, a.En);
-            Add("M", MorphKind.Affix, "MASC", LangConcepts.GenderAgreement);
-            Add("F", MorphKind.Affix, "FEM", LangConcepts.GenderAgreement);
-            Add("el", MorphKind.Particle, "the.MASC", LangConcepts.GenderAgreement);
-            Add("la", MorphKind.Particle, "the.FEM", LangConcepts.GenderAgreement);
+            foreach (var v in Verbs) Add("v." + v.Key, MorphKind.Root, v.Stem, v.En);
+            foreach (var p in Persons) Add(p, MorphKind.Affix, RealEnding[p], Subject[p], LangConcepts.VerbEnding);
+            Add("Q.O", MorphKind.Punct, "¿", "question-open", LangConcepts.Punctuation);
+            Add("Q.C", MorphKind.Punct, "?", "question-close", LangConcepts.Punctuation);
+            Add("E.O", MorphKind.Punct, "¡", "exclaim-open", LangConcepts.Punctuation);
+            Add("E.C", MorphKind.Punct, "!", "exclaim-close", LangConcepts.Punctuation);
+            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Stem, n.Key);
+            foreach (var a in Adjs) Add("a." + a.Key, MorphKind.Root, a.Stem, a.En);
+            Add("M", MorphKind.Affix, "o", "MASC", LangConcepts.GenderAgreement);
+            Add("F", MorphKind.Affix, "a", "FEM", LangConcepts.GenderAgreement);
+            Add("el", MorphKind.Particle, "el", "the.MASC", LangConcepts.GenderAgreement);
+            Add("la", MorphKind.Particle, "la", "the.FEM", LangConcepts.GenderAgreement);
+
+            Rule(LangConcepts.VerbEnding, "The verb ending shows who is acting, so 'I', 'you' or 'we' can be left out.");
+            Rule(LangConcepts.Punctuation, "A question opens with ¿ and closes with ?; an exclamation opens with ¡ and closes with !.");
+            Rule(LangConcepts.GenderAgreement, "'The' and the adjective match the noun's gender: el and -o for masculine, la and -a for feminine.");
 
             Kind("verb-ending", 0, VerbEndingKind);
             Kind("punctuation", 1, PunctuationKind);

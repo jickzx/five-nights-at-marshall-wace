@@ -6,34 +6,31 @@ namespace Fnmw.Lang
 {
     public enum MorphKind
     {
-        Root,      // content word stem, 1-2 syllables
+        Root,      // content word or stem
         Affix,     // bound suffix, shown as "-xx" when it is a tile on its own
         Particle,  // short free-standing function word
-        Punct,     // sentence mark; paired marks share a Group
-        Glyph,     // one meaningful character (kanji-like), one syllable
-        Root3,     // three-consonant root (Arabic-like), only realised inside a Pattern
-        Pattern,   // vowel template with root slots: '1','2','3' root consonants, 'A','I' vowels, 'M' prefix consonant
+        Punct,     // sentence mark
+        Glyph,     // the reading of one meaningful kanji inside a word
+        Root3,     // Arabic three-consonant root, only realised inside a Pattern
+        Pattern,   // Arabic vowel pattern the root is set into
     }
 
-    /// <summary>One morpheme of a source language. The alien lexicon gives it a seeded surface form.</summary>
+    /// <summary>One morpheme of a real language, with its real (romanised) written form.</summary>
     public sealed class MorphSpec
     {
-        public string Key;        // unique in its language, e.g. "door", "PL.F"
+        public string Key;        // unique in its language, e.g. "door", "PL.lar"
         public MorphKind Kind;
+        public string Form;       // the real form, romanised: "akete", "lar", "zhī", "¿"
         public string Gloss;      // English gloss
         public string Concept;    // concept a tile carrying this morph exercises (null = vocabulary)
-        public int Harmony;       // 0 none, 1 front vowels, 2 back vowels (roots and harmonising suffixes)
-        public string Group;      // harmonising suffix family ("PL") or punctuation pair ("Q")
-        public bool Closing;      // second mark of a punctuation pair
-        public string Shape;      // Pattern template, e.g. "1A2A3A"
 
-        public MorphSpec(string key, MorphKind kind, string gloss, string concept = null)
+        public MorphSpec(string key, MorphKind kind, string form, string gloss, string concept = null)
         {
-            Key = key; Kind = kind; Gloss = gloss; Concept = concept;
+            Key = key; Kind = kind; Form = form; Gloss = gloss; Concept = concept;
         }
     }
 
-    /// <summary>A word: an ordered list of morph keys. Rendered to alien text by the lexicon.</summary>
+    /// <summary>A word: an ordered list of morph keys. Its language renders it to real text.</summary>
     public sealed class Word
     {
         public readonly string[] M;
@@ -53,7 +50,7 @@ namespace Fnmw.Lang
     }
 
     /// <summary>
-    /// A puzzle before it gets alien text and tiles. Built by a language's PuzzleKind.
+    /// A puzzle before it gets text and tiles. Built by a language's PuzzleKind.
     /// Hypotheses: index 0 is the true grammar; every other index is a rival grammar a player might
     /// believe in (English word order, no agreement...). HypConcepts[h] names what a player using rival h misunderstands.
     /// </summary>
@@ -70,7 +67,8 @@ namespace Fnmw.Lang
         public string[] HypConcepts = { null };
         public readonly List<(List<Word> phrase, string concept)> Mistakes = new List<(List<Word>, string)>();
         public readonly List<(Word word, string concept)> Extras = new List<(Word, string)>(); // extra distractor words
-        public string RealText;      // the real-language phrase the target mirrors, e.g. "扉を開けて (tobira o akete)"
+        public readonly List<List<Word>> AlsoCorrect = new List<List<Word>>(); // other orders the real language accepts, same tiles
+        public string RealText;      // the real phrase in its own script plus romanisation, e.g. "扉を開けて (tobira o akete)"
         public string Translation;   // English translation of RealText
         public string Feature;       // one or two plain sentences, true of the real language
         public string NowYouKnow;    // one memorable true fact
@@ -83,6 +81,7 @@ namespace Fnmw.Lang
 
         public Draft Mistake(List<Word> phrase, string concept) { Mistakes.Add((phrase, concept)); return this; }
         public Draft Extra(Word w, string concept = null) { Extras.Add((w, concept)); return this; }
+        public Draft Also(List<Word> phrase) { AlsoCorrect.Add(phrase); return this; }
     }
 
     public static class Hyps
@@ -114,24 +113,24 @@ namespace Fnmw.Lang
     {
         public abstract string Name { get; }
         public abstract string Code { get; }
+        public abstract string Endonym { get; }            // the language's own name, romanised: "Nihongo"
         public abstract string Summary { get; }            // one line for the judges' overlay
-        public abstract string[] QuizDistractors { get; }  // plausible wrong answers (other real languages)
+        public abstract string[] Myths { get; }            // false rules about this language: the quiz's wrong options (at least 3)
         public abstract string QuizExplanation { get; }
-        public virtual bool UpperCase => false;            // alien script writes everything in capitals
-        public virtual bool NeedsHarmony => false;         // alien vowels must split into front/back classes
 
         readonly List<MorphSpec> _inventory = new List<MorphSpec>();
         readonly Dictionary<string, MorphSpec> _byKey = new Dictionary<string, MorphSpec>();
         readonly List<PuzzleKind> _kinds = new List<PuzzleKind>();
+        readonly Dictionary<string, string> _rules = new Dictionary<string, string>();
 
         public IReadOnlyList<MorphSpec> Inventory => _inventory;
         public IReadOnlyList<PuzzleKind> Kinds => _kinds;
         public MorphSpec Spec(string key) => _byKey.TryGetValue(key, out var s) ? s : throw new KeyNotFoundException($"{Name}: no morph '{key}'");
         public bool Has(string key) => _byKey.ContainsKey(key);
 
-        protected MorphSpec Add(string key, MorphKind kind, string gloss, string concept = null)
+        protected MorphSpec Add(string key, MorphKind kind, string form, string gloss, string concept = null)
         {
-            var m = new MorphSpec(key, kind, gloss, concept);
+            var m = new MorphSpec(key, kind, form, gloss, concept);
             _inventory.Add(m);
             _byKey.Add(key, m);
             return m;
@@ -139,7 +138,41 @@ namespace Fnmw.Lang
 
         protected void Kind(string name, int tier, Func<Rng, int, Draft> build) => _kinds.Add(new PuzzleKind(name, tier, build));
 
-        /// <summary>The kind for a tier: the hardest kind not above it, else the easiest kind.</summary>
+        /// <summary>The true rule shown by puzzles that test this concept, in plain English: the quiz's right option.</summary>
+        protected void Rule(string concept, string text) => _rules.Add(concept, text);
+        public string RuleFor(string concept) =>
+            concept != null && _rules.TryGetValue(concept, out var r) ? r : throw new KeyNotFoundException($"{Name}: no rule for '{concept}'");
+
+        /// <summary>The real written form of a word: its morph forms joined. Languages with spelling rules override it.</summary>
+        public virtual string Surface(Word w) => string.Concat(w.M.Select(k => Spec(k).Form));
+
+        /// <summary>Text of a word. A lone suffix used as a tile is shown with a leading hyphen.</summary>
+        public string Render(Word w, bool asTile = false)
+        {
+            string s = Surface(w);
+            return asTile && w.M.Length == 1 && Spec(w.M[0]).Kind == MorphKind.Affix ? "-" + s : s;
+        }
+
+        /// <summary>A phrase as it is written: words spaced, opening marks (¿ ¡) on the next word, closing marks on the last.</summary>
+        public string Render(IEnumerable<Word> phrase)
+        {
+            var sb = new System.Text.StringBuilder();
+            bool glue = true;
+            foreach (var w in phrase)
+            {
+                bool punct = w.M.Length == 1 && Spec(w.M[0]).Kind == MorphKind.Punct;
+                string s = Render(w);
+                bool opening = punct && (s == "¿" || s == "¡");
+                if (!glue && !(punct && !opening)) sb.Append(' ');
+                sb.Append(s);
+                glue = opening;
+            }
+            return sb.ToString();
+        }
+
+        public int GlyphSeed(Word w) => (int)Hash.Fnv(Code + ":" + w.Id);
+
+        /// <summary>The hardest kind not above the tier, else the easiest kind.</summary>
         public PuzzleKind KindFor(int tier, Rng rng)
         {
             int best = _kinds.Where(k => k.Tier <= tier).Select(k => k.Tier).DefaultIfEmpty(-1).Max();

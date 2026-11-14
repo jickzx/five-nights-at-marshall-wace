@@ -5,23 +5,30 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Arabic, exaggerated: every word is a three-consonant root (the meaning) poured into a vowel pattern (the role):
-    /// "he did it", "one who does it", "place of doing it".
+    /// Arabic, transliterated: many words are a three-consonant root (the meaning) set into a vowel pattern (the role):
+    /// "he did it", "one who does it", "place of doing it". Every word shown is a real word from the table below.
     /// </summary>
     public sealed class Arabic : SourceLanguage
     {
         public override string Name => "Arabic";
         public override string Code => "ar";
-        public override string Summary => "Meaning lives in 3-consonant roots; vowel patterns slot around them to make 'he did', 'one who does', 'place of'.";
-        public override string[] QuizDistractors => new[] { "Hebrew", "Persian", "Amharic", "Urdu" };
+        public override string Endonym => "al-ʿArabiyya";
+        public override string Summary => "Meaning lives in 3-consonant roots; vowel patterns around them make 'he did', 'one who does', 'place of'.";
         public override string QuizExplanation => "Arabic: words are built from three-consonant roots set into vowel patterns, like k-t-b in kataba 'he wrote', kātib 'writer' and maktab 'office'.";
+        public override string[] Myths => new[]
+        {
+            "kātib and maktab are unrelated words that only look alike.",
+            "The vowels carry the meaning and the consonants carry the role.",
+            "The role is shown by a separate word before the root, as in English.",
+            "The role is shown only by word order, never inside the word.",
+        };
 
-        // the real patterns: 1-2-3 are the root consonants
+        // the real patterns, C = a root consonant
         static readonly (string key, string shape, string gloss)[] Patterns =
         {
-            ("PERF", "1A2A3A", "he did"),        // CaCaCa: kataba
-            ("AGENT", "1AA2I3", "one who does"), // CāCiC: kātib
-            ("PLACE", "MA12A3", "place of"),     // maCCaC: maktab
+            ("PERF", "CaCaCa", "he did"),        // kataba
+            ("AGENT", "CāCiC", "one who does"),  // kātib
+            ("PLACE", "maCCaC", "place of"),     // maktab
         };
 
         sealed class Entry { public string Root, Pattern, Ar, Tr, En; }
@@ -55,16 +62,24 @@ namespace Fnmw.Lang.Languages
 
         public Arabic()
         {
-            foreach (var r in Roots) Add("r." + r, MorphKind.Root3, RootGloss[r], LangConcepts.ConsonantRoot);
-            foreach (var (key, shape, gloss) in Patterns) Add("p." + key, MorphKind.Pattern, gloss, LangConcepts.VowelPattern).Shape = shape;
+            foreach (var r in Roots) Add("r." + r, MorphKind.Root3, RootGloss[r].Split(' ')[0], RootGloss[r], LangConcepts.ConsonantRoot);
+            foreach (var (key, shape, gloss) in Patterns) Add("p." + key, MorphKind.Pattern, shape, gloss, LangConcepts.VowelPattern);
+
+            Rule(LangConcepts.ConsonantRoot, "Three root consonants carry the meaning, and the vowel pattern around them gives the role.");
 
             Kind("root-pattern", 0, (r, t) => RootPattern(r, false));
             Kind("root-pattern-lean", 2, (r, t) => RootPattern(r, true));
         }
 
+        /// <summary>A root in a pattern is looked up, never generated, so only real words appear.</summary>
+        public override string Surface(Word w) =>
+            w.M.Length == 2 ? (Find(w.M[0].Substring(2), w.M[1].Substring(2)) ?? throw new KeyNotFoundException($"Arabic: no real word for {w.Id}")).Tr
+                            : base.Surface(w);
+
         static Entry Find(string root, string pattern) => Words.FirstOrDefault(e => e.Root == root && e.Pattern == pattern);
         static Word Wd(string root, string pattern) => W("r." + root, "p." + pattern);
-        static string Real(Entry e) => $"{e.Tr} ({e.Ar})";
+        // shortcut: the Arabic script (Ar) is left out because Unity's text can't join Arabic letters or run right to left; add it once the UI has a shaping plugin
+        static string Real(Entry e) => e.Tr;
 
         /// <summary>
         /// Full: examples R1P1, R1P2, R2P1, target R2P2. Lean (harder): examples R1P2, R2P3, target R1P3.
@@ -101,9 +116,9 @@ namespace Fnmw.Lang.Languages
                     NowYouKnow = $"The pattern ma-CC-a-C means 'place of': {string.Join(", ", place.Select(e => $"{e.Tr} '{Short(e.En)}' ({RootGloss[e.Root].Split(' ')[0]})"))}.",
                 };
                 foreach (var e in examples) d.Example(Cap(e.En), h => P(Wd(e.Root, e.Pattern)));
-                // wrong root with the right pattern, right root with the wrong pattern
-                foreach (var r in roots.Where(x => x != tgt.root)) d.Mistake(P(Wd(r, tgt.pat)), LangConcepts.ConsonantRoot);
-                foreach (var p in pats.Where(x => x != tgt.pat)) d.Mistake(P(Wd(tgt.root, p)), LangConcepts.VowelPattern);
+                // wrong root with the right pattern, right root with the wrong pattern: only words that really exist
+                foreach (var r in roots.Where(x => x != tgt.root && Find(x, tgt.pat) != null)) d.Mistake(P(Wd(r, tgt.pat)), LangConcepts.ConsonantRoot);
+                foreach (var p in pats.Where(x => x != tgt.pat && Find(tgt.root, x) != null)) d.Mistake(P(Wd(tgt.root, p)), LangConcepts.VowelPattern);
                 return d;
             }
         }

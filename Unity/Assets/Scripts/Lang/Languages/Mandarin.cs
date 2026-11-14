@@ -5,16 +5,22 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Mandarin Chinese, exaggerated: nothing can be counted or pointed at without a "shape word" (measure word)
-    /// chosen by what kind of thing it is (animals, flat things, things with handles, vehicles), and nouns never
-    /// change for plural.
+    /// Mandarin Chinese, in pinyin with tone marks: a number or 'this' normally needs a measure word chosen by the kind
+    /// of thing (animals, flat things, things held by a handle, vehicles), and nouns for things never change for plural.
     /// </summary>
     public sealed class Mandarin : SourceLanguage
     {
         public override string Name => "Mandarin Chinese";
         public override string Code => "zh";
-        public override string Summary => "Every counted or pointed-at thing needs a shape-word (measure word) between number and noun; nouns for things never change for plural.";
-        public override string[] QuizDistractors => new[] { "Cantonese", "Japanese", "Vietnamese", "Korean" };
+        public override string Endonym => "Zhōngwén";
+        public override string Summary => "A counted or pointed-at thing normally needs a measure word between the number and the noun; nouns for things never change for plural.";
+        public override string[] Myths => new[]
+        {
+            "Numbers go straight onto the noun, as in English.",
+            "The noun takes a plural ending after a number.",
+            "The measure word goes after the noun.",
+            "The measure word depends on the number, not on the kind of thing.",
+        };
         public override string QuizExplanation => "Mandarin Chinese: numbers and 'this' normally need a measure word that fits the noun's kind, and nouns for animals and things never take a plural ending.";
 
         sealed class Cl { public string Key, Han, Pinyin, Kind; }
@@ -50,9 +56,11 @@ namespace Fnmw.Lang.Languages
 
         public Mandarin()
         {
-            foreach (var c in Classifiers) Add("cl." + c.Key, MorphKind.Particle, "MW:" + c.Kind, LangConcepts.MeasureWord);
-            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.En);
-            foreach (var d in new[] { Two, Three, This }) Add("d." + d.Key, MorphKind.Root, d.En);
+            foreach (var c in Classifiers) Add("cl." + c.Key, MorphKind.Particle, c.Pinyin, "MW:" + c.Kind, LangConcepts.MeasureWord);
+            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Pinyin, n.En);
+            foreach (var d in new[] { Two, Three, This }) Add("d." + d.Key, MorphKind.Root, d.Pinyin, d.En);
+
+            Rule(LangConcepts.MeasureWord, "A measure word goes between the number (or 'this') and the noun, chosen by the kind of thing.");
 
             Kind("measure-word", 0, (r, t) => Counting(r, false));
             Kind("measure-word-this", 2, (r, t) => Counting(r, true));

@@ -7,8 +7,8 @@ using Fnmw.Lang.Languages;
 namespace Fnmw.Lang
 {
     /// <summary>
-    /// The real ILanguageEngine. A world is a run of consoles, each written in a different alien tongue
-    /// that exaggerates one real language. Puzzles escalate along the run, and the director's difficulty
+    /// The real ILanguageEngine. A world is a run of consoles, each in a different real language (romanised),
+    /// with real words and real grammar. Puzzles escalate along the run, and the director's difficulty
     /// shifts each console easier or harder. Pure C#: no MonoBehaviours, fully deterministic per seed.
     /// </summary>
     public sealed class LanguageEngine : ILanguageEngine
@@ -31,7 +31,6 @@ namespace Fnmw.Lang
         {
             public int Seed;
             public SourceLanguage[] Langs;
-            public AlienLexicon[] Lex;
             public readonly Dictionary<int, BuiltPuzzle> ById = new Dictionary<int, BuiltPuzzle>();
             public readonly Dictionary<string, BuiltPuzzle> Cache = new Dictionary<string, BuiltPuzzle>();
         }
@@ -45,14 +44,13 @@ namespace Fnmw.Lang
             rng.Shuffle(all);
             // more puzzles than languages: cycle through them again
             var langs = Enumerable.Range(0, _puzzleCount).Select(i => all[i % all.Count]).ToArray();
-            var data = new WorldData { Seed = seed, Langs = langs, Lex = new AlienLexicon[langs.Length] };
-            for (int i = 0; i < langs.Length; i++) data.Lex[i] = new AlienLexicon(langs[i], seed, i);
+            var data = new WorldData { Seed = seed, Langs = langs };
 
             var world = new LanguageWorld { Seed = seed, EngineData = data };
             for (int i = 0; i < langs.Length; i++)
             {
                 world.Languages.Add(new RealLanguage { Name = langs[i].Name, Code = langs[i].Code });
-                world.GrammarSummary.Add($"Console {i + 1}: {data.Lex[i].AlienName} = {langs[i].Name}. {langs[i].Summary}");
+                world.GrammarSummary.Add($"Console {i + 1}: {langs[i].Name} ({langs[i].Endonym}). {langs[i].Summary}");
                 world.Puzzles.Add(BuildAt(data, i, NeutralDifficulty).Puzzle);
             }
             SetCurrent(world, data, 0);
@@ -79,8 +77,8 @@ namespace Fnmw.Lang
                 return Wrong(b, LangConcepts.Vocabulary);
             var morphs = tileIds.SelectMany(id => b.MorphsById[id]).ToList();
             var key = string.Join("+", morphs);
-            if (key == b.AnswerKey)
-                return new AnswerResult { Correct = true, MissedConcept = null, Feedback = Feedback.Correct(b.Lexicon.AlienName) };
+            if (b.AcceptedKeys.Contains(key))
+                return new AnswerResult { Correct = true, MissedConcept = null, Feedback = Feedback.Correct(b.Language.Endonym) };
             return Wrong(b, Diagnose(b, tileIds, morphs, key));
         }
 
@@ -88,18 +86,17 @@ namespace Fnmw.Lang
         {
             var b = Built(world, puzzleId);
             var d = b.Draft;
-            string alien = b.Lexicon.Render(b.TargetWords);
             return new RevealInfo
             {
-                AlienText = alien,
+                AlienText = b.Language.Render(b.TargetWords),
                 RealText = d.RealText,
                 Translation = d.Translation,
                 LanguageName = b.Language.Name,
-                AlienName = b.Lexicon.AlienName,
+                AlienName = b.Language.Endonym,
                 Feature = d.Feature,
                 NowYouKnow = d.NowYouKnow,
                 Concept = d.Concept,
-                Explanation = $"{b.Lexicon.AlienName} is {b.Language.Name}, turned up to eleven. {d.Feature} Now you know: {d.NowYouKnow}",
+                Explanation = $"{d.Feature} Now you know: {d.NowYouKnow}",
             };
         }
 
@@ -108,7 +105,7 @@ namespace Fnmw.Lang
             var b = Built(world, puzzleId);
             return new QuizQuestion
             {
-                Prompt = $"Which real language hides behind {b.Lexicon.AlienName}?\n{b.Draft.RealText} = “{b.Draft.Translation.TrimEnd('.', '!', '?')}”",
+                Prompt = $"{b.Draft.RealText} = “{b.Draft.Translation.TrimEnd('.', '!', '?')}”\nWhich {b.Language.Name} rule makes that right?",
                 Options = (string[])b.QuizOptions.Clone(),
                 Explanation = b.Language.QuizExplanation,
             };
@@ -145,7 +142,6 @@ namespace Fnmw.Lang
             }
 
             var lang = data.Langs[index];
-            var lex = data.Lex[index];
             var rng = new Rng(Hash.Mix(data.Seed, index, tier, distractors, drop ? 1 : 0));
             BuiltPuzzle built = null;
             var errors = new List<string>();
@@ -157,7 +153,7 @@ namespace Fnmw.Lang
                 var kind = lang.KindFor(t, rng);
                 var draft = kind.Build(rng, t);
                 draft.Kind = kind.Name;
-                built = PuzzleBuilder.Build(lang, lex, draft, rng, index + 1, eff, distractors, dropNow, out var err);
+                built = PuzzleBuilder.Build(lang, draft, rng, index + 1, eff, distractors, dropNow, out var err);
                 if (built == null) errors.Add($"{kind.Name}: {err}");
             }
             if (built == null)
@@ -169,20 +165,22 @@ namespace Fnmw.Lang
             return built;
         }
 
+        /// <summary>The rule the puzzle tested, against three false rules (myths) about the same language.</summary>
         static void MakeQuiz(BuiltPuzzle b, Rng rng)
         {
-            var options = rng.Sample(b.Language.QuizDistractors, 3);
-            options.Add(b.Language.Name);
+            string rule = b.Language.RuleFor(b.Draft.Concept);
+            var options = rng.Sample(b.Language.Myths, 3);
+            options.Add(rule);
             rng.Shuffle(options);
             b.QuizOptions = options.ToArray();
-            b.QuizCorrect = options.IndexOf(b.Language.Name);
+            b.QuizCorrect = options.IndexOf(rule);
         }
 
         static void SetCurrent(LanguageWorld world, WorldData data, int index)
         {
             // world.Real/AlienName follow the console in play, so code that reads them (e.g. QuizEvent.RealLanguage) stays right
             world.Real = world.Languages[index];
-            world.AlienName = data.Lex[index].AlienName;
+            world.AlienName = data.Langs[index].Endonym;
         }
 
         static WorldData Data(LanguageWorld world) =>
@@ -194,7 +192,7 @@ namespace Fnmw.Lang
         /// <summary>Engine-private view of a puzzle, for tests and debug overlays.</summary>
         internal static BuiltPuzzle Inspect(LanguageWorld world, int puzzleId) => Built(world, puzzleId);
 
-        /// <summary>Debug/cheat only (judges' overlay, scripted recordings): the tile ids of the one valid answer.</summary>
+        /// <summary>Debug/cheat only (judges' overlay, scripted recordings): the tile ids of the intended answer.</summary>
         public static string[] DebugSolution(LanguageWorld world, int puzzleId) => (string[])Built(world, puzzleId).AnswerIds.Clone();
 
         /// <summary>Debug/cheat only: index of the correct quiz option.</summary>

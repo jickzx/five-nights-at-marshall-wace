@@ -5,16 +5,23 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Japanese, exaggerated: the verb always comes last, every noun wears a role particle (を o, が ga),
-    /// and words are stacked from glyphs that each carry a meaning (kanji compounds).
+    /// Japanese, in Hepburn romaji: the verb comes last, a particle after each noun marks its role (を o, が ga),
+    /// and words are built from kanji that each carry a meaning.
     /// </summary>
     public sealed class Japanese : SourceLanguage
     {
         public override string Name => "Japanese";
         public override string Code => "ja";
-        public override string Summary => "Verb always last; particles after nouns mark their roles; words stacked from meaningful glyphs (kanji).";
-        public override string[] QuizDistractors => new[] { "Korean", "Mandarin Chinese", "Vietnamese", "Thai" };
+        public override string Endonym => "Nihongo";
+        public override string Summary => "Verb last; particles after nouns mark their roles (ga, o); words built from meaningful kanji.";
         public override string QuizExplanation => "Japanese: the verb comes last, particles like を (o) and が (ga) mark each noun's role, and kanji build words from meanings.";
+        public override string[] Myths => new[]
+        {
+            "The verb comes first, before the thing it acts on.",
+            "Role words go before the noun, like English prepositions.",
+            "Nouns add -s when there is more than one.",
+            "Only word order shows who does what; nouns carry no role markers.",
+        };
 
         sealed class Noun { public string Key, Kanji, Romaji, En; }
         sealed class Verb { public string Key, Kanji, Romaji, En; public string[] Objects; }
@@ -63,18 +70,29 @@ namespace Fnmw.Lang.Languages
             new Verb { Key = "drinks", Kanji = "飲む", Romaji = "nomu", En = "drinks", Objects = new[] { "blood", "water" } },
         };
 
+        // the romaji reading each kanji has inside the words below; one kanji can have several (入: iri, hai)
+        static readonly (string key, string form, string gloss)[] Kanji =
+        {
+            ("de", "de", "go out (出)"), ("iri", "iri", "enter (入)"), ("hai", "hai", "enter (入)"), ("guchi", "guchi", "mouth, opening (口)"),
+            ("hana", "hana", "flower (花)"), ("bi", "bi", "fire (火)"), ("niku", "niku", "meat (肉)"), ("ya", "ya", "shop (屋)"),
+            ("den", "den", "electric (電)"), ("sha", "sha", "vehicle (車)"), ("kai", "kai", "meet (会)"), ("wa", "wa", "talk (話)"),
+        };
+
         public Japanese()
         {
-            Add("o", MorphKind.Particle, "OBJ", LangConcepts.Particles);
-            Add("ga", MorphKind.Particle, "SUBJ", LangConcepts.Particles);
+            Add("o", MorphKind.Particle, "o", "OBJ", LangConcepts.Particles);
+            Add("ga", MorphKind.Particle, "ga", "SUBJ", LangConcepts.Particles);
             foreach (var n in Things.Concat(Objects).Concat(Actors).GroupBy(n => n.Key).Select(g => g.First()))
-                Add("n." + n.Key, MorphKind.Root, n.Key);
-            foreach (var v in Requests) Add("v." + v.Key, MorphKind.Root, v.Key.ToLowerInvariant(), LangConcepts.VerbFinal);
-            foreach (var v in Statements) Add("v." + v.Key, MorphKind.Root, v.En, LangConcepts.VerbFinal);
-            // kanji (one glyph each) and the kana endings that turn them into verbs
-            foreach (var (k, g) in new[] { ("enter", "enter"), ("out", "go out"), ("mouth", "mouth/opening"), ("fire", "fire"), ("mountain", "mountain"), ("flower", "flower"), ("electric", "electric"), ("talk", "talk"), ("vehicle", "vehicle") })
-                Add("k." + k, MorphKind.Glyph, g, LangConcepts.CompoundMeaning);
-            foreach (var k in new[] { "ru", "su", "te", "tte" }) Add("k." + k, MorphKind.Glyph, "(kana ending)");
+                Add("n." + n.Key, MorphKind.Root, n.Romaji, n.Key);
+            foreach (var v in Requests) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.Key.ToLowerInvariant(), LangConcepts.VerbFinal);
+            foreach (var v in Statements) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.En, LangConcepts.VerbFinal);
+            foreach (var (k, form, gloss) in Kanji) Add("k." + k, MorphKind.Glyph, form, gloss, LangConcepts.CompoundMeaning);
+            // kana endings that turn a kanji into a verb: 出る deru, 出て dete, 入って haitte
+            foreach (var k in new[] { "ru", "te", "tte" }) Add("k." + k, MorphKind.Glyph, k, "(kana ending)");
+
+            Rule(LangConcepts.VerbFinal, "The verb comes last, after the thing it acts on.");
+            Rule(LangConcepts.Particles, "A particle after each noun marks its role: ga for the doer, o for the thing acted on.");
+            Rule(LangConcepts.CompoundMeaning, "Words are built by joining kanji that each carry a meaning, describing part first.");
 
             Kind("verb-last", 0, VerbLast);
             Kind("kanji-compound", 1, Compound);
@@ -155,10 +173,11 @@ namespace Fnmw.Lang.Languages
                     RealText = real,
                     Translation = $"The {s.En} {v.En} the {o.En}.",
                     Feature = $"Japanese marks a noun's role with a particle after it: が (ga) marks who does it, を (o) marks what it is done to, and the verb comes last: {real}.",
-                    NowYouKnow = $"Real Japanese is freer than the aliens: because the particles carry the roles, {o.Kanji}を{s.Kanji}が{v.Kanji} ({o.Romaji} o {s.Romaji} ga {v.Romaji}) still means 'the {s.En} {v.En} the {o.En}'.",
+                    NowYouKnow = $"Because the particles carry the roles, Japanese can move the object to the front: {o.Kanji}を{s.Kanji}が{v.Kanji} ({o.Romaji} o {s.Romaji} ga {v.Romaji}) still means 'the {s.En} {v.En} the {o.En}', and the console accepts it too.",
                 }
                 .Example($"The {s.En} {v2.En} the {o2.En}.", h => Svo(h, S, "n." + o2.Key, "v." + v2.Key))
                 .Example($"The {s2.En} {v.En} the {o.En}.", h => Svo(h, "n." + s2.Key, O, V))
+                .Also(Svo(0, O, S, V, "o", "ga"))                         // object first: real, if less usual
                 .Mistake(Svo(0, O, S, V), LangConcepts.Particles)        // roles swapped
                 .Mistake(Svo(0, S, O, V, "o", "ga"), LangConcepts.Particles); // particles swapped
             }
@@ -181,34 +200,34 @@ namespace Fnmw.Lang.Languages
             {
                 case 0:
                     d.TargetMeaning = "exit";
-                    d.Target = h => P(Cmp(h, "out", "mouth"));
-                    d.Example("entrance", h => P(Cmp(h, "enter", "mouth")))
-                     .Example("to enter", h => P(Kana("enter", "ru")))
-                     .Example("to go out", h => P(Kana("out", "ru")));
+                    d.Target = h => P(Cmp(h, "de", "guchi"));
+                    d.Example("entrance", h => P(Cmp(h, "iri", "guchi")))
+                     .Example("to enter", h => P(Kana("hai", "ru")))
+                     .Example("to go out", h => P(Kana("de", "ru")));
                     d.RealText = "出口 (deguchi)";
                     d.Translation = "exit (literally 'go out' + 'mouth')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by stacking them: 入口 (iriguchi), 'entrance', is 入 'enter' + 口 'mouth, opening'.";
+                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by joining them: 入口 (iriguchi), 'entrance', is 入 'enter' + 口 'mouth, opening'. One kanji can be read more than one way: 入 is iri in iriguchi but hai in 入る (hairu) 'to enter'.";
                     d.NowYouKnow = "Japanese station signs say 出口 (deguchi) for the exit and 入口 (iriguchi) for the entrance. You can read them now.";
                     break;
                 case 1:
-                    d.TargetMeaning = "sparks (fire-flowers)";
-                    d.Target = h => P(Cmp(h, "fire", "flower"));
-                    d.Example("volcano (a fire-mountain)", h => P(Cmp(h, "fire", "mountain")))
-                     .Example("fireworks (flower-fire)", h => P(Cmp(h, "flower", "fire")));
-                    d.RealText = "火花 (hibana)";
-                    d.Translation = "sparks (literally 'fire flowers')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words from them, the describing part first: 火山 (kazan), 'fire mountain', is a volcano.";
-                    d.NowYouKnow = "花火 (hanabi), 'flower fire', means fireworks. Flip the kanji to 火花 (hibana) and it means sparks.";
+                    d.TargetMeaning = "florist (a flower shop)";
+                    d.Target = h => P(Cmp(h, "hana", "ya"));
+                    d.Example("fireworks (flower fire)", h => P(Cmp(h, "hana", "bi")))
+                     .Example("butcher's (a meat shop)", h => P(Cmp(h, "niku", "ya")));
+                    d.RealText = "花屋 (hanaya)";
+                    d.Translation = "florist (literally 'flower shop')";
+                    d.Feature = "Each kanji carries a meaning, and Japanese builds words from them, the describing part first: 肉屋 (nikuya), 'meat shop', is a butcher's.";
+                    d.NowYouKnow = "花火 (hanabi), 'flower fire', is the Japanese word for fireworks.";
                     break;
                 default:
                     d.TargetMeaning = "telephone (electric talk)";
-                    d.Target = h => P(Cmp(h, "electric", "talk"));
-                    d.Example("train (an electric vehicle)", h => P(Cmp(h, "electric", "vehicle")))
-                     .Example("to talk", h => P(Kana("talk", "su")));
+                    d.Target = h => P(Cmp(h, "den", "wa"));
+                    d.Example("train (an electric vehicle)", h => P(Cmp(h, "den", "sha")))
+                     .Example("conversation (a meeting talk)", h => P(Cmp(h, "kai", "wa")));
                     d.RealText = "電話 (denwa)";
                     d.Translation = "telephone (literally 'electric talk')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by stacking them: 電車 (densha), 'electric vehicle', is a train.";
-                    d.NowYouKnow = "電車 (densha), 'electric vehicle', is a train and 電話 (denwa), 'electric talk', is a telephone: one kanji, two everyday words.";
+                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by joining them: 電車 (densha), 'electric vehicle', is a train.";
+                    d.NowYouKnow = "会話 (kaiwa), 'meet' + 'talk', is a conversation, and 電話 (denwa), 'electric talk', is a telephone.";
                     break;
             }
             return d;
@@ -230,15 +249,15 @@ namespace Fnmw.Lang.Languages
                 OrderConcept = LangConcepts.VerbFinal,
                 HypConcepts = Hyps.Bits(LangConcepts.CompoundMeaning, LangConcepts.VerbFinal),
                 TargetMeaning = "Open the exit!",
-                Target = h => Open(h, Cmp(h, "out", "mouth")),
+                Target = h => Open(h, Cmp(h, "de", "guchi")),
                 RealText = "出口を開けて (deguchi o akete)",
                 Translation = "Open the exit!",
                 Feature = "Japanese builds words from meaningful kanji (出 'go out' + 口 'mouth' = 出口 'exit') and puts the verb last, after the particle を (o).",
                 NowYouKnow = "Japanese station signs say 出口 (deguchi) for the exit and 入口 (iriguchi) for the entrance. You can read them now.",
             }
-            .Example("Open the entrance!", h => Open(h, Cmp(h, "enter", "mouth")))
-            .Example("Go in!", h => P(Kana("enter", "tte")))
-            .Example("Go out!", h => P(Kana("out", "te")));
+            .Example("Open the entrance!", h => Open(h, Cmp(h, "iri", "guchi")))
+            .Example("Go in!", h => P(Kana("hai", "tte")))
+            .Example("Go out!", h => P(Kana("de", "te")));
         }
     }
 }

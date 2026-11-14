@@ -93,7 +93,7 @@ namespace Fnmw.Core.Fakes
                 case Screen.Reveal:
                     GUI.Box(panel, "");
                     GUI.Label(new Rect(panel.x + 20, panel.y + 20, panel.width - 40, panel.height - 40),
-                        $"DECODED\n\nAlien:  {_reveal.AlienText}\nReal:   {_reveal.RealText}\nMeans:  {_reveal.Translation}\n\n{_reveal.Explanation}\n\nPress Enter", _body);
+                        $"DECODED\n\nYou said: {_reveal.AlienText}\nReal:   {_reveal.RealText}\nMeans:  {_reveal.Translation}\n\n{_reveal.Explanation}\n\nPress Enter", _body);
                     if (enter) Fire(ref _onContinue);
                     break;
 

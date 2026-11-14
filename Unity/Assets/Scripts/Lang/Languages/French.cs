@@ -5,15 +5,22 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// French, exaggerated: adjectives always trail the noun, every noun has a hidden gender that only the
-    /// article and adjectives reveal, and plural is written on every word (but, in real French, mostly silent).
+    /// French: most adjectives (all the ones used here) follow the noun, every noun has a gender that 'the' and
+    /// the adjective show, and the written plural -s goes on the noun and the adjective (mostly silent aloud).
     /// </summary>
     public sealed class French : SourceLanguage
     {
         public override string Name => "French";
         public override string Code => "fr";
-        public override string Summary => "Adjective after the noun; hidden noun gender shown only on 'the' and adjectives; plural written on every word.";
-        public override string[] QuizDistractors => new[] { "Italian", "Portuguese", "Romanian", "Catalan" };
+        public override string Endonym => "Français";
+        public override string Summary => "Most adjectives follow the noun; noun gender shows on 'the' and the adjective; written plural -s on noun and adjective.";
+        public override string[] Myths => new[]
+        {
+            "Adjectives always come before the noun, as in English.",
+            "Only the noun changes for the plural; the adjective stays the same.",
+            "Every noun uses the same word for 'the', whatever its gender.",
+            "The adjective matches the speaker's gender, not the noun's.",
+        };
         public override string QuizExplanation => "French: adjectives follow the noun, articles and adjectives agree in gender and number, and many final letters are silent.";
 
         sealed class Noun { public string Key, Fr, En; public bool Fem; }
@@ -43,13 +50,17 @@ namespace Fnmw.Lang.Languages
 
         public French()
         {
-            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.En);
-            foreach (var a in Adjs) Add("a." + a.Key, MorphKind.Root, a.En, LangConcepts.AdjectiveOrder);
-            Add("F", MorphKind.Affix, "FEM", LangConcepts.GenderAgreement);
-            Add("PL", MorphKind.Affix, "PL", LangConcepts.PluralAgreement);
-            Add("le", MorphKind.Particle, "the.MASC", LangConcepts.GenderAgreement);
-            Add("la", MorphKind.Particle, "the.FEM", LangConcepts.GenderAgreement);
-            Add("les", MorphKind.Particle, "the.PL", LangConcepts.PluralAgreement);
+            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Fr, n.En);
+            foreach (var a in Adjs) Add("a." + a.Key, MorphKind.Root, a.Fr, a.En, LangConcepts.AdjectiveOrder);
+            Add("F", MorphKind.Affix, "e", "FEM", LangConcepts.GenderAgreement);
+            Add("PL", MorphKind.Affix, "s", "PL", LangConcepts.PluralAgreement);
+            Add("le", MorphKind.Particle, "le", "the.MASC", LangConcepts.GenderAgreement);
+            Add("la", MorphKind.Particle, "la", "the.FEM", LangConcepts.GenderAgreement);
+            Add("les", MorphKind.Particle, "les", "the.PL", LangConcepts.PluralAgreement);
+
+            Rule(LangConcepts.AdjectiveOrder, "Most adjectives, like colours, come after the noun.");
+            Rule(LangConcepts.GenderAgreement, "'The' and the adjective match the noun's gender: le for masculine, la and an added -e for feminine.");
+            Rule(LangConcepts.PluralAgreement, "In writing, the plural -s goes on the noun and on the adjective, and 'the' becomes les.");
 
             Kind("adjective-after", 0, AdjOrder);
             Kind("gender", 1, GenderKind);

@@ -5,17 +5,23 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// German, exaggerated: nouns glue into ever longer compounds whose last part names the thing,
-    /// the verb is kicked to the end of "because" clauses, and (like German nouns) everything is capitalised.
+    /// German: nouns join into compounds written as one word whose last part names the thing, the verb moves
+    /// to the end of clauses after weil 'because', and every noun starts with a capital letter.
     /// </summary>
     public sealed class German : SourceLanguage
     {
         public override string Name => "German";
         public override string Code => "de";
-        public override string Summary => "Nouns glued into compounds, last part names the thing; verb kicked to the end of 'because' clauses; written in capitals.";
-        public override string[] QuizDistractors => new[] { "Dutch", "Swedish", "Danish", "Norwegian" };
+        public override string Endonym => "Deutsch";
+        public override string Summary => "Nouns join into one-word compounds, last part names the thing; verb goes to the end of weil 'because' clauses; nouns are capitalised.";
         public override string QuizExplanation => "German: nouns join into compounds whose last part names the thing, and the verb goes to the end of clauses like weil 'because'.";
-        public override bool UpperCase => true;
+        public override string[] Myths => new[]
+        {
+            "In a compound, the first part names what the thing is.",
+            "The verb always stays second, even after weil.",
+            "Compound parts are written as separate words, as in English.",
+            "Only the first word of a sentence takes a capital letter.",
+        };
 
         const string CompoundFeature = "German glues words into one long noun, and the last part names what the thing is: Handtasche, 'hand bag', is a kind of bag, and Hausschuh, 'house shoe', is a kind of shoe (a slipper).";
 
@@ -82,18 +88,35 @@ namespace Fnmw.Lang.Languages
             { "red", "rot" }, { "cold", "kalt" }, { "dark", "dunkel" }, { "open", "offen" }, { "dead", "tot" },
         };
 
+        // compound parts as dictionary words; every compound below really is written as these parts joined, with no linking -s
+        static readonly Dictionary<string, string> Parts = new Dictionary<string, string>
+        {
+            { "hand", "Hand" }, { "shoe", "Schuh" }, { "house", "Haus" }, { "bag", "Tasche" }, { "full", "voll" }, { "moon", "Mond" },
+            { "blood", "Blut" }, { "bath", "Bad" }, { "fire", "Feuer" }, { "work", "Werk" }, { "stuff", "Zeug" }, { "cool", "kühl" },
+            { "compartment", "Fach" }, { "letter", "Brief" }, { "box", "Kasten" },
+        };
+
         public German()
         {
-            foreach (var k in new[] { "hand", "shoe", "house", "bag", "full", "moon", "blood", "bath", "fire", "work", "stuff", "cool", "compartment", "letter", "box" })
-                Add("c." + k, MorphKind.Root, k, LangConcepts.CompoundMeaning);
-            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.En);
-            foreach (var a in new[] { "red", "cold", "dark", "open", "dead" }) Add("a." + a, MorphKind.Root, a);
-            Add("because", MorphKind.Particle, "because", LangConcepts.VerbFinal);
-            Add("is", MorphKind.Root, "is", LangConcepts.VerbFinal);
+            foreach (var p in Parts) Add("c." + p.Key, MorphKind.Root, p.Value, p.Key, LangConcepts.CompoundMeaning);
+            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, $"{n.Art} {n.De}", "the " + n.En);
+            foreach (var a in AdjDe) Add("a." + a.Key, MorphKind.Root, a.Value, a.Key);
+            Add("because", MorphKind.Particle, "weil", "because", LangConcepts.VerbFinal);
+            Add("is", MorphKind.Root, "ist", "is", LangConcepts.VerbFinal);
+
+            Rule(LangConcepts.CompoundMeaning, "Nouns join into one word, and the last part names what the thing is.");
+            Rule(LangConcepts.VerbFinal, "After weil 'because', the verb moves to the very end of the clause.");
 
             Kind("compound", 0, (r, t) => CompoundKind(r, TwoPart));
             Kind("verb-final-clause", 2, VerbFinalKind);
             Kind("long-compound", 3, (r, t) => CompoundKind(r, ThreePart));
+        }
+
+        /// <summary>A compound is one word: capital first letter, the rest lower case (Hand + Schuh = Handschuh).</summary>
+        public override string Surface(Word w)
+        {
+            var s = base.Surface(w);
+            return w.M.Length > 1 ? char.ToUpperInvariant(s[0]) + s.Substring(1).ToLowerInvariant() : s;
         }
 
         // rival (bit 0): head first, i.e. the compound reversed

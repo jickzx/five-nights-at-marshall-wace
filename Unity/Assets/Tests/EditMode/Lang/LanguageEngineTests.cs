@@ -95,7 +95,7 @@ namespace Fnmw.Tests.Lang
 
                 var built = LanguageEngine.Inspect(w, p.Id);
                 Assert.Less(built.AnswerIds.Length, p.Tiles.Count, "at least one distractor " + ctx);
-                Assert.AreEqual(1, built.ValidAnswerCount, ctx);
+                Assert.AreEqual(built.AcceptedKeys.Count, built.ValidAnswerCount, ctx);
                 var ok = eng.Check(w, p.Id, built.AnswerIds);
                 Assert.IsTrue(ok.Correct, ctx);
                 Assert.IsNull(ok.MissedConcept, ctx);
@@ -106,10 +106,11 @@ namespace Fnmw.Tests.Lang
 
         /// <summary>
         /// Independent of the engine's own solver: try every sequence of distinct tiles through the public
-        /// Check and count how many are accepted. Exactly one, and every rejected one names a known concept.
+        /// Check and count how many are accepted. Exactly the real answers (one, or two where Japanese allows
+        /// the object first), and every rejected one names a known concept.
         /// </summary>
         [Test]
-        public void EveryPuzzle_HasExactlyOneAcceptedTileSequence()
+        public void EveryPuzzle_AcceptsExactlyTheRealAnswers()
         {
             var eng = new LanguageEngine();
             foreach (var (w, p, i, d) in Sweep(eng, 40, new[] { 0f, 0.5f, 1f }))
@@ -134,8 +135,28 @@ namespace Fnmw.Tests.Lang
                     }
                 }
                 Dfs();
-                Assert.AreEqual(1, accepted, $"seed {w.Seed} console {i} difficulty {d}: {p.TargetMeaning}");
+                var b = LanguageEngine.Inspect(w, p.Id);
+                Assert.AreEqual(b.AcceptedKeys.Count, accepted, $"seed {w.Seed} console {i} difficulty {d}: {p.TargetMeaning}");
+                Assert.AreEqual(b.Draft.AlsoCorrect.Count + 1, b.AcceptedKeys.Count, "every extra order is distinct");
             }
+        }
+
+        [Test]
+        public void JapaneseParticles_AcceptTheObjectFirst()
+        {
+            var eng = new LanguageEngine();
+            int seen = 0;
+            foreach (var (w, p, i, d) in Sweep(eng, 200, new[] { 0.75f, 1f }))
+            {
+                var b = LanguageEngine.Inspect(w, p.Id);
+                if (b.Draft.Kind != "particles") continue;
+                seen++;
+                // the intended answer is subject-ga object-o verb; object-o subject-ga verb is real Japanese too
+                var a = b.AnswerIds;
+                Assert.AreEqual(5, a.Length);
+                Assert.IsTrue(eng.Check(w, p.Id, new[] { a[2], a[3], a[0], a[1], a[4] }).Correct, p.TargetMeaning);
+            }
+            Assert.Greater(seen, 0, "no Japanese particle puzzle was generated");
         }
 
         [Test]
@@ -190,9 +211,10 @@ namespace Fnmw.Tests.Lang
                 Assert.AreEqual(w.Languages[i].Name, r.LanguageName, ctx);
                 Assert.AreEqual(p.AlienName, r.AlienName, ctx);
                 Assert.That(KnownConcepts, Does.Contain(r.Concept), ctx);
-                // the alien phrase in the reveal is exactly the answer, written out
+                // the phrase in the reveal is exactly the answer, written out, and it is the real phrase
                 var b = LanguageEngine.Inspect(w, p.Id);
-                Assert.AreEqual(b.Lexicon.Render(b.TargetWords), r.AlienText, ctx);
+                Assert.AreEqual(b.Language.Render(b.TargetWords), r.AlienText, ctx);
+                StringAssert.Contains(r.AlienText.ToLowerInvariant(), r.RealText.ToLowerInvariant(), ctx);
 
                 var q = eng.GetQuiz(w, p.Id);
                 Assert.AreEqual(4, q.Options.Length, ctx);
@@ -201,7 +223,8 @@ namespace Fnmw.Tests.Lang
                 Assert.IsFalse(string.IsNullOrWhiteSpace(q.Explanation), ctx);
                 var correct = Enumerable.Range(0, 4).Where(k => eng.CheckQuiz(w, p.Id, k)).ToList();
                 Assert.AreEqual(1, correct.Count, ctx);
-                Assert.AreEqual(r.LanguageName, q.Options[correct[0]], ctx);
+                Assert.AreEqual(b.Language.RuleFor(b.Draft.Concept), q.Options[correct[0]], ctx);
+                CollectionAssert.DoesNotContain(b.Language.Myths, b.Language.RuleFor(b.Draft.Concept), ctx);
                 Assert.IsFalse(eng.CheckQuiz(w, p.Id, -1));
                 Assert.IsFalse(eng.CheckQuiz(w, p.Id, 4));
             }
