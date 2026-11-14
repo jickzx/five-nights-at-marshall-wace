@@ -33,6 +33,10 @@ namespace Fnmw.Core
         public static event Action<int> ConsoleActivated;                // console index
         public static event Action PlayerCaught;
         public static event Action Escaped;
+        /// <summary>UI raises this when the player places a tile in a puzzle (audio plays the word's motif).</summary>
+        public static event Action<Tile> TilePicked;
+        /// <summary>UI raises this when the player clears their placed tiles.</summary>
+        public static event Action TilesCleared;
 
         public static void RaisePhaseChanged(GamePhase from, GamePhase to) => Safe(() => PhaseChanged?.Invoke(from, to));
         public static void RaisePuzzleStarted(LangPuzzle p) => Safe(() => PuzzleStarted?.Invoke(p));
@@ -43,13 +47,15 @@ namespace Fnmw.Core
         public static void RaiseConsoleActivated(int i) => Safe(() => ConsoleActivated?.Invoke(i));
         public static void RaisePlayerCaught() => Safe(() => PlayerCaught?.Invoke());
         public static void RaiseEscaped() => Safe(() => Escaped?.Invoke());
+        public static void RaiseTilePicked(Tile t) => Safe(() => TilePicked?.Invoke(t));
+        public static void RaiseTilesCleared() => Safe(() => TilesCleared?.Invoke());
 
         /// <summary>Drop all subscribers. Called by GameBootstrap on start and by tests.</summary>
         public static void ClearAll()
         {
             PhaseChanged = null; PuzzleStarted = null; AnswerSubmitted = null; QuizAnswered = null;
             BeastStageChanged = null; ThreatChanged = null; ConsoleActivated = null;
-            PlayerCaught = null; Escaped = null;
+            PlayerCaught = null; Escaped = null; TilePicked = null; TilesCleared = null;
         }
 
         static void Safe(Action a)
