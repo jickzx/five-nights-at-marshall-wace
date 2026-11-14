@@ -701,19 +701,20 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/rock_b.fbx",
         "blend": "assets/blender/rock_b.blend",
-        "preview": "assets/previews/rock_b.png"
+        "preview": "assets/previews/rock_b.png",
+        "views": "assets/previews/rock_b_views.png"
       },
-      "triangles": 400,
+      "triangles": 240,
       "bounding_box": {
         "min": [
-          -0.77591,
+          -0.9914,
           0.0,
-          -0.75793
+          -0.714
         ],
         "max": [
-          0.73288,
-          2.20326,
-          0.73645
+          1.024,
+          2.5814,
+          0.6865
         ]
       },
       "clips": [],
@@ -721,7 +722,7 @@
       "mesh_names": [
         "rock_b"
       ],
-      "notes": ""
+      "notes": "Tall split basalt fang, 2.6 m high. The narrow open fissure and opposed red fracture faces remain readable in silhouette. Place the dark base below the blood waterline."
     },
     "ruin_pillar": {
       "resource_path": "Models/ruin_pillar",

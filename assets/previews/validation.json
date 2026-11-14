@@ -98,11 +98,11 @@
     },
     "rock_b": {
       "status": "passed",
-      "triangles": 400,
+      "triangles": 240,
       "takes": [],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 5e-06,
+      "rest_bounds_max_error_m": 2e-07,
       "animated_bounds_max_error_m": 0,
       "sampled_poses": 0
     },
