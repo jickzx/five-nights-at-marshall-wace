@@ -40,7 +40,7 @@ def build_creature(stage):
         eyes=1 if stage<3 else 4
         for i in range(eyes):
             x=sign*(.072+.047*(i%2)); z=h*.95-(i//2)*.095
-            ico('eye',(x,.306+stage*.018,z),(.031,.018,.027),'eye','head')
+            ellipsoid('eye',(x,.306+stage*.018,z),(.031,.018,.027),'eye','head',4,3)
         if stage>=2:
             for i in range(5):
                 z=h*.61+i*.10
@@ -62,13 +62,14 @@ def build_creature(stage):
             for i in range(4):
                 x=sign*(.10+i*.075); z=h*.59-i*.07
                 rod('hanging_tendon',(x,.15,z),(x+sign*.025,.18,z-.30-i*.035),.035,.007,'viscera','chest',5)
-                ico('blood_drop',(x+sign*.025,.18,z-.32-i*.035),(.029,.027,.055),'blood','chest')
+                ellipsoid('blood_drop',(x+sign*.025,.18,z-.32-i*.035),(.029,.027,.055),'blood','chest',4,3)
             for i in range(3):
                 rod('dorsal_spike',(sign*.18,-.15,h*(.69+i*.06)),
                     (sign*(.34+i*.06),-.38,h*(.74+i*.06)),.065,0,'bone','chest',4)
     if stage==3:
         ico('open_throat',(0,.29,h*.89),(.09,.035,.12),'viscera','head')
         ico('exposed_heart',(0,.245,h*.67),(.12,.08,.15),'blood','chest')
+    ground()
     rig=skeleton(name,bones)
     join_parts(name+'_mesh')
     humanoid_actions(rig,True,stage)

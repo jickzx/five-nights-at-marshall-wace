@@ -1,4 +1,7 @@
 """The stranded pressure-suit astronaut. Exactly 1.8 metres in bind pose."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import *
 
 
@@ -27,7 +30,8 @@ def build():
         shoulder=(sign*.29,0,1.37); elbow=(sign*.37,.01,1.10); wrist=(sign*.40,.03,.88)
         hip=(sign*.125,0,.91); knee=(sign*.14,.015,.49); ankle=(sign*.15,0,.13)
         bones += [('upper_arm.'+side,shoulder,elbow,'chest'),('forearm.'+side,elbow,wrist,'upper_arm.'+side),
-                  ('thigh.'+side,hip,knee,'pelvis'),('shin.'+side,knee,ankle,'thigh.'+side)]
+                  ('thigh.'+side,hip,knee,'pelvis'),('shin.'+side,knee,ankle,'thigh.'+side),
+                  ('foot.'+side,ankle,(sign*.15,.20,.13),'shin.'+side)]
         rod('upper_arm',shoulder,elbow,.105,.09,'coal','upper_arm.'+side)
         box('shoulder_cap',(sign*.29,0,1.37),(.20,.28,.16),'bone','upper_arm.'+side,.025)
         rod('sleeve',elbow,wrist,.085,.065,'rust','forearm.'+side)
@@ -36,7 +40,7 @@ def build():
         box('thigh_plate',(sign*.14,.095,.72),(.17,.075,.22),'bone','thigh.'+side,.015)
         rod('shin',knee,ankle,.09,.075,'rust','shin.'+side)
         box('knee_guard',(sign*.14,.10,.49),(.18,.11,.15),'iron','shin.'+side,.025)
-        box('boot',(sign*.15,.05,.09),(.19,.32,.18),'coal','shin.'+side,.025)
+        box('boot',(sign*.15,.05,.09),(.19,.32,.18),'coal','foot.'+side,.025)
     rig=skeleton('player',bones)
     join_parts('player_mesh')
     humanoid_actions(rig)

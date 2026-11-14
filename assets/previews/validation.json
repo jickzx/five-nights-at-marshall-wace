@@ -1,0 +1,238 @@
+{
+  "scope": "Binary FBX inspection and Blender FBX reimport, not a Unity runtime test",
+  "blender_version": "5.2.1 LTS",
+  "models": {
+    "beast_stage1": {
+      "status": "passed",
+      "triangles": 588,
+      "takes": [
+        "chase",
+        "idle",
+        "lunge",
+        "stalk"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 3e-06,
+      "animated_bounds_max_error_m": 1.5e-06,
+      "sampled_poses": 16
+    },
+    "player": {
+      "status": "passed",
+      "triangles": 1064,
+      "takes": [
+        "death_martyr",
+        "idle",
+        "run",
+        "walk"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 2e-07,
+      "animated_bounds_max_error_m": 4e-07,
+      "sampled_poses": 16
+    },
+    "ship": {
+      "status": "passed",
+      "triangles": 1486,
+      "takes": [
+        "hatch_close",
+        "idle",
+        "takeoff"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 3e-07,
+      "animated_bounds_max_error_m": 8e-07,
+      "sampled_poses": 12
+    },
+    "console": {
+      "status": "passed",
+      "triangles": 430,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 1e-07,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "beast_stage2": {
+      "status": "passed",
+      "triangles": 988,
+      "takes": [
+        "chase",
+        "idle",
+        "lunge",
+        "stalk"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 4.9e-06,
+      "animated_bounds_max_error_m": 4.4e-06,
+      "sampled_poses": 16
+    },
+    "beast_stage3": {
+      "status": "passed",
+      "triangles": 1496,
+      "takes": [
+        "chase",
+        "idle",
+        "lunge",
+        "stalk"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 3.2e-06,
+      "animated_bounds_max_error_m": 1.03e-05,
+      "sampled_poses": 16
+    },
+    "rock_a": {
+      "status": "passed",
+      "triangles": 400,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 4.3e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "rock_b": {
+      "status": "passed",
+      "triangles": 400,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 5e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "ruin_pillar": {
+      "status": "passed",
+      "triangles": 392,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 2.6e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "ruin_arch": {
+      "status": "passed",
+      "triangles": 544,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 4.4e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "door_sealed": {
+      "status": "passed",
+      "triangles": 516,
+      "takes": [
+        "open"
+      ],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 1e-07,
+      "animated_bounds_max_error_m": 0.0,
+      "sampled_poses": 4
+    },
+    "mural_slab": {
+      "status": "passed",
+      "triangles": 338,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 3.3e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "wreck_debris": {
+      "status": "passed",
+      "triangles": 384,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 4.3e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "terrain_shore": {
+      "status": "passed",
+      "triangles": 288,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 1.2e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    },
+    "blood_sea": {
+      "status": "passed",
+      "triangles": 2,
+      "takes": [],
+      "identity_fbx_roots": true,
+      "metres_per_unit": 1,
+      "rest_bounds_max_error_m": 1.2e-06,
+      "animated_bounds_max_error_m": 0,
+      "sampled_poses": 0
+    }
+  },
+  "recordings": {
+    "beast_stage1": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 8.0,
+      "resolution": [
+        480,
+        480
+      ]
+    },
+    "player": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 8.0,
+      "resolution": [
+        480,
+        480
+      ]
+    },
+    "ship": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 6.0,
+      "resolution": [
+        480,
+        480
+      ]
+    },
+    "beast_stage2": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 8.0,
+      "resolution": [
+        480,
+        480
+      ]
+    },
+    "beast_stage3": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 8.0,
+      "resolution": [
+        480,
+        480
+      ]
+    },
+    "door_sealed": {
+      "status": "decoded",
+      "codec": "h264",
+      "duration_seconds": 2.0,
+      "resolution": [
+        480,
+        480
+      ]
+    }
+  }
+}

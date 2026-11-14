@@ -1,11 +1,16 @@
 """Battered side-entry escape boat with an actual open cabin and hinge rig."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import *
 from console import geometry as console_geometry
 
 
 def build():
     reset('ship')
-    box('keel',(0,0,.58),(1.85,3.75,.48),'rust','root')
+    mesh('keel',[(-.925,-1.875,.34),(.925,-1.875,.34),(.70,2.12,.34),(-.70,2.12,.34),
+                 (-.925,-1.875,.82),(.925,-1.875,.82),(.85,1.80,.82),(-.85,1.80,.82)],
+         [(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)],'rust','root')
     box('cabin_floor',(0,0,.88),(1.70,3.35,.13),'iron','root')
     box('port_wall',(-.84,0,1.48),(.14,3.4,1.22),'bone','root',.045)
     box('aft_wall',(0,-1.65,1.5),(1.7,.17,1.25),'rust','root',.06)
@@ -38,6 +43,9 @@ def build():
         box('nav_light',(sign*.94,1.35,2.18),(.12,.2,.06),'signal','root')
         for i in range(3):
             box('hull_patch',(sign*.925,-1.0+i*.78,1.6),(.035,.32,.22),'rust','root')
+    mesh('tail_fin',[(-.04,-1.40,2.25),(-.04,-1.40,2.78),(-.04,-.6,2.25),
+                     (.04,-1.40,2.25),(.04,-1.40,2.78),(.04,-.6,2.25)],
+         [(0,2,1),(3,4,5),(0,1,4,3),(1,2,5,4),(2,0,3,5)],'rust','root')
     rod('antenna',(-.6,-1.15,2.22),(-.6,-1.15,2.72),.026,.012,'iron','root',5)
     box('roof_mark',(0,-.5,2.26),(.27,1.2,.02),'bone','root')
     rig=skeleton('ship',[('root',(0,0,0),(0,0,.3),None),('hatch',(.92,-1.08,.85),(.92,.32,.85),'root')])

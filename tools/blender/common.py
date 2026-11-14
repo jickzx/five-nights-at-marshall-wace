@@ -1,6 +1,6 @@
 """Deterministic low-poly asset construction, action baking, exports and previews.
 
-Author in Blender metres, Z up, +Y forward. Exporters convert to Y up, -Z forward.
+Author in Blender metres, Z up, +Y forward. FBX stores Y up, -Z forward.
 """
 import bpy
 import json
@@ -21,7 +21,7 @@ PALETTE = {
     'bone': ((.64, .59, .43), 0, .8),
     'ivory': ((.85, .80, .64), 0, .75),
     'blood': ((.38, .006, .012), .05, .36),
-    'flesh': ((.64, .035, .045), 0, .62),
+    'flesh': ((.32, .008, .016), 0, .62),
     'viscera': ((.14, .004, .015), 0, .44),
     'visor': ((.025, .065, .065), .55, .21),
     'eye': ((1.0, .045, .015), 0, .45),
@@ -285,14 +285,23 @@ def humanoid_actions(rig, creature=False, stage=1):
             surrender = max(0,min(1,(t-.35)/.55))
             surrender = surrender*surrender*(3-2*surrender)
             # Vertical thighs and folded shins end with the knees at floor height.
-            root_move(r, (0,0,-.43*drop))
+            root_move(r, (0,0,-.34*drop))
             for side, sign in [('L',1),('R',-1)]:
                 world_rotate(r, 'shin.'+side, (1,0,0), -math.pi/2*drop)
+                world_rotate(r, 'foot.'+side, (1,0,0), math.pi/2*drop)
                 world_rotate(r, 'upper_arm.'+side, (0,1,0), -sign*1.16*surrender)
                 world_rotate(r, 'forearm.'+side, (1,0,0), .30*surrender)
             world_rotate(r, 'head', (1,0,0), .55*surrender)
             world_rotate(r, 'chest', (1,0,0), .13*surrender)
         action(rig, 'death_martyr', 73, martyr)
+
+
+def ground():
+    """Place irregular geometry on its base without moving its object origin."""
+    low = min(v.co.z for obj in PARTS for v in obj.data.vertices)
+    for obj in PARTS:
+        for v in obj.data.vertices:
+            v.co.z -= low
 
 
 def bounds():
@@ -316,7 +325,7 @@ def setup_preview(lo, hi):
     scene.world = bpy.data.worlds.new('blood_fog')
     scene.world.use_nodes = True
     scene.world.node_tree.nodes['Background'].inputs[0].default_value = (.018,.022,.029,1)
-    scene.world.node_tree.nodes['Background'].inputs[1].default_value = .5
+    scene.world.node_tree.nodes['Background'].inputs[1].default_value = .2
     scene.view_settings.view_transform = enum(scene.view_settings, 'view_transform', 'AgX')
     span = max(hi-lo)
     center = (lo+hi)/2
@@ -335,7 +344,7 @@ def setup_preview(lo, hi):
         bpy.ops.object.light_add(type='AREA', location=center+Vector(offset)*span)
         light = bpy.context.object
         light.name = name
-        light.data.energy = power*span*span/4
+        light.data.energy = power*span*span/18
         light.data.color = color
         light.data.shape = enum(light.data, 'shape', 'DISK')
         light.data.size = size*span
@@ -348,6 +357,17 @@ def setup_preview(lo, hi):
     return camera, center, span
 
 
+def ffmpeg_path():
+    candidates = [os.environ.get('FFMPEG'), '/opt/homebrew/bin/ffmpeg',
+                  '/opt/homebrew/opt/ffmpeg@6/bin/ffmpeg']
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            result = subprocess.run([candidate, '-version'], capture_output=True)
+            if result.returncode == 0:
+                return candidate
+    raise RuntimeError('No working ffmpeg found. Set FFMPEG to an installed executable.')
+
+
 def preview_video(name, rig, camera, center, span):
     if os.environ.get('ART_SKIP_VIDEO') == '1':
         return
@@ -357,7 +377,9 @@ def preview_video(name, rig, camera, center, span):
     # Temporal preview uses the same materials and lighting as the stills.
     frame_dir = ROOT/'assets/previews'/('.frames_'+name)
     frame_dir.mkdir(exist_ok=True)
-    acts = list(bpy.data.actions)
+    scene.eevee.taa_render_samples = 16
+    clip_order = ['idle','walk','run','death_martyr','stalk','chase','lunge','hatch_close','takeoff','open']
+    acts = sorted(bpy.data.actions, key=lambda a: clip_order.index(a.name))
     frames_per_clip = 24
     number = 0
     for clip_index, act in enumerate(acts):
@@ -366,20 +388,29 @@ def preview_video(name, rig, camera, center, span):
             number += 1
             scene.frame_set(round(1+(act['frame_end']-1)*i/(frames_per_clip-1)))
             angle = .35 + .65*math.sin((number-1)/(len(acts)*frames_per_clip)*math.tau)
-            camera.location = center+Vector((math.sin(angle)*span*1.8,math.cos(angle)*span*1.8,span*.65))
-            aim(camera, center)
+            focus = center.copy()
+            if act.name == 'takeoff':
+                focus += rig.pose.bones['root'].matrix.translation
+            camera.location = focus+Vector((math.sin(angle)*span*1.8,math.cos(angle)*span*1.8,span*.65))
+            aim(camera, focus)
             scene.render.filepath = str(frame_dir/f'{number:04d}.png')
             bpy.ops.render.render(write_still=True)
     filters = []
     font = '/System/Library/Fonts/Menlo.ttc'
     for idx, act in enumerate(acts):
         filters.append(f"drawtext=fontfile={font}:text='{name} / {act.name}':fontcolor=white:fontsize=15:x=14:y=18:box=1:boxcolor=black@0.6:enable='between(t,{idx*2},{idx*2+1.999})'")
-    subprocess.run(['/opt/homebrew/bin/ffmpeg','-y','-loglevel','error','-framerate','12',
+    subprocess.run([ffmpeg_path(),'-y','-loglevel','error','-framerate','12',
                     '-i',str(frame_dir/'%04d.png'),'-vf',','.join(filters),'-c:v','libx264',
                     '-pix_fmt','yuv420p','-movflags','+faststart','-crf','20',
                     str(ROOT/'assets/previews'/f'{name}.mp4')],check=True)
     import shutil
     shutil.rmtree(frame_dir)
+    manifest_path = ROOT/'Unity/Assets/Resources/Models/manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['models'][name]['files']['video'] = f'assets/previews/{name}.mp4'
+    manifest['models'][name]['preview_segments'] = [
+        {'clip':act.name, 'start_seconds':i*2, 'end_seconds':(i+1)*2} for i,act in enumerate(acts)]
+    manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
 
 
 def deliver(name, rig=None, notes=None):
@@ -396,6 +427,7 @@ def deliver(name, rig=None, notes=None):
         obj.data.calc_loop_triangles()
     tris = sum(len(obj.data.loop_triangles) for obj in PARTS)
     clips = [{'name':a.name,'frame_start':1,'frame_end':a['frame_end'],
+              'fbx_frame_start':0,'fbx_frame_end':a['frame_end']-1,
               'fps':FPS,'loop':bool(a['loop']), 'duration_seconds':(a['frame_end']-1)/FPS}
              for a in bpy.data.actions]
     bpy.ops.object.select_all(action='DESELECT')
@@ -436,7 +468,7 @@ def deliver(name, rig=None, notes=None):
     bpy.context.view_layer.update()
     manifest_path = model_dir/'manifest.json'
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {
-        'schema_version':1,'units':'metres','up_axis':'+Y','forward_axis':'-Z','fps':FPS,'models':{}}
+        'schema_version':1,'frame_range_convention':'frame_start/end are Blender action frames; fbx_frame_start/end are zero-based FBX takes', 'units':'metres','up_axis':'+Y','forward_axis':'-Z','fps':FPS,'models':{}}
     manifest['models'][name] = {
         'resource_path':f'Models/{name}',
         'files':{'fbx':f'Unity/Assets/Resources/Models/{name}.fbx',
