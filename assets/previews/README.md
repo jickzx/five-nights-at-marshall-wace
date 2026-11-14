@@ -25,7 +25,7 @@ The player death descends to both knees, opens the arms and tips the head back, 
 | console | [console](console_views.png) | — |
 | beast_stage2 | [beast_stage2](beast_stage2_views.png) | [idle](beast_stage2_idle_review.png), [stalk](beast_stage2_stalk_review.png), [chase](beast_stage2_chase_review.png), [lunge](beast_stage2_lunge_review.png) |
 | beast_stage3 | [beast_stage3](beast_stage3_views.png) | [idle](beast_stage3_idle_review.png), [stalk](beast_stage3_stalk_review.png), [chase](beast_stage3_chase_review.png), [lunge](beast_stage3_lunge_review.png) |
-| rock_a | Blockout review pending | — |
+| rock_a | [rock_a](rock_a_views.png) | — |
 | rock_b | Blockout review pending | — |
 | ruin_pillar | Blockout review pending | — |
 | ruin_arch | Blockout review pending | — |
@@ -38,6 +38,8 @@ The player death descends to both knees, opens the arms and tips the head back, 
 ![Escape over the blood sea](ship_escape.png)
 
 [Nine-second cinematic takeoff](ship_escape.mp4). This uses the exported takeoff action with preview-only scenery and a warm horizon.
+
+[Watch the PR attachment](https://github.com/user-attachments/assets/bee29ce4-0952-4d1b-8d5c-b26248aa0c45).
 
 
 ![Selected animation poses](animation_poses.png)

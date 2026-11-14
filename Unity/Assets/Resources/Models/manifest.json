@@ -673,19 +673,20 @@
       "files": {
         "fbx": "Unity/Assets/Resources/Models/rock_a.fbx",
         "blend": "assets/blender/rock_a.blend",
-        "preview": "assets/previews/rock_a.png"
+        "preview": "assets/previews/rock_a.png",
+        "views": "assets/previews/rock_a_views.png"
       },
-      "triangles": 400,
+      "triangles": 354,
       "bounding_box": {
         "min": [
-          -0.98457,
+          -1.432,
           0.0,
-          -0.94254
+          -1.112
         ],
         "max": [
-          1.10648,
-          1.43695,
-          0.91816
+          1.39,
+          1.3963,
+          0.9812
         ]
       },
       "clips": [],
@@ -693,7 +694,7 @@
       "mesh_names": [
         "rock_a"
       ],
-      "notes": ""
+      "notes": "Broad ironstone shelf with an exposed red fracture and a dark blood-tide band at the base. Footprint approximately 2.8 x 2.1 m."
     },
     "rock_b": {
       "resource_path": "Models/rock_b",
