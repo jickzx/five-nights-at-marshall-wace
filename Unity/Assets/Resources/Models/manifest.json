@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "units": "metres",
+  "up_axis": "+Y",
+  "forward_axis": "-Z",
+  "fps": 24,
+  "models": {
+    "beast_stage1": {
+      "resource_path": "Models/beast_stage1",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/beast_stage1.fbx",
+        "blend": "assets/blender/beast_stage1.blend",
+        "preview": "assets/previews/beast_stage1.png"
+      },
+      "triangles": 596,
+      "bounding_box": {
+        "min": [
+          -0.6605,
+          -0.01332,
+          -0.33931
+        ],
+        "max": [
+          0.6605,
+          2.365,
+          0.2698
+        ]
+      },
+      "clips": [
+        {
+          "name": "chase",
+          "frame_start": 1,
+          "frame_end": 25,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 1.0
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 49,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 2.0
+        },
+        {
+          "name": "lunge",
+          "frame_start": 1,
+          "frame_end": 25,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 1.0
+        },
+        {
+          "name": "stalk",
+          "frame_start": 1,
+          "frame_end": 49,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 2.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "beast_stage1_mesh"
+      ],
+      "notes": "In-place stalk/chase; lunge contains 0.9 m forward root motion. Stages retain the forked crown and elongated hands."
+    },
+    "player": {
+      "resource_path": "Models/player",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/player.fbx",
+        "blend": "assets/blender/player.blend",
+        "preview": "assets/previews/player.png"
+      },
+      "triangles": 1064,
+      "bounding_box": {
+        "min": [
+          -0.465,
+          0.0,
+          -0.2475
+        ],
+        "max": [
+          0.465,
+          1.8,
+          0.355
+        ]
+      },
+      "clips": [
+        {
+          "name": "death_martyr",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 3.0
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 49,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 2.0
+        },
+        {
+          "name": "run",
+          "frame_start": 1,
+          "frame_end": 21,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 0.8333333333333334
+        },
+        {
+          "name": "walk",
+          "frame_start": 1,
+          "frame_end": 33,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 1.3333333333333333
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "player_mesh"
+      ],
+      "notes": "1.8 m bind height. In-place walk/run. death_martyr is a held kneeling surrender; clamp at its final frame."
+    },
+    "ship": {
+      "resource_path": "Models/ship",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/ship.fbx",
+        "blend": "assets/blender/ship.blend",
+        "preview": "assets/previews/ship.png"
+      },
+      "triangles": 1478,
+      "bounding_box": {
+        "min": [
+          -1.68,
+          0.0,
+          -1.875
+        ],
+        "max": [
+          2.1,
+          2.72,
+          1.875
+        ]
+      },
+      "clips": [
+        {
+          "name": "hatch_close",
+          "frame_start": 1,
+          "frame_end": 37,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 1.5
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 49,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 2.0
+        },
+        {
+          "name": "takeoff",
+          "frame_start": 1,
+          "frame_end": 97,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 4.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "keel",
+        "cabin_floor",
+        "port_wall",
+        "aft_wall",
+        "starboard_front",
+        "starboard_rear",
+        "roof",
+        "windscreen_frame",
+        "windscreen_frame.001",
+        "dashboard",
+        "cockpit_pedestal",
+        "cockpit_foot",
+        "cockpit_terminal_body",
+        "cockpit_screen_bezel",
+        "cockpit_screen",
+        "cockpit_tile_0",
+        "cockpit_tile_1",
+        "cockpit_tile_2",
+        "cockpit_tile_3",
+        "cockpit_support",
+        "cockpit_support.001",
+        "cockpit_status",
+        "cockpit_status.001",
+        "cockpit_status.002",
+        "pilot_seat",
+        "pilot_seat_back",
+        "hatch",
+        "ramp_tread",
+        "ramp_tread.001",
+        "ramp_tread.002",
+        "ramp_tread.003",
+        "engine",
+        "engine_band",
+        "exhaust",
+        "engine_light",
+        "landing_strut",
+        "landing_skid",
+        "landing_strut.001",
+        "landing_skid.001",
+        "nav_light",
+        "hull_patch",
+        "hull_patch.001",
+        "hull_patch.002",
+        "engine.001",
+        "engine_band.001",
+        "exhaust.001",
+        "engine_light.001",
+        "landing_strut.002",
+        "landing_skid.002",
+        "landing_strut.003",
+        "landing_skid.003",
+        "nav_light.001",
+        "hull_patch.003",
+        "hull_patch.004",
+        "hull_patch.005",
+        "antenna",
+        "roof_mark"
+      ],
+      "notes": "Open side hatch and visible cockpit console. hatch_close rotates the ramp shut. takeoff starts shut and rises 5 m with 3 m forward root motion."
+    },
+    "console": {
+      "resource_path": "Models/console",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/console.fbx",
+        "blend": "assets/blender/console.blend",
+        "preview": "assets/previews/console.png"
+      },
+      "triangles": 430,
+      "bounding_box": {
+        "min": [
+          -0.54,
+          0.0,
+          -0.34
+        ],
+        "max": [
+          0.54,
+          1.28,
+          0.325
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "pedestal",
+        "foot",
+        "terminal_body",
+        "screen_bezel",
+        "screen",
+        "tile_0",
+        "tile_1",
+        "tile_2",
+        "tile_3",
+        "support",
+        "support.001",
+        "status",
+        "status.001",
+        "status.002"
+      ],
+      "notes": "screen is a blank front-facing UV quad. tile_0..tile_3 are independent meshes. Screen and tile faces point -Z in exports."
+    }
+  }
+}
