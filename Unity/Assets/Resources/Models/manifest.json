@@ -377,90 +377,101 @@
         "fbx": "Unity/Assets/Resources/Models/beast_stage2.fbx",
         "blend": "assets/blender/beast_stage2.blend",
         "preview": "assets/previews/beast_stage2.png",
+        "views": "assets/previews/beast_stage2_views.png",
         "video": "assets/previews/beast_stage2.mp4"
       },
-      "triangles": 988,
+      "triangles": 936,
       "bounding_box": {
         "min": [
-          -0.90083,
+          -1.0743,
           0.0,
-          -0.35759
+          -0.61759
         ],
         "max": [
-          0.90083,
-          2.92832,
-          0.26987
+          1.0743,
+          2.90637,
+          0.30954
         ]
       },
       "clips": [
         {
           "name": "chase",
           "frame_start": 1,
-          "frame_end": 25,
+          "frame_end": 19,
           "fbx_frame_start": 0,
-          "fbx_frame_end": 24,
+          "fbx_frame_end": 18,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 1.0
+          "duration_seconds": 0.75
         },
         {
           "name": "idle",
           "frame_start": 1,
-          "frame_end": 49,
+          "frame_end": 97,
           "fbx_frame_start": 0,
-          "fbx_frame_end": 48,
+          "fbx_frame_end": 96,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 2.0
+          "duration_seconds": 4.0
         },
         {
           "name": "lunge",
           "frame_start": 1,
-          "frame_end": 25,
+          "frame_end": 37,
           "fbx_frame_start": 0,
-          "fbx_frame_end": 24,
+          "fbx_frame_end": 36,
           "fps": 24,
           "loop": false,
-          "duration_seconds": 1.0
+          "duration_seconds": 1.5
         },
         {
           "name": "stalk",
           "frame_start": 1,
-          "frame_end": 49,
+          "frame_end": 73,
           "fbx_frame_start": 0,
-          "fbx_frame_end": 48,
+          "fbx_frame_end": 72,
           "fps": 24,
           "loop": true,
-          "duration_seconds": 2.0
+          "duration_seconds": 3.0
         }
       ],
       "rigged": true,
       "mesh_names": [
         "beast_stage2_mesh"
       ],
-      "notes": "In-place stalk/chase; lunge contains 0.9 m forward root motion. Stages retain the forked crown and elongated hands.",
+      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
       "preview_segments": [
         {
           "clip": "idle",
-          "start_seconds": 0,
-          "end_seconds": 2
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
         },
         {
           "clip": "stalk",
-          "start_seconds": 2,
-          "end_seconds": 4
+          "start_seconds": 4.0,
+          "end_seconds": 7.0,
+          "playback_speed": 1
         },
         {
           "clip": "chase",
-          "start_seconds": 4,
-          "end_seconds": 6
+          "start_seconds": 7.0,
+          "end_seconds": 7.75,
+          "playback_speed": 1
         },
         {
           "clip": "lunge",
-          "start_seconds": 6,
-          "end_seconds": 8
+          "start_seconds": 7.75,
+          "end_seconds": 9.25,
+          "playback_speed": 1
         }
-      ]
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/beast_stage2_idle_review.png",
+        "stalk": "assets/previews/beast_stage2_stalk_review.png",
+        "chase": "assets/previews/beast_stage2_chase_review.png",
+        "lunge": "assets/previews/beast_stage2_lunge_review.png"
+      }
     },
     "beast_stage3": {
       "resource_path": "Models/beast_stage3",

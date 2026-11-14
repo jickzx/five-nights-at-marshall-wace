@@ -58,7 +58,7 @@
     },
     "beast_stage2": {
       "status": "passed",
-      "triangles": 988,
+      "triangles": 936,
       "takes": [
         "chase",
         "idle",
@@ -67,8 +67,8 @@
       ],
       "identity_fbx_roots": true,
       "metres_per_unit": 1,
-      "rest_bounds_max_error_m": 4.9e-06,
-      "animated_bounds_max_error_m": 4.4e-06,
+      "rest_bounds_max_error_m": 5e-06,
+      "animated_bounds_max_error_m": 3.4e-06,
       "sampled_poses": 16
     },
     "beast_stage3": {
@@ -210,9 +210,9 @@
     "beast_stage2": {
       "status": "decoded",
       "codec": "h264",
-      "duration_seconds": 8.0,
+      "duration_seconds": 9.25,
       "resolution": [
-        480,
+        1440,
         480
       ]
     },
