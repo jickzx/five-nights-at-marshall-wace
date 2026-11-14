@@ -1,0 +1,44 @@
+{
+  "beast_stage1": {
+    "file": "assets/previews/beast_stage1.mp4",
+    "sha256": "86bbdbbe32bde370fc47a617f6b04a6938438b967d86541e8029987dbdd8422d",
+    "url": "https://github.com/user-attachments/assets/12baa38a-7517-400b-92e4-676c5bd6b02c",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882022216"
+  },
+  "beast_stage2": {
+    "file": "assets/previews/beast_stage2.mp4",
+    "sha256": "defd7757cb1c2aac9d1edc08b7de8014794830acfb5370da068d538e9f4ea39d",
+    "url": "https://github.com/user-attachments/assets/32c56ed3-99e5-46fc-88d9-2863bb824a4e",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882022216"
+  },
+  "beast_stage3": {
+    "file": "assets/previews/beast_stage3.mp4",
+    "sha256": "ba7812b003d75d923646afa2d5e66b3b4504e4480bc2b3c6197f2cd7992dfde0",
+    "url": "https://github.com/user-attachments/assets/d53c4bb5-fc9c-4c70-9e3e-18ddbeaf9487",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882022216"
+  },
+  "player": {
+    "file": "assets/previews/player.mp4",
+    "sha256": "3599aacb8df472e213aa7b7dfc8c45a8f926076e0e25a8d51fc66e87a6e8f629",
+    "url": "https://github.com/user-attachments/assets/83db6acc-533f-4d1f-b664-a87f256f3d86",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882047862"
+  },
+  "ship": {
+    "file": "assets/previews/ship.mp4",
+    "sha256": "eb29d6ae097dad71e0f7174c24fd47f6d862ca9c1c2e30fff24961264994d6ce",
+    "url": "https://github.com/user-attachments/assets/54307939-754e-4873-8194-a39f46e84da1",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882152248"
+  },
+  "ship_escape": {
+    "file": "assets/previews/ship_escape.mp4",
+    "sha256": "ef3b3e9f34fe40a447d83ef54a4d14cb64754a963b59f78d1f8e7a715d9a65f4",
+    "url": "https://github.com/user-attachments/assets/bee29ce4-0952-4d1b-8d5c-b26248aa0c45",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882152248"
+  },
+  "door_sealed": {
+    "file": "assets/previews/door_sealed.mp4",
+    "sha256": "3f57a632a1656718076e62b2eaa33d310992f539acfedb7a826cc0731e923348",
+    "url": "https://github.com/user-attachments/assets/75ec0a8d-b781-40ef-add4-6a2a5906e0bf",
+    "comment_url": "https://github.com/jickzx/five-nights-at-marshall-wace/pull/2#issuecomment-6882210347"
+  }
+}
