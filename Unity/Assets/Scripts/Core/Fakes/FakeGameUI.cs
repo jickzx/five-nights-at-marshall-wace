@@ -111,7 +111,7 @@ namespace Fnmw.Core.Fakes
                     GUI.Box(panel, "");
                     GUI.Label(panel, _escaped
                         ? "LIFT-OFF\n\nThe ship tears free of the blood sea.\nYou escaped.\n\nEnter to play again"
-                        : "MARTYR\n\nThe tide takes you. Your words remain.\n\nEnter to try again", _big);
+                        : "MARTYR\n\nUnfortunately, after careful consideration, we decided to move forward with other candidates.\n\nEnter to try again", _big);
                     if (enter) Fire(ref _onAction);
                     break;
             }
