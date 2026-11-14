@@ -1,0 +1,1017 @@
+{
+  "schema_version": 1,
+  "units": "metres",
+  "up_axis": "+Y",
+  "forward_axis": "-Z",
+  "fps": 24,
+  "models": {
+    "beast_stage1": {
+      "resource_path": "Models/beast_stage1",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/beast_stage1.fbx",
+        "blend": "assets/blender/beast_stage1.blend",
+        "preview": "assets/previews/beast_stage1.png",
+        "views": "assets/previews/beast_stage1_views.png",
+        "video": "assets/previews/beast_stage1.mp4"
+      },
+      "triangles": 668,
+      "bounding_box": {
+        "min": [
+          -0.60255,
+          0.0,
+          -0.55759
+        ],
+        "max": [
+          0.60255,
+          2.34637,
+          0.31
+        ]
+      },
+      "clips": [
+        {
+          "name": "chase",
+          "frame_start": 1,
+          "frame_end": 19,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 18,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 0.75
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 97,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 96,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 4.0
+        },
+        {
+          "name": "lunge",
+          "frame_start": 1,
+          "frame_end": 37,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 36,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 1.5
+        },
+        {
+          "name": "stalk",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 72,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 3.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "beast_stage1_mesh"
+      ],
+      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+      "preview_segments": [
+        {
+          "clip": "idle",
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "stalk",
+          "start_seconds": 4.0,
+          "end_seconds": 7.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "chase",
+          "start_seconds": 7.0,
+          "end_seconds": 7.75,
+          "playback_speed": 1
+        },
+        {
+          "clip": "lunge",
+          "start_seconds": 7.75,
+          "end_seconds": 9.25,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/beast_stage1_idle_review.png",
+        "stalk": "assets/previews/beast_stage1_stalk_review.png",
+        "chase": "assets/previews/beast_stage1_chase_review.png",
+        "lunge": "assets/previews/beast_stage1_lunge_review.png"
+      }
+    },
+    "player": {
+      "resource_path": "Models/player",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/player.fbx",
+        "blend": "assets/blender/player.blend",
+        "preview": "assets/previews/player.png",
+        "views": "assets/previews/player_views.png",
+        "video": "assets/previews/player.mp4"
+      },
+      "triangles": 1336,
+      "bounding_box": {
+        "min": [
+          -0.42065,
+          0.0,
+          -0.235
+        ],
+        "max": [
+          0.42065,
+          1.8,
+          0.405
+        ]
+      },
+      "clips": [
+        {
+          "name": "death_martyr",
+          "frame_start": 1,
+          "frame_end": 169,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 168,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 7.0
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 97,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 96,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 4.0
+        },
+        {
+          "name": "run",
+          "frame_start": 1,
+          "frame_end": 19,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 18,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 0.75
+        },
+        {
+          "name": "walk",
+          "frame_start": 1,
+          "frame_end": 33,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 32,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 1.3333333333333333
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "player_mesh"
+      ],
+      "notes": "1.8 m pressure suit. Foot-planted in-place walk/run. death_martyr lasts 7 s: knees settle, arms open, head lifts, then a held final pose. Clamp at its final frame.",
+      "preview_segments": [
+        {
+          "clip": "idle",
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "walk",
+          "start_seconds": 4.0,
+          "end_seconds": 5.333333333333333,
+          "playback_speed": 1
+        },
+        {
+          "clip": "run",
+          "start_seconds": 5.333333333333333,
+          "end_seconds": 6.083333333333333,
+          "playback_speed": 1
+        },
+        {
+          "clip": "death_martyr",
+          "start_seconds": 6.083333333333333,
+          "end_seconds": 13.083333333333334,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/player_idle_review.png",
+        "walk": "assets/previews/player_walk_review.png",
+        "run": "assets/previews/player_run_review.png",
+        "death_martyr": "assets/previews/player_death_martyr_review.png"
+      }
+    },
+    "ship": {
+      "resource_path": "Models/ship",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/ship.fbx",
+        "blend": "assets/blender/ship.blend",
+        "preview": "assets/previews/ship.png",
+        "views": "assets/previews/ship_views.png",
+        "video": "assets/previews/ship.mp4",
+        "escape_preview": "assets/previews/ship_escape.png",
+        "escape_review": "assets/previews/ship_escape_review.png",
+        "escape_video": "assets/previews/ship_escape.mp4"
+      },
+      "triangles": 1262,
+      "bounding_box": {
+        "min": [
+          -2.125,
+          0.0,
+          -2.9
+        ],
+        "max": [
+          2.87559,
+          3.65456,
+          4.31
+        ]
+      },
+      "clips": [
+        {
+          "name": "hatch_close",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 72,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 3.0
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 72,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 3.0
+        },
+        {
+          "name": "takeoff",
+          "frame_start": 1,
+          "frame_end": 217,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 216,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 9.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "armored_keel",
+        "cabin_deck",
+        "prow_armor",
+        "prow_spine",
+        "port_cabin",
+        "cabin_back",
+        "roof_port",
+        "roof_starboard",
+        "entry_rear_frame",
+        "entry_top_frame",
+        "starboard_cheek",
+        "windscreen_-1",
+        "canopy_edge",
+        "eyebrow_light",
+        "cockpit_chin",
+        "windscreen_1",
+        "canopy_edge.001",
+        "eyebrow_light.001",
+        "cockpit_chin.001",
+        "windscreen_mullion",
+        "pilot_seat",
+        "pilot_seat_back",
+        "seat_restraint",
+        "cockpit_dashboard",
+        "cockpit_blank_screen",
+        "cockpit_key",
+        "cockpit_key.001",
+        "cockpit_key.002",
+        "cockpit_key.003",
+        "control_grip",
+        "entry_sill",
+        "entry_beacon",
+        "hatch",
+        "ramp_tread",
+        "ramp_tread.001",
+        "ramp_tread.002",
+        "ramp_tread.003",
+        "ramp_tread.004",
+        "hatch_rescue_mark",
+        "engine_pylon_L",
+        "engine_L",
+        "engine_nose_L",
+        "engine_belt_L",
+        "engine_rear_L",
+        "engine_nozzle_L",
+        "engine_nozzle_L_core",
+        "exhaust_L",
+        "lift_nozzle_L",
+        "lift_nozzle_L_core",
+        "lift_exhaust_L",
+        "landing_piston_L",
+        "landing_brace_L",
+        "landing_pad_L",
+        "tail_fin_L",
+        "navigation_lamp_L",
+        "lower_hull_scar_L",
+        "engine_pylon_R",
+        "engine_R",
+        "engine_nose_R",
+        "engine_belt_R",
+        "engine_rear_R",
+        "engine_nozzle_R",
+        "engine_nozzle_R_core",
+        "exhaust_R",
+        "lift_nozzle_R",
+        "lift_nozzle_R_core",
+        "lift_exhaust_R",
+        "landing_piston_R",
+        "landing_brace_R",
+        "landing_pad_R",
+        "tail_fin_R",
+        "navigation_lamp_R",
+        "lower_hull_scar_R",
+        "front_landing_piston",
+        "front_landing_pad",
+        "port_repair_plate",
+        "port_worn_stripe",
+        "roof_rescue_stripe",
+        "starboard_paint_chip",
+        "aft_vent",
+        "aft_vent_louver",
+        "aft_vent_louver.001",
+        "aft_vent_louver.002",
+        "broken_aerial",
+        "bent_aerial_tip"
+      ],
+      "notes": "Faceted salvage shuttle with a side boarding ramp, cockpit, twin rear engines and three folding landing feet. The side entry is 1.58 m wide with at least 1.91 m vertical clearance over the ramp and sill. Hatch starts open. hatch_close lasts 3 seconds. takeoff lasts 9 seconds: ignition tremor, gentle lift, gear retraction, bank and accelerating ascent. Warm exhaust meshes animate with the rig. Forward is -Z in Unity; takeoff ends at (1.6,12.35,-13.2) m relative to its starting root.",
+      "preview_segments": [
+        {
+          "clip": "idle",
+          "start_seconds": 0.0,
+          "end_seconds": 3.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "hatch_close",
+          "start_seconds": 3.0,
+          "end_seconds": 6.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "takeoff",
+          "start_seconds": 6.0,
+          "end_seconds": 15.0,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/ship_idle_review.png",
+        "hatch_close": "assets/previews/ship_hatch_close_review.png",
+        "takeoff": "assets/previews/ship_takeoff_review.png"
+      },
+      "escape_recording": {
+        "clip": "takeoff",
+        "duration_seconds": 9.0,
+        "fps": 24,
+        "resolution": [
+          1280,
+          720
+        ],
+        "playback_speed": 1
+      }
+    },
+    "console": {
+      "resource_path": "Models/console",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/console.fbx",
+        "blend": "assets/blender/console.blend",
+        "preview": "assets/previews/console.png",
+        "views": "assets/previews/console_views.png"
+      },
+      "triangles": 1142,
+      "bounding_box": {
+        "min": [
+          -0.64885,
+          0.0,
+          -0.4055
+        ],
+        "max": [
+          0.64885,
+          1.43,
+          0.4247
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "foot",
+        "rubber_mount",
+        "pedestal",
+        "pedestal_front_plate",
+        "pedestal_vent",
+        "pedestal_vent.001",
+        "pedestal_vent.002",
+        "pedestal_vent.003",
+        "terminal_casting",
+        "left_cheek",
+        "right_cheek",
+        "screen_bezel",
+        "screen_inner_lip",
+        "screen",
+        "key_recess",
+        "tile_0",
+        "tile_1",
+        "tile_2",
+        "tile_3",
+        "guard_mount",
+        "guard_mount.001",
+        "grab_rail",
+        "case_bolt",
+        "case_bolt.001",
+        "guard_mount.002",
+        "guard_mount.003",
+        "grab_rail.001",
+        "case_bolt.002",
+        "case_bolt.003",
+        "brow_strip",
+        "status",
+        "status.001",
+        "status.002",
+        "rear_service_panel",
+        "cooling_fin",
+        "cooling_fin.001",
+        "cooling_fin.002",
+        "cooling_fin.003",
+        "cooling_fin.004",
+        "cooling_fin.005",
+        "armoured_cable",
+        "armoured_cable.001",
+        "armoured_cable.002",
+        "armoured_cable.003",
+        "worn_warning",
+        "worn_warning.001"
+      ],
+      "notes": "screen is a blank 0.79 x 0.19 m front-facing UV quad. tile_0..tile_3 are independent meshes. Screen and tile faces point -Z in exports. Keys depress 0.025 m along exported +Z."
+    },
+    "beast_stage2": {
+      "resource_path": "Models/beast_stage2",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/beast_stage2.fbx",
+        "blend": "assets/blender/beast_stage2.blend",
+        "preview": "assets/previews/beast_stage2.png",
+        "views": "assets/previews/beast_stage2_views.png",
+        "video": "assets/previews/beast_stage2.mp4"
+      },
+      "triangles": 936,
+      "bounding_box": {
+        "min": [
+          -1.0743,
+          0.0,
+          -0.61759
+        ],
+        "max": [
+          1.0743,
+          2.90637,
+          0.30954
+        ]
+      },
+      "clips": [
+        {
+          "name": "chase",
+          "frame_start": 1,
+          "frame_end": 19,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 18,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 0.75
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 97,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 96,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 4.0
+        },
+        {
+          "name": "lunge",
+          "frame_start": 1,
+          "frame_end": 37,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 36,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 1.5
+        },
+        {
+          "name": "stalk",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 72,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 3.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "beast_stage2_mesh"
+      ],
+      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+      "preview_segments": [
+        {
+          "clip": "idle",
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "stalk",
+          "start_seconds": 4.0,
+          "end_seconds": 7.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "chase",
+          "start_seconds": 7.0,
+          "end_seconds": 7.75,
+          "playback_speed": 1
+        },
+        {
+          "clip": "lunge",
+          "start_seconds": 7.75,
+          "end_seconds": 9.25,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/beast_stage2_idle_review.png",
+        "stalk": "assets/previews/beast_stage2_stalk_review.png",
+        "chase": "assets/previews/beast_stage2_chase_review.png",
+        "lunge": "assets/previews/beast_stage2_lunge_review.png"
+      }
+    },
+    "beast_stage3": {
+      "resource_path": "Models/beast_stage3",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/beast_stage3.fbx",
+        "blend": "assets/blender/beast_stage3.blend",
+        "preview": "assets/previews/beast_stage3.png",
+        "views": "assets/previews/beast_stage3_views.png",
+        "video": "assets/previews/beast_stage3.mp4"
+      },
+      "triangles": 1404,
+      "bounding_box": {
+        "min": [
+          -1.2643,
+          0.0,
+          -0.78447
+        ],
+        "max": [
+          1.2643,
+          3.56637,
+          0.30954
+        ]
+      },
+      "clips": [
+        {
+          "name": "chase",
+          "frame_start": 1,
+          "frame_end": 19,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 18,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 0.75
+        },
+        {
+          "name": "idle",
+          "frame_start": 1,
+          "frame_end": 97,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 96,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 4.0
+        },
+        {
+          "name": "lunge",
+          "frame_start": 1,
+          "frame_end": 37,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 36,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 1.5
+        },
+        {
+          "name": "stalk",
+          "frame_start": 1,
+          "frame_end": 73,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 72,
+          "fps": 24,
+          "loop": true,
+          "duration_seconds": 3.0
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "beast_stage3_mesh"
+      ],
+      "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+      "preview_segments": [
+        {
+          "clip": "idle",
+          "start_seconds": 0.0,
+          "end_seconds": 4.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "stalk",
+          "start_seconds": 4.0,
+          "end_seconds": 7.0,
+          "playback_speed": 1
+        },
+        {
+          "clip": "chase",
+          "start_seconds": 7.0,
+          "end_seconds": 7.75,
+          "playback_speed": 1
+        },
+        {
+          "clip": "lunge",
+          "start_seconds": 7.75,
+          "end_seconds": 9.25,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "idle": "assets/previews/beast_stage3_idle_review.png",
+        "stalk": "assets/previews/beast_stage3_stalk_review.png",
+        "chase": "assets/previews/beast_stage3_chase_review.png",
+        "lunge": "assets/previews/beast_stage3_lunge_review.png"
+      }
+    },
+    "rock_a": {
+      "resource_path": "Models/rock_a",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/rock_a.fbx",
+        "blend": "assets/blender/rock_a.blend",
+        "preview": "assets/previews/rock_a.png",
+        "views": "assets/previews/rock_a_views.png"
+      },
+      "triangles": 354,
+      "bounding_box": {
+        "min": [
+          -1.432,
+          0.0,
+          -1.112
+        ],
+        "max": [
+          1.39,
+          1.3963,
+          0.9812
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "rock_a"
+      ],
+      "notes": "Broad ironstone shelf with an exposed red fracture and a dark blood-tide band at the base. Footprint approximately 2.8 x 2.1 m."
+    },
+    "rock_b": {
+      "resource_path": "Models/rock_b",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/rock_b.fbx",
+        "blend": "assets/blender/rock_b.blend",
+        "preview": "assets/previews/rock_b.png",
+        "views": "assets/previews/rock_b_views.png"
+      },
+      "triangles": 240,
+      "bounding_box": {
+        "min": [
+          -0.9914,
+          0.0,
+          -0.714
+        ],
+        "max": [
+          1.024,
+          2.5814,
+          0.6865
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "rock_b"
+      ],
+      "notes": "Tall split basalt fang, 2.6 m high. The narrow open fissure and opposed red fracture faces remain readable in silhouette. Place the dark base below the blood waterline."
+    },
+    "ruin_pillar": {
+      "resource_path": "Models/ruin_pillar",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/ruin_pillar.fbx",
+        "blend": "assets/blender/ruin_pillar.blend",
+        "preview": "assets/previews/ruin_pillar.png",
+        "views": "assets/previews/ruin_pillar_views.png"
+      },
+      "triangles": 198,
+      "bounding_box": {
+        "min": [
+          -0.92,
+          0.0,
+          -0.76
+        ],
+        "max": [
+          0.6439,
+          3.18,
+          0.6576
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "ruin_pillar"
+      ],
+      "notes": "3.1 m eroded monolith. Forked sacrificial seal faces exported -Z; lower 0.19 m carries a blood-tide band. Base origin at ground."
+    },
+    "ruin_arch": {
+      "resource_path": "Models/ruin_arch",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/ruin_arch.fbx",
+        "blend": "assets/blender/ruin_arch.blend",
+        "preview": "assets/previews/ruin_arch.png",
+        "views": "assets/previews/ruin_arch_views.png"
+      },
+      "triangles": 552,
+      "bounding_box": {
+        "min": [
+          -1.87,
+          0.0,
+          -0.75
+        ],
+        "max": [
+          2.02,
+          3.53,
+          0.52
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "ruin_arch"
+      ],
+      "notes": "2.30 m clear opening below 2.12 m; crown rises to 3.53 m. Forked alien seal faces exported -Z. Keep the small fallen chip on the right outside the walking path."
+    },
+    "door_sealed": {
+      "resource_path": "Models/door_sealed",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/door_sealed.fbx",
+        "blend": "assets/blender/door_sealed.blend",
+        "preview": "assets/previews/door_sealed.png",
+        "views": "assets/previews/door_sealed_views.png",
+        "video": "assets/previews/door_sealed.mp4"
+      },
+      "triangles": 1360,
+      "bounding_box": {
+        "min": [
+          -2.3,
+          0.0,
+          -0.495
+        ],
+        "max": [
+          2.3,
+          3.09,
+          0.445
+        ]
+      },
+      "clips": [
+        {
+          "name": "open",
+          "frame_start": 1,
+          "frame_end": 85,
+          "fbx_frame_start": 0,
+          "fbx_frame_end": 84,
+          "fps": 24,
+          "loop": false,
+          "duration_seconds": 3.5
+        }
+      ],
+      "rigged": true,
+      "mesh_names": [
+        "frame_post_L",
+        "frame_foot",
+        "frame_cheek",
+        "frame_inner_seal",
+        "door_leaf_L",
+        "stamped_panel_L",
+        "pressed_chevron_L",
+        "central_seal",
+        "hinge_lock",
+        "lock_pin",
+        "hinge_lock.001",
+        "lock_pin.001",
+        "vent",
+        "vent.001",
+        "vent.002",
+        "split_seal_L",
+        "seal_cut",
+        "warning",
+        "frame_bolt",
+        "frame_bolt.001",
+        "frame_bolt.002",
+        "frame_bolt.003",
+        "upper_roller",
+        "frame_post_R",
+        "frame_foot.001",
+        "frame_cheek.001",
+        "frame_inner_seal.001",
+        "door_leaf_R",
+        "stamped_panel_R",
+        "pressed_chevron_R",
+        "central_seal.001",
+        "hinge_lock.002",
+        "lock_pin.002",
+        "hinge_lock.003",
+        "lock_pin.003",
+        "vent.003",
+        "vent.004",
+        "vent.005",
+        "split_seal_R",
+        "seal_cut.001",
+        "warning.001",
+        "frame_bolt.004",
+        "frame_bolt.005",
+        "frame_bolt.006",
+        "frame_bolt.007",
+        "upper_roller.001",
+        "lintel",
+        "guide_rail",
+        "lower_guide",
+        "header_plate",
+        "worn_header_mark",
+        "worn_header_mark.001",
+        "worn_header_mark.002",
+        "worn_header_mark.003"
+      ],
+      "notes": "open lasts 3.5 seconds: holds, unseals 0.06 m rearward, then slides each leaf 1.19 m outwards and holds. Conservative clear opening is 2.04 m wide by 2.60 m high above a 0.11 m threshold. Rails require a 4.6 m-wide placement envelope; hold the last pose.",
+      "preview_segments": [
+        {
+          "clip": "open",
+          "start_seconds": 0.0,
+          "end_seconds": 3.5,
+          "playback_speed": 1
+        }
+      ],
+      "review_sheets": {
+        "open": "assets/previews/door_sealed_open_review.png"
+      }
+    },
+    "mural_slab": {
+      "resource_path": "Models/mural_slab",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/mural_slab.fbx",
+        "blend": "assets/blender/mural_slab.blend",
+        "preview": "assets/previews/mural_slab.png",
+        "views": "assets/previews/mural_slab_views.png"
+      },
+      "triangles": 399,
+      "bounding_box": {
+        "min": [
+          -0.84,
+          0.0,
+          -0.64
+        ],
+        "max": [
+          0.99,
+          2.52,
+          0.365
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "broken_slab",
+        "drowned_foot",
+        "picture_border",
+        "edge_moulding",
+        "picture_border.001",
+        "edge_moulding.001",
+        "picture_border.002",
+        "picture_border.003",
+        "picture",
+        "recessed_pin",
+        "recessed_pin.001",
+        "votive_cut",
+        "recessed_pin.002",
+        "recessed_pin.003",
+        "votive_cut.001",
+        "rear_fault",
+        "fallen_corner"
+      ],
+      "notes": "picture is a blank UV quad, 1.22 m wide and 1.60 m high, centered at Unity (0, 1.24, -0.247), facing -Z. Picture rectangle is completely unobstructed; assign the game mural material to that mesh."
+    },
+    "wreck_debris": {
+      "resource_path": "Models/wreck_debris",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/wreck_debris.fbx",
+        "blend": "assets/blender/wreck_debris.blend",
+        "preview": "assets/previews/wreck_debris.png",
+        "views": "assets/previews/wreck_debris_views.png"
+      },
+      "triangles": 736,
+      "bounding_box": {
+        "min": [
+          -1.46,
+          0.0,
+          -1.13131
+        ],
+        "max": [
+          1.58,
+          0.98598,
+          0.68046
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "wreck_debris"
+      ],
+      "notes": "Ruptured pressure-vessel section, open interior and bent ribs. Low scattered plates and a severed cable extend beyond the main hull; use a simple hull collider if collision is required."
+    },
+    "terrain_shore": {
+      "resource_path": "Models/terrain_shore",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/terrain_shore.fbx",
+        "blend": "assets/blender/terrain_shore.blend",
+        "preview": "assets/previews/terrain_shore.png",
+        "views": "assets/previews/terrain_shore_views.png"
+      },
+      "triangles": 836,
+      "bounding_box": {
+        "min": [
+          -10.0,
+          0.0,
+          -10.0
+        ],
+        "max": [
+          10.0,
+          1.76,
+          10.0
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "terrain_shore"
+      ],
+      "notes": "20 x 20 m. Origin at lowest base, waterline remains Unity y=0.36 at z=-4; dry edge z=+10 and submerged edge z=-10. Place blood_sea at (0,0.36,-14). Repeats along X every 20 m with matching edge heights. Eroded channels stay shallow for walking; the wet band is geometry colour, not a separate water surface."
+    },
+    "blood_sea": {
+      "resource_path": "Models/blood_sea",
+      "files": {
+        "fbx": "Unity/Assets/Resources/Models/blood_sea.fbx",
+        "blend": "assets/blender/blood_sea.blend",
+        "preview": "assets/previews/blood_sea.png",
+        "views": "assets/previews/blood_sea_views.png"
+      },
+      "triangles": 2,
+      "bounding_box": {
+        "min": [
+          -10.0,
+          0.0,
+          -10.0
+        ],
+        "max": [
+          10.0,
+          0.0,
+          10.0
+        ]
+      },
+      "clips": [],
+      "rigged": false,
+      "mesh_names": [
+        "blood_sea"
+      ],
+      "notes": "Flat 20 x 20 m plane, two triangles, UVs span 0..1. Deep saturated blood colour and low roughness. No baked ripples or waves. Tile at water height Unity y=0, or y=0.36 to meet terrain_shore. The game may replace the material with animated blood."
+    }
+  },
+  "frame_range_convention": "frame_start/end are Blender action frames; fbx_frame_start/end are zero-based FBX takes"
+}
