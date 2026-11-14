@@ -30,7 +30,7 @@ namespace Fnmw.Monster.Overlay
         int _aggrHead;
         float _sampleAt, _toastUntil;
         string _toast;
-        GUIStyle _title, _sub, _section, _body, _small, _right, _tag, _big;
+        GUIStyle _title, _sub, _section, _body, _small, _right, _tag, _big, _rowSmall;
         float _y, _x, _w;
 
         public void Bind(AdaptiveDirector director) => _dir = director;
@@ -70,6 +70,7 @@ namespace Fnmw.Monster.Overlay
             _small = new GUIStyle(_body) { fontSize = 17 };
             _small.normal.textColor = Dim;
             _right = new GUIStyle(_body) { alignment = TextAnchor.MiddleRight };
+            _rowSmall = new GUIStyle(_body) { fontSize = 18, wordWrap = false };
             _tag = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             _tag.normal.textColor = Color.black;
             _big = new GUIStyle(_body) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
@@ -99,13 +100,16 @@ namespace Fnmw.Monster.Overlay
             Section("WHAT IT HAS LEARNED ABOUT YOU");
             Label(Row(22), "chance you'd solve a medium puzzle on each concept, band = ±1σ", _small);
             if (s.Concepts.Count == 0) Label(Row(28), "Nothing yet. Answer a console puzzle.", _small);
-            int shown = 0;
+            var rows = new List<ConceptBelief>();
+            var world = _dir.WorldConcepts;
             foreach (var b in s.Concepts)
             {
                 if (b.Concept == PlayerModel.General && s.Concepts.Count > 1 && b.Seen == 0) continue;
-                if (++shown > 7) break;
-                ConceptRow(b, b.Concept == _dir.FocusConcept);
+                if (world.Count > 0 && !((ICollection<string>)world).Contains(b.Concept)) continue; // other worlds' concepts stay in memory, off screen
+                rows.Add(b);
             }
+            bool compact = rows.Count > 4;
+            for (int i = 0; i < rows.Count && i < 8; i++) ConceptRow(rows[i], rows[i].Concept == _dir.FocusConcept, compact ? 24f : 34f);
 
             Section("NEXT PUZZLE");
             var r = Row(30);
@@ -117,13 +121,13 @@ namespace Fnmw.Monster.Overlay
             Bar(new Rect(r.x + 230, r.y + 7, 260, 16), _dir.PredictedSuccess, SkillColor(_dir.PredictedSuccess));
             Box(new Rect(r.x + 230 + 260 * PlayerModel.TargetSuccess - 1, r.y + 3, 2, 24), Color.white);
             Label(new Rect(r.x + 490, r.y, _w - 490, 30), $"{_dir.PredictedSuccess:P0}", _right);
-            Label(Row(26), $"Probing <b>{AdaptiveDirector.Pretty(_dir.FocusConcept)}</b>. {_dir.DifficultyReason}", _small);
+            Para($"Probing <b>{AdaptiveDirector.Pretty(_dir.FocusConcept)}</b>. {_dir.DifficultyReason}", _small);
 
             Section("AGGRESSION");
             r = Row(48);
             Bar(new Rect(r.x, r.y + 12, _w - 120, 24), _dir.BeastAggression, Color.Lerp(new Color(0.45f, 0.1f, 0.1f), Bad, _dir.BeastAggression));
             Label(new Rect(r.x + _w - 120, r.y, 120, 48), $"{_dir.BeastAggression:0.00}", _big);
-            Label(Row(28), $"<b>{_dir.AggressionReason}</b>", _body);
+            Para($"<b>{_dir.AggressionReason}</b>", _body);
             foreach (var t in _dir.AggressionTerms)
             {
                 string col = t.Value > 0.005f ? "#ff6a5a" : t.Value < -0.005f ? "#6fe08a" : "#bbbbbb";
@@ -142,13 +146,14 @@ namespace Fnmw.Monster.Overlay
                 Label(new Rect(r.x, r.y, 230, 24), brain.Stage >= 3 ? "Fully evolved" : $"Evolving to stage {brain.Stage + 1}", _small);
                 Bar(new Rect(r.x + 230, r.y + 6, _w - 230, 12), brain.EvolutionToNext, new Color(0.8f, 0.15f, 0.1f));
                 var anim = BeastController.Instance ? BeastController.Instance.GetComponent<BeastAnimator>() : null;
-                Label(Row(26), anim ? $"{brain.Why}   ·   anim: {anim.CurrentClip}" : brain.Why, _small);
+                Para(anim ? $"{brain.Why}   ·   anim: {anim.CurrentClip}" : brain.Why, _small);
             }
             else Label(Row(26), "(another brain is driving the beast)", _small);
 
             Section("PREDICTED vs WHAT YOU DID");
-            History(Row(70), s.History);
+            History(Row(56), s.History);
 
+            if (_y > RefHeight - 100) { GUI.matrix = old; return; } // no room for the weights on worlds with many concepts
             Section("LEARNED WEIGHTS");
             Label(Row(23), $"difficulty {-s.WDifficulty:+0.00;-0.00}   hesitation {s.WHesitation:+0.00;-0.00}   beast near {s.WProximity:+0.00;-0.00}   streak {s.WStreak:+0.00;-0.00}", _small);
             Label(Row(23), $"your pace {Mathf.Exp(s.LogRtBaseline):0}s  ·  hesitation {s.Hesitation:+0.0;-0.0}σ  ·  streak {s.Streak:+0;-0;0}  ·  ability {s.Ability:+0.00;-0.00}", _small);
@@ -179,23 +184,24 @@ namespace Fnmw.Monster.Overlay
             Label(new Rect(r.x + 12, r.y + 4, r.width - 14, r.height - 4), text, st);
         }
 
-        void ConceptRow(ConceptBelief b, bool focus)
+        void ConceptRow(ConceptBelief b, bool focus, float h)
         {
             var m = _dir.Model;
             float p = m.SkillAtMedium(b.Concept);
             var (lo, hi) = m.SkillBand(b.Concept);
-            var r = Row(34);
-            const float nameW = 190, barW = 270;
-            Label(new Rect(r.x, r.y, nameW, 34), AdaptiveDirector.Pretty(b.Concept), _body);
-            var bar = new Rect(r.x + nameW, r.y + 8, barW, 18);
+            var r = Row(h);
+            const float nameW = 210, barW = 250;
+            float bh = h < 30 ? 14 : 18, by = r.y + (h - bh) / 2;
+            Label(new Rect(r.x, r.y, nameW, h), AdaptiveDirector.Pretty(b.Concept), h < 30 ? _rowSmall : _body);
+            var bar = new Rect(r.x + nameW, by, barW, bh);
             Box(bar, Track);
-            Box(new Rect(bar.x + barW * lo, bar.y + 6, barW * (hi - lo), 6), new Color(1, 1, 1, 0.22f)); // ±1σ
+            Box(new Rect(bar.x + barW * lo, bar.y + bh / 2 - 3, barW * (hi - lo), 6), new Color(1, 1, 1, 0.22f)); // ±1σ
             Box(new Rect(bar.x, bar.y, barW * p, bar.height), SkillColor(p));
-            Label(new Rect(bar.xMax + 8, r.y, 70, 34), $"{p:P0}", _body);
-            Label(new Rect(bar.xMax + 74, r.y + 4, 80, 30), $"{b.Correct}/{b.Seen}", _small);
+            Label(new Rect(bar.xMax + 8, r.y, 70, h), $"{p:P0}", h < 30 ? _rowSmall : _body);
+            if (!focus) Label(new Rect(bar.xMax + 66, r.y + (h < 30 ? 0 : 4), 80, h), $"{b.Correct}/{b.Seen}", _small);
             if (focus)
             {
-                var tr = new Rect(r.x + _w - 78, r.y + 7, 78, 20);
+                var tr = new Rect(bar.xMax + 64, r.y + (h - 20) / 2, 82, 20);
                 Box(tr, Mid);
                 Label(tr, "PROBING", _tag);
             }
@@ -232,6 +238,8 @@ namespace Fnmw.Monster.Overlay
             }
             Label(new Rect(r.x + 6, r.y, 200, r.height), "aggression, last 40 s", _small);
         }
+
+        void Para(string text, GUIStyle st) => Label(Row(Mathf.Max(22f, st.CalcHeight(new GUIContent(text), _w))), text, st);
 
         Rect Row(float h) { var r = new Rect(_x, _y, _w, h); _y += h + 2; return r; }
 

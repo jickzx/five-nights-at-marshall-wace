@@ -126,19 +126,20 @@ namespace Fnmw.Monster.Learning
         /// concepts the beast knows little about both score low, so it tests where you're weakest
         /// or least known.
         /// </summary>
-        public string FocusConcept
+        public string FocusConcept => Focus(null);
+
+        /// <summary>FocusConcept restricted to a set of concepts (e.g. the ones this world's puzzles test).</summary>
+        public string Focus(ICollection<string> among)
         {
-            get
+            string best = null; float bestScore = float.MaxValue;
+            foreach (var b in S.Concepts)
             {
-                string best = null; float bestScore = float.MaxValue;
-                foreach (var b in S.Concepts)
-                {
-                    if (b.Concept == General && S.Concepts.Count > 1) continue;
-                    float score = b.Mean - 0.5f * Mathf.Sqrt(b.Var);
-                    if (score < bestScore) { bestScore = score; best = b.Concept; }
-                }
-                return best;
+                if (among != null && among.Count > 0 && !among.Contains(b.Concept)) continue;
+                if (b.Concept == General && S.Concepts.Count > 1) continue;
+                float score = b.Mean - 0.5f * Mathf.Sqrt(b.Var);
+                if (score < bestScore) { bestScore = score; best = b.Concept; }
             }
+            return best;
         }
 
         /// <summary>
