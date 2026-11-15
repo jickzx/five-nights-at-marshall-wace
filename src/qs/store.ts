@@ -40,7 +40,7 @@ function insertEvent(view: SessionView, e: QsEvent) {
 }
 
 /** Apply one message; returns what changed so the UI repaints only that. */
-export function applyMessage(view: SessionView, msg: QsMessage): "window" | "event" | "record" | "baseline" | null {
+export function applyMessage(view: SessionView, msg: QsMessage): "window" | "event" | "record" | "baseline" | "summary" | null {
   switch (msg.event) {
     case "window": insertWindow(view, msg.payload); return "window";
     case "event":
@@ -50,6 +50,10 @@ export function applyMessage(view: SessionView, msg: QsMessage): "window" | "eve
       return "event";
     case "record": view.records.set(msg.payload.question_key, msg.payload); return "record";
     case "baseline": view.baseline = msg.payload; return "baseline";
+    case "summary":
+      // a stored good summary is never replaced by a failed attempt
+      if (view.summary.status === "ok" && msg.payload.status !== "ok") return null;
+      view.summary = msg.payload; return "summary";
     default: return null;
   }
 }

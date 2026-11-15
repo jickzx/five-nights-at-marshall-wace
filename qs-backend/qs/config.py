@@ -21,12 +21,12 @@ class Settings:
     # asymmetric signing keys, which are verified through the project's JWKS endpoint instead.
     supabase_jwt_secret: str = field(default="", repr=False)
     gemini_api_key: str = field(default="", repr=False)
-    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_model: str = "gemini-3.8-flash"
     gemini_disabled: bool = False
     # "memory" runs the whole API on an in-process store (local demo, tests). "supabase" needs the keys above.
     store: str = "supabase"
     cors_origins: tuple[str, ...] = ()
-    consent_version: str = "qs-consent-2026-11"
+    consent_version: str = "qs-consent-2026-11-mic"
 
     @staticmethod
     def from_env() -> "Settings":
@@ -38,7 +38,7 @@ class Settings:
             supabase_secret_key=_env("SUPABASE_SECRET_KEY") or _env("SUPABASE_SERVICE_ROLE_KEY"),
             supabase_jwt_secret=_env("SUPABASE_JWT_SECRET"),
             gemini_api_key=_env("GEMINI_API_KEY"),
-            gemini_model=_env("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+            gemini_model=_env("GEMINI_MODEL", "gemini-3.8-flash"),
             gemini_disabled=_env("QS_GEMINI_DISABLED") in ("1", "true", "yes"),
             store=store,
             cors_origins=origins,

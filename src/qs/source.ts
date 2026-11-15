@@ -20,7 +20,9 @@ export interface QsSource {
   subscribe(sessionId: string, onMessage: (m: QsMessage) => void, onReset?: () => void): () => void;
   /** Session list changes (new session, started, ended). Returns an unsubscribe function. */
   watchSessions(onChange: () => void): () => void;
-  requestSummary(sessionId: string): Promise<SummaryResult>;
+  requestSummary(sessionId: string, refresh?: boolean): Promise<SummaryResult>;
+  /** The stored summary, if the server has written one (live mode writes it when a session ends). */
+  storedSummary?(sessionId: string): Promise<SummaryResult>;
 }
 
 export interface QsConfig {

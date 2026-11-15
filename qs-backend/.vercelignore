@@ -1,0 +1,9 @@
+tests
+scripts
+docs
+supabase
+.venv
+.pytest_cache
+.env*
+!.env.example
+.qs-login.json

@@ -1,5 +1,5 @@
-// Every label says what was measured, never what it might mean about the person.
-// labels.test.ts fails if verdict or diagnostic words creep in.
+// What each measured number is, in plain words. These label numbers; the possible states (states.ts) are where
+// QS says what the numbers might mean. qs.test.ts fails if verdict or diagnostic words creep into either.
 
 export interface FeatureLabel { short: string; long: string; unit: string }
 
@@ -26,17 +26,17 @@ export const FEATURES: Record<string, FeatureLabel> = {
   "motion.longest_freeze_s": { short: "Longest low-motion", long: "Longest continuous low-motion stretch", unit: "s" },
   "motion.freeze_fraction": { short: "Low-motion share", long: "Share of the question spent in low motion", unit: "" },
   "motion.startle_max_head_ratio": { short: "Peak after stimulus", long: "Highest head-rotation peak within 1.5 s of a sudden game event, relative to the level just before", unit: "×" },
+  "audio.breath_rate_bpm": { short: "Breathing rate", long: "Typical breaths per minute during the question (from the headset microphone)", unit: "/min" },
+  "audio.breath_rate_ratio": { short: "Breathing vs calm", long: "Breathing rate relative to the person's own calibration", unit: "×" },
+  "audio.breath_rate_ratio_p90": { short: "Fastest breathing", long: "Fastest breathing (90th percentile) relative to calibration", unit: "×" },
+  "audio.breath_amp_ratio": { short: "Breath loudness", long: "How loud the breath sounds were relative to calibration", unit: "×" },
+  "audio.deep_breaths": { short: "Deep breaths", long: "Deep breaths or sighs", unit: "" },
+  "audio.longest_breath_hold_s": { short: "Longest no-breath gap", long: "Longest time with no breath heard", unit: "s" },
+  "audio.voice_fraction": { short: "Speech", long: "Share of the time the microphone heard speech-level sound", unit: "" },
   "quality.baseline_status": { short: "Baseline", long: "Whether calibration produced a usable baseline", unit: "" },
   "quality.head_coverage": { short: "Head tracking", long: "Share of samples with the headset tracked", unit: "" },
   "quality.hand_coverage": { short: "Hand tracking", long: "Share of samples with both controllers tracked", unit: "" },
   outcome: { short: "Game outcome", long: "What the game recorded at the end of the question", unit: "" },
-};
-
-export const LIVE_SIGNALS = {
-  tremorL: { label: "4–12 Hz hand motion · left", note: "×own calibration" },
-  tremorR: { label: "4–12 Hz hand motion · right", note: "×own calibration" },
-  head: { label: "Head rotation speed", note: "×own calibration" },
-  scan: { label: "Head scanning", note: "×own calibration" },
 };
 
 export const EVENT_LABELS: Record<string, string> = {
@@ -48,23 +48,9 @@ export const EVENT_LABELS: Record<string, string> = {
   tracking_lost: "Tracking lost", tracking_restored: "Tracking back",
 };
 
-/** Events drawn as markers on the timeline (the rest are too frequent to label). */
-export const MARKED_EVENTS = new Set(["question_shown", "answer_submitted", "answer_wrong_fx", "hint_used",
-  "monster_appeared", "monster_stage", "monster_lunge", "jumpscare", "death", "calibration_end"]);
-
-export const STIMULUS_EVENTS = new Set(["answer_wrong_fx", "monster_appeared", "monster_stage", "monster_lunge", "jumpscare", "death"]);
-
 export const OUTCOME_LABELS: Record<string, string> = {
   correct: "Answered correctly", incorrect: "Not solved", abandoned: "Left unanswered", died: "Caught by monster", open: "In progress",
 };
-
-export const PRINCIPLES = [
-  ["Consent first", "Nothing is accepted from a headset until the candidate has agreed to the statement they were shown."],
-  ["Pseudonymous", "Candidates appear as ids like C-7F3A21. Real names live in a separate owner-only table."],
-  ["Measured against self", "Every motion value is a ratio to the person's own calm calibration, not to other people."],
-  ["Measurements, not verdicts", "QS reports movement and timing. It gives no score, no ranking and no hire or reject call."],
-  ["Deletable", "One request removes a candidate's sessions, motion, events, records and summaries."],
-] as const;
 
 export function fmt(v: unknown, unit = ""): string {
   if (v === null || v === undefined) return "—";

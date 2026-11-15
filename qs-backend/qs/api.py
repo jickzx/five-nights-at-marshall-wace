@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query as Q, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query as Q, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -13,7 +13,7 @@ from . import gemini, service
 from .auth import AuthError, verify_employer_token
 from .config import Settings
 from .db import Db, DbError, MemoryStore, PostgrestDb, Principal
-from .models import CandidateIn, ConsentIn, IngestBatch, QuestionSetIn, SessionIn
+from .models import CandidateIn, ConsentIn, DeviceIn, DeviceSessionIn, IngestBatch, QuestionSetIn, SessionIn
 from .realtime import Broadcaster, NullBroadcaster, SupabaseBroadcaster
 
 log = logging.getLogger("qs.api")
@@ -67,7 +67,7 @@ def backend_from_settings(settings: Settings, memory: MemoryStore | None = None)
 def create_app(backend: Backend | None = None) -> FastAPI:
     settings = backend.settings if backend else Settings.from_env()
     b = backend or backend_from_settings(settings)
-    app = FastAPI(title="QS telemetry API", version="0.1.0",
+    app = FastAPI(title="QS telemetry API", version="0.2.0",
                   description="Per-question motion records (QS) from VR assessment sessions.")
     app.state.backend = b
     if settings.cors_origins:
@@ -120,7 +120,8 @@ def create_app(backend: Backend | None = None) -> FastAPI:
         return service.withdraw_consent(b.server_db(), session, b.broadcaster)
 
     @app.post("/v1/ingest/{session_id}", status_code=202)
-    async def ingest(request: Request, session_id: str, x_qs_ingest_token: Optional[str] = Header(default=None)):
+    async def ingest(request: Request, session_id: str, background: BackgroundTasks,
+                     x_qs_ingest_token: Optional[str] = Header(default=None)):
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > MAX_INGEST_BYTES:
             raise HTTPException(413, "batch too large")
@@ -132,7 +133,16 @@ def create_app(backend: Backend | None = None) -> FastAPI:
             batch = IngestBatch.model_validate_json(raw)
         except ValueError as ex:
             raise HTTPException(422, _short(ex)) from None
-        return service.ingest(b.server_db(), session, batch, b.broadcaster)
+        result = service.ingest(b.server_db(), session, batch, b.broadcaster)
+        if result.get("session_ended"):
+            # Gemini writes the summary after the headset has its 202; failures are stored with their reason.
+            background.add_task(service.auto_summary, b.server_db(), session["id"], b.summarizer, b.broadcaster)
+        return result
+
+    # ---- enrolled headset (device key): may only start a new session for its employer
+    @app.post("/v1/device-sessions", status_code=201)
+    def device_session(body: Optional[DeviceSessionIn] = None, x_qs_device_key: Optional[str] = Header(default=None)):
+        return service.device_session(b.server_db(), x_qs_device_key or "", body)
 
     # ---- employer (Supabase JWT, RLS-scoped)
     @app.get("/v1/me")
@@ -158,6 +168,18 @@ def create_app(backend: Backend | None = None) -> FastAPI:
     @app.delete("/v1/candidates/{candidate_id}")
     def delete_candidate(candidate_id: str, db: Db = Depends(user)):
         return {"deleted": service.delete_candidate(db, _uuid(candidate_id))}
+
+    @app.post("/v1/devices", status_code=201)
+    def create_device(body: DeviceIn, p: Principal = Depends(employer), db: Db = Depends(user)):
+        return service.create_device(db, b.server_db(), p, body)
+
+    @app.get("/v1/devices")
+    def list_devices(db: Db = Depends(user)):
+        return service.list_devices(db)
+
+    @app.delete("/v1/devices/{device_id}")
+    def revoke_device(device_id: str, p: Principal = Depends(employer), db: Db = Depends(user)):
+        return service.revoke_device(db, b.server_db(), p, _uuid(device_id))
 
     @app.post("/v1/sessions", status_code=201)
     def create_session(body: SessionIn, p: Principal = Depends(employer), db: Db = Depends(user)):

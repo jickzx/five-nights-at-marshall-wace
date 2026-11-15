@@ -19,6 +19,7 @@ namespace Fnmw.UI
         internal readonly RunJournal Journal = new RunJournal();
 
         TitleScreen _title;
+        ConsentScreen _consent;
         HudLayer _hud;
         PuzzleScreen _puzzle;
         DecodeScreen _decode;
@@ -60,6 +61,7 @@ namespace Fnmw.UI
             _decode = new DecodeScreen(this);
             _example = new WorkedExampleScreen(this);
             _title = new TitleScreen(this);
+            _consent = new ConsentScreen(this);
             _death = new DeathScreen(this);
             _escape = new EscapeScreen(this);
             _timer = Kit.Node("RunTimer", Rig.Stage, 480, 6, 130, 24);
@@ -83,7 +85,7 @@ namespace Fnmw.UI
             _disposed = true;
             if (XrBridge.Active) { XrBridge.LessonStage = XrLessonStage.None; XrBridge.HintOffered = XrBridge.SpeakOffered = false; }
             GameEvents.BeastStageChanged -= OnBeastStage;
-            _puzzle?.Close(); _escape?.Close(); _title?.Close();
+            _puzzle?.Close(); _escape?.Close(); _title?.Close(); _consent?.Close();
             Fx?.Dispose();
             Rig?.Dispose();
         }
@@ -106,7 +108,27 @@ namespace Fnmw.UI
         {
             _debrief = null;   // a new run starts without the last one's account
             Swap(_title);
-            _title.Show(onStart);
+            _title.Show(() => AfterTitle(onStart));
+            Fx.SetMode(GlassMode.Title, true);
+        }
+
+        /// <summary>
+        /// Between the title and the run: if the QS sender is configured and waiting for the candidate's answer, ask for
+        /// consent first. I AGREE starts recording; NO THANKS (or a statement that cannot be fetched) plays the run
+        /// with nothing recorded. Without a QS configuration this is skipped and nothing changes.
+        /// </summary>
+        void AfterTitle(Action onStart)
+        {
+            var qs = Core.Telemetry.QsTelemetry.Instance;
+            bool asking = qs != null && (qs.Current == Core.Telemetry.QsTelemetry.State.FetchingConsent
+                                         || qs.Current == Core.Telemetry.QsTelemetry.State.AwaitingConsent);
+            if (!asking) { onStart?.Invoke(); return; }
+            Swap(_consent);
+            _consent.Show(yes =>
+            {
+                Core.Telemetry.QsTelemetry.Instance?.Consent(yes);
+                onStart?.Invoke();
+            });
             Fx.SetMode(GlassMode.Title, true);
         }
 
@@ -233,12 +255,12 @@ namespace Fnmw.UI
             {
                 var s = State ?? Services.State;
                 if (s == null || s.Phase == GamePhase.Title || s.IsOver) return false;
-                return _modal != _title && _modal != _death && _modal != _escape;
+                return _modal != _title && _modal != _consent && _modal != _death && _modal != _escape;
             }
         }
 
         /// <summary>Name of the screen in front, for tests and automated play.</summary>
-        public string ScreenName => _modal == null ? "None" : _modal == _title ? "Title" : _modal == _puzzle ? "Puzzle"
+        public string ScreenName => _modal == null ? "None" : _modal == _title ? "Title" : _modal == _consent ? "Consent" : _modal == _puzzle ? "Puzzle"
             : _modal == _example ? "Example" : _modal == _decode ? _decode.StepName : _modal == _death ? "Death" : "Escape";
 
         public string PromptShown => _hud.PromptShown;
@@ -284,7 +306,7 @@ namespace Fnmw.UI
             var modal = _modal;
             var glass = modal != null ? modal.Glass : (phase == GamePhase.Title || s == null || s.IsOver ? GlassMode.Off : GlassMode.Visor);
             if (Fx.Mode != glass) Fx.SetMode(glass);
-            bool calmScreen = modal == _title || modal == _escape || modal == _death;
+            bool calmScreen = modal == _title || modal == _consent || modal == _escape || modal == _death;
             Fx.Threat = calmScreen || s == null ? 0f : s.Threat;
 
             // the tutorial's band across the top of the console (and the worked example's) prints where the timer sits

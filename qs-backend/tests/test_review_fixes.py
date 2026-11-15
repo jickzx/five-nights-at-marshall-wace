@@ -111,7 +111,9 @@ def test_window_only_batches_do_not_fetch_all_events(world, monkeypatch):
     real = type(world.store.db(None)).select
 
     def spy(self, table, q=None, columns="*"):
-        calls.append(table)
+        # the one events read allowed is the bounded look-back for stimuli (live states), never all events
+        bounded = table == "qs_events" and q is not None and q.limit is not None and q.limit <= 50 and q.gte.get("t") is not None
+        calls.append("qs_events(recent stimuli)" if bounded else table)
         return real(self, table, q, columns)
 
     monkeypatch.setattr(type(world.store.db(None)), "select", spy)
@@ -165,5 +167,6 @@ def test_neutral_quality_language_survives_the_filter():
     for ok in ("Hand tracking failed for 12% of p3.", "Time passed before the first input was 9.5 s.",
                "The candidate is shown as C-7F3A21."):
         assert not BANNED.search(ok), ok
-    for bad in ("They failed the assessment.", "Not suitable.", "Seemed anxious."):
+    # state words ("anxious") are no longer banned outright: check_summary allows them only with a cited state
+    for bad in ("They failed the assessment.", "Not suitable.", "A strong candidate."):
         assert BANNED.search(bad), bad

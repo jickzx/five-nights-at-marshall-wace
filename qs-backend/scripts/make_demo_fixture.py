@@ -8,6 +8,7 @@ summary: Gemini is not called here, so the demo shows a summary written for the 
 citation and language checks (qs.gemini.check_summary) and labelled as such in the UI.
 """
 import json
+import pathlib
 import sys
 import uuid
 
@@ -34,10 +35,9 @@ def main(out_path: str) -> None:
     tok = jwt.encode({"sub": user, "role": "authenticated", "aud": "authenticated", "exp": int(time.time()) + 3600},
                      SECRET, algorithm="HS256")
     h = {"Authorization": f"Bearer {tok}"}
-    prompts = ["Compound noun (German)", "Plural suffix order (Turkish)", "Object particle (Japanese)",
-               "Verb agreement (Arabic)", "Tone pair (Mandarin)"]
-    qset = client.post("/v1/question-sets", headers=h, json={"name": "Linguistics screen A", "questions": [
-        {"key": f"p{i + 1}", "prompt": p} for i, p in enumerate(prompts)]}).json()
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from feed_live import GAME_QUESTIONS, GAME_SET   # the same question set the headset and feeder use
+    qset = client.post("/v1/question-sets", headers=h, json={"name": GAME_SET, "questions": GAME_QUESTIONS}).json()
     consent = client.get("/v1/consent").json()
 
     sessions = []
@@ -55,7 +55,8 @@ def main(out_path: str) -> None:
             r = client.post(f"/v1/ingest/{sid}", headers={"X-QS-Ingest-Token": itok}, json=b)
             assert r.status_code == 202, r.text
             for m in backend.broadcaster.sent[start:]:
-                if m["topic"].startswith("qs:session:"):
+                # the demo shows its own labelled summary instead of the "Gemini not configured" one
+                if m["topic"].startswith("qs:session:") and m["event"] != "summary":
                     stream.append({"at": b["t_end"], "event": m["event"], "payload": m["payload"]})
             start = len(backend.broadcaster.sent)
         records = [r["record"] for r in client.get(f"/v1/sessions/{sid}/qs", headers=h).json()]
@@ -98,10 +99,11 @@ def demo_summary(records):
                       f"{by['p2']['behaviour']['answer_changes']} answer changes before the correct submission.",
          "question_keys": ["p2"], "features": ["behaviour.hesitations", "behaviour.answer_changes",
                                                "behaviour.incorrect_submissions"], "direction": "not_applicable"},
-        {"statement": "When the monster appeared during p3, head rotation peaked well above the level just before it, "
-                      "followed by a period of very little head and hand movement.",
-         "question_keys": ["p3"], "features": ["motion.startle_max_head_ratio", "motion.freeze_s"],
-         "direction": "above_baseline"},
+        {"statement": "A likely startle when the monster appeared during p3: head rotation peaked far above the level "
+                      "just before it, then a stretch of freezing and a held breath before breathing came back fast.",
+         "question_keys": ["p3"], "features": ["motion.startle_max_head_ratio", "motion.longest_freeze_s",
+                                               "audio.longest_breath_hold_s", "audio.breath_rate_ratio_p90"],
+         "states": ["startle", "freeze", "breath_hold"], "direction": "above_baseline"},
         {"statement": f"Head scanning on p4 was {fmt(by['p4']['motion']['head_scan_ratio'])}x the calibration level and "
                       f"4-12 Hz hand motion was {fmt(by['p4']['motion']['right_tremor_ratio'])}x (right hand).",
          "question_keys": ["p4"], "features": ["motion.head_scan_ratio", "motion.right_tremor_ratio", "behaviour.hints_used"],
@@ -113,6 +115,8 @@ def demo_summary(records):
          "question_keys": ["session"], "features": ["quality.baseline_status", "quality.head_coverage"],
          "direction": "not_applicable"},
     ]}
+    for item in raw["observations"] + raw["data_quality"]:
+        item.setdefault("states", [])
     summary, dropped = gemini.check_summary(raw, records)
     assert not dropped, dropped
     return {"status": "demo", "model": None,

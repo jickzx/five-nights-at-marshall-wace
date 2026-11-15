@@ -22,7 +22,7 @@ import numpy as np
 
 from . import signal as sig
 
-QS_VERSION = "qs-0.1"
+QS_VERSION = "qs-0.2"   # 0.2: optional breathing features from the headset mic, and possible states
 
 TREMOR_BAND = (4.0, 12.0)       # Hz: physiological and enhanced physiological tremor live here
 RESTLESS_BAND = (0.5, 3.0)      # Hz: small slow repetitive movement (shifting, fiddling)
@@ -61,7 +61,14 @@ BASELINE_FEATURES = (
     "right_restless_rms",
     "left_hand_speed_mean",
     "right_hand_speed_mean",
+    "audio_breath_rate_bpm",
+    "audio_breath_amp",
 )
+
+# Breathing features the headset computes from its microphone (qs/audio.py documents each; raw audio never
+# leaves the device). Stored in a window's features with an ``audio_`` prefix when the batch carries them
+# and the session's consent covers the microphone.
+AUDIO_FIELDS = ("breath_rate_bpm", "breath_regularity", "breath_amp", "deep_breaths", "since_last_breath_s", "voice_fraction")
 
 # Ratios are capped so one twitch against a near-zero baseline cannot dominate an average.
 RATIO_CAP = 50.0
@@ -76,6 +83,8 @@ BASELINE_FLOOR = {
     "right_restless_rms": 1.0,
     "left_hand_speed_mean": 0.005,    # m/s
     "right_hand_speed_mean": 0.005,
+    "audio_breath_rate_bpm": 6.0,     # breaths/min
+    "audio_breath_amp": 0.0005,       # RMS, full scale 1
 }
 
 
@@ -178,13 +187,18 @@ def head_features(track: DeviceTrack | None, t0: float, t1: float, nominal_fs: f
 
 
 def window_features(t0: float, t1: float, head: DeviceTrack | None, left: DeviceTrack | None,
-                    right: DeviceTrack | None, nominal_fs: float = 0.0) -> dict[str, Any]:
-    """All features of one window, flat, JSON-safe."""
+                    right: DeviceTrack | None, nominal_fs: float = 0.0,
+                    audio: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """All features of one window, flat, JSON-safe. ``audio`` is the headset's breathing features, if any."""
     f: dict[str, Any] = {"t_start": _num(t0), "t_end": _num(t1)}
     f.update(head_features(head, t0, t1, nominal_fs))
     for side, track in (("left", left), ("right", right)):
         for k, v in hand_features(track, t0, t1, nominal_fs).items():
             f[f"{side}_{k}"] = v
+    if audio:
+        for k in AUDIO_FIELDS:
+            v = audio.get(k)
+            f[f"audio_{k}"] = (int(v) if k == "deep_breaths" else _num(float(v))) if v is not None else None
     return f
 
 
@@ -414,6 +428,24 @@ def question_record(question_key: str, windows: Sequence[Mapping[str, Any]], eve
     motion["startles"] = startles
     motion["startle_max_head_ratio"] = _num(max((s["head_peak_ratio"] for s in startles if s["head_peak_ratio"] is not None), default=float("nan")))
 
+    a_windows = [w for w in q_windows if any(w.get(f"audio_{k}") is not None for k in AUDIO_FIELDS)]
+    audio = None
+    if a_windows:
+        a_rel = [relative_to_baseline(w, baseline) for w in a_windows]
+        hold = [w.get("audio_since_last_breath_s") for w in a_windows if w.get("audio_since_last_breath_s") is not None]
+        audio = {
+            "windows": len(a_windows),
+            "breath_rate_bpm": _pct((w.get("audio_breath_rate_bpm") for w in a_windows), 50),
+            "breath_rate_bpm_p90": _pct((w.get("audio_breath_rate_bpm") for w in a_windows), 90),
+            "breath_rate_ratio": _pct((r["audio_breath_rate_bpm"] for r in a_rel), 50),
+            "breath_rate_ratio_p90": _pct((r["audio_breath_rate_bpm"] for r in a_rel), 90),
+            "breath_amp_ratio": _pct((r["audio_breath_amp"] for r in a_rel), 50),
+            # counted by the headset in non-overlapping hops, so a plain sum counts each deep breath once
+            "deep_breaths": int(sum(w.get("audio_deep_breaths") or 0 for w in a_windows)),
+            "longest_breath_hold_s": _num(max(hold)) if hold else None,
+            "voice_fraction": _mean(w.get("audio_voice_fraction") for w in a_windows),
+        }
+
     head_cov = [w.get("head_coverage") for w in q_windows]
     hand_cov = [min(w.get("left_coverage") or 0, w.get("right_coverage") or 0) for w in q_windows]
     quality = {
@@ -421,7 +453,7 @@ def question_record(question_key: str, windows: Sequence[Mapping[str, Any]], eve
         "head_coverage": _mean(head_cov),
         "hand_coverage": _mean(hand_cov),
     }
-    return {
+    record = {
         "qs_version": QS_VERSION,
         "question_key": question_key,
         "status": "closed" if closed else "open",
@@ -430,8 +462,12 @@ def question_record(question_key: str, windows: Sequence[Mapping[str, Any]], eve
         "t_end": _num(t_end) if t_end is not None else None,
         "behaviour": behaviour,
         "motion": motion,
+        "audio": audio,
         "quality": quality,
     }
+    from .states import record_states   # states builds on this module's constants; imported here to avoid a cycle
+    record["states"] = record_states(record)
+    return record
 
 
 def _median_hop(windows: Sequence[Mapping[str, Any]]) -> float:
@@ -507,4 +543,6 @@ def session_summary(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "mean_head_ang_speed_ratio": m(("motion", "head_ang_speed_ratio")),
         "total_freeze_s": _num(sum((r.get("motion") or {}).get("freeze_s") or 0 for r in records)),
         "startles": sum(len((r.get("motion") or {}).get("startles") or []) for r in records),
+        "states": {k: sum(1 for r in records for st in r.get("states") or [] if st["key"] == k)
+                   for k in sorted({st["key"] for r in records for st in r.get("states") or []})},
     }

@@ -244,6 +244,7 @@ namespace Fnmw.UI
             _picks.RemoveAt(_picks.Count - 1);
             _writeT = 1;
             RefreshSlots();
+            GameEvents.RaiseTileRemoved();
         }
 
         public void ClearPicks()
@@ -268,6 +269,7 @@ namespace Fnmw.UI
         public void RequestHint()
         {
             if (!Interactive || _p == null) return;
+            GameEvents.RaiseHintRequested(_p.Id);
             try { Services.Voice.RequestHint(_p.Id); } catch (Exception e) { Debug.LogException(e); }
         }
 

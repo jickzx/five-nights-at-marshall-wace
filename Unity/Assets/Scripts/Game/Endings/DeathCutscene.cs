@@ -32,6 +32,7 @@ namespace Fnmw.Game
         public void Play(Action onDone)
         {
             _onDone = onDone;
+            GameEvents.RaiseJumpscare();
             StartCoroutine(Run());
         }
 

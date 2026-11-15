@@ -46,3 +46,4 @@ crashlytics-build.properties
 # QS sender settings hold a per-session ingest token (see Docs/qs/README.md)
 /Assets/Resources/Qs/
 /Assets/Resources/Qs.meta
+/.utmp/
