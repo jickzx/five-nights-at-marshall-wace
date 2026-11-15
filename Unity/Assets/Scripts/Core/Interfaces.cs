@@ -14,6 +14,11 @@ namespace Fnmw.Core
         RevealInfo GetReveal(LanguageWorld world, int puzzleId);
         QuizQuestion GetQuiz(LanguageWorld world, int puzzleId);
         bool CheckQuiz(LanguageWorld world, int puzzleId, int optionIndex);
+        /// <summary>Approved, answer-free material a hint for this puzzle may use. Optional: null means no hints.</summary>
+        HintContext GetHintContext(LanguageWorld world, int puzzleId, string missedConcept) => null;
+        /// <summary>The engine knows the answer, so it has the final say on generated hint text before the quiz.
+        /// Optional: the default rejects everything, so an engine that cannot vouch for text shows authored hints only.</summary>
+        bool IsHintSafe(LanguageWorld world, int puzzleId, string text) => false;
     }
 
     /// <summary>Monster thread. Watches the player's answers and sets the pace.</summary>
@@ -65,6 +70,15 @@ namespace Fnmw.Core
         void SetIntensity(float intensity01);
         /// <summary>e.g. "console_on", "correct", "wrong", "beast_roar", "stage_up", "death", "liftoff".</summary>
         void PlayStinger(string name);
+        /// <summary>Process and play a voice line (3D on the beast for Monster). Events arrive on the main thread:
+        /// Started only once it is actually audible. Returns a handle (0 = refused). Optional: the default drops it.</summary>
+        int PlayVoice(VoiceClip clip, Action<VoicePlayback> onEvent)
+        {
+            onEvent?.Invoke(new VoicePlayback { Handle = 0, Channel = clip != null ? clip.Channel : VoiceChannel.Ship, Event = VoicePlaybackEvent.Dropped });
+            return 0;
+        }
+        /// <summary>Stop a channel (also cancels a clip still being prepared). Optional.</summary>
+        void StopVoice(VoiceChannel channel, float fade = 0.15f) { }
     }
 
     /// <summary>UI thread. All screens; the Game thread calls these and waits on the callbacks.</summary>
@@ -84,5 +98,11 @@ namespace Fnmw.Core
         /// <summary>Walk the player through a solved example on the console; call onDone when they finish or skip it.
         /// Optional: the default skips straight to onDone.</summary>
         void ShowWorkedExample(WorkedExample example, Action onDone) { onDone?.Invoke(); }
+        /// <summary>A line of speech that is actually playing (empty Text clears). Optional.</summary>
+        void ShowSubtitle(SubtitleLine line) { }
+        /// <summary>The ship's hint on the console (Visible false clears). Optional.</summary>
+        void ShowHint(HintView hint) { }
+        /// <summary>The pronunciation cue on the quiz payoff. Optional.</summary>
+        void ShowPronunciation(PronunciationView view) { }
     }
 }

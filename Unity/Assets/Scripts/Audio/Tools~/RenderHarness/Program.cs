@@ -11,6 +11,7 @@ static class P
 
     static void Main(string[] args)
     {
+        if (args.Length >= 1 && args[0] == "voicefx") { VoiceFxMode(args); return; }
         Out = args.Length > 0 ? args[0] : "out";
         Directory.CreateDirectory(Out);
         Directory.CreateDirectory(Path.Combine(Out, "sfx"));
@@ -124,6 +125,56 @@ static class P
             Console.WriteLine($"CPU panic: {cw.Elapsed.TotalMilliseconds / 60000.0 * 100:0.00}% of one core (60 s rendered in {cw.Elapsed.TotalMilliseconds:0} ms)");
         }
         Console.WriteLine($"total {audioSec:0}s audio in {sw.Elapsed.TotalSeconds:0.0}s");
+    }
+
+    /// <summary>voicefx in.wav outdir: renders a recording of your own voice through the three monster stages,
+    /// the ship chain and the native chain (16-bit PCM WAV in, mono 16-bit WAVs out).</summary>
+    static void VoiceFxMode(string[] args)
+    {
+        if (args.Length < 3) { Console.WriteLine("usage: voicefx in.wav outdir"); return; }
+        var (mono, sr) = ReadWav(args[1]);
+        Directory.CreateDirectory(args[2]);
+        for (int stage = 1; stage <= 3; stage++) WriteMono(Path.Combine(args[2], $"monster_stage{stage}.wav"), VoiceFx.Monster(mono, sr, stage), sr);
+        WriteMono(Path.Combine(args[2], "ship.wav"), VoiceFx.Ship(mono, sr), sr);
+        WriteMono(Path.Combine(args[2], "native.wav"), VoiceFx.Native(mono, sr), sr);
+        Console.WriteLine($"voicefx: {mono.Length / (float)sr:0.00}s at {sr} Hz -> {args[2]}");
+    }
+
+    static (float[] mono, int sr) ReadWav(string path)
+    {
+        using var r = new BinaryReader(File.OpenRead(path));
+        if (new string(r.ReadChars(4)) != "RIFF") throw new InvalidDataException("not RIFF");
+        r.ReadInt32();
+        if (new string(r.ReadChars(4)) != "WAVE") throw new InvalidDataException("not WAVE");
+        int channels = 1, sr = 0, bits = 16;
+        while (r.BaseStream.Position < r.BaseStream.Length)
+        {
+            string id = new string(r.ReadChars(4)); int len = r.ReadInt32();
+            if (id == "fmt ")
+            {
+                short fmt = r.ReadInt16(); channels = r.ReadInt16(); sr = r.ReadInt32(); r.ReadInt32(); r.ReadInt16(); bits = r.ReadInt16();
+                if (fmt != 1 || bits != 16) throw new InvalidDataException("16-bit PCM WAV only");
+                r.ReadBytes(len - 16);
+            }
+            else if (id == "data")
+            {
+                int frames = len / (2 * channels);
+                var mono = new float[frames];
+                for (int i = 0; i < frames; i++) { float s = 0; for (int c = 0; c < channels; c++) s += r.ReadInt16() / 32768f; mono[i] = s / channels; }
+                return (mono, sr);
+            }
+            else r.ReadBytes(len + (len & 1));
+        }
+        throw new InvalidDataException("no data chunk");
+    }
+
+    static void WriteMono(string path, float[] y, int sr)
+    {
+        using var f = new BinaryWriter(File.Create(path));
+        f.Write("RIFF".ToCharArray()); f.Write(36 + y.Length * 2); f.Write("WAVE".ToCharArray());
+        f.Write("fmt ".ToCharArray()); f.Write(16); f.Write((short)1); f.Write((short)1); f.Write(sr); f.Write(sr * 2); f.Write((short)2); f.Write((short)16);
+        f.Write("data".ToCharArray()); f.Write(y.Length * 2);
+        foreach (var x in y) f.Write((short)Math.Round(Math.Clamp(x, -1f, 1f) * 32767));
     }
 
     static void Run(ScoreEngine e, List<float> buf, float seconds, Action<float> control)

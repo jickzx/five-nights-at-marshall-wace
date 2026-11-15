@@ -97,7 +97,26 @@ namespace Fnmw.Lang
                 NowYouKnow = d.NowYouKnow,
                 Concept = d.Concept,
                 Explanation = $"{d.Feature} Now you know: {d.NowYouKnow}",
+                SpeechText = Speech.Clean(d.RealText),
+                SpeechLang = b.Language.Code,
             };
+        }
+
+        // ------------------------------------------------------------------ hints
+
+        public HintContext GetHintContext(LanguageWorld world, int puzzleId, string missedConcept)
+        {
+            if (world?.EngineData is not WorldData data || !data.ById.TryGetValue(puzzleId, out var b)) return null;
+            string concept = HintFacts.For(missedConcept) != null ? missedConcept : b.Draft.Concept;
+            var e = HintFacts.For(concept);
+            if (e == null) { concept = LangConcepts.WordOrder; e = HintFacts.For(concept); }
+            return new HintContext { Concept = concept, Focus = e.Focus, Facts = (string[])e.Facts.Clone(), OfflineHints = HintFacts.OfflineHints(concept) };
+        }
+
+        public bool IsHintSafe(LanguageWorld world, int puzzleId, string text)
+        {
+            if (world?.EngineData is not WorldData data || !data.ById.TryGetValue(puzzleId, out var b)) return false;
+            return HintSafety.Check(b, text, out _);
         }
 
         public QuizQuestion GetQuiz(LanguageWorld world, int puzzleId)

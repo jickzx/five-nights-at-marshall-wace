@@ -26,6 +26,7 @@ namespace Fnmw.UI
         DeathScreen _death;
         EscapeScreen _escape;
         TutorialLayer _tutorial;
+        SubtitleLayer _subtitles;
         UiScreen _modal;
         RectTransform _timer;
         Text _timerText;
@@ -33,6 +34,11 @@ namespace Fnmw.UI
         bool _built, _disposed;
         LangPuzzle _lastPuzzle;
         List<Tile> _lastAnswer;
+        float _clock;                 // unscaled seconds the UI has ticked (subtitle timing)
+        SubtitleLine _subtitle;
+        float _subtitleFrom, _subtitleUntil;
+        HintView _hint;
+        PronunciationView _pronunciation;
 
         public static GameUI Create()
         {
@@ -61,6 +67,7 @@ namespace Fnmw.UI
             _timer.gameObject.SetActive(false);
             _hud.Build();
             _hud.Root.gameObject.SetActive(false);
+            _subtitles = new SubtitleLayer(Rig.Stage);
             _tutorial = new TutorialLayer(this);     // built last: it draws over every screen
             _tutorial.Build();
             GameEvents.BeastStageChanged += OnBeastStage;
@@ -147,6 +154,7 @@ namespace Fnmw.UI
         {
             State = state ?? State;
             _hud.SetPrompt(null);
+            ClearVoiceViews();
             if (escaped) { Swap(_escape); _escape.Show(State, Journal, onRestart); }
             else { Swap(_death); _death.Show(onRestart); }
         }
@@ -155,9 +163,32 @@ namespace Fnmw.UI
         {
             Swap(null);
             _hud.SetPrompt(null);
+            ClearVoiceViews();
         }
 
         public void ShowTutorial(TutorialView view) => _tutorial.Show(view);
+
+        public void ShowSubtitle(SubtitleLine line)
+        {
+            _subtitle = line;
+            _subtitleFrom = _clock;
+            _subtitleUntil = string.IsNullOrWhiteSpace(line.Text) ? _clock : _clock + Mathf.Clamp(line.Seconds, 0.5f, 20f);
+        }
+
+        public void ShowHint(HintView hint) => _hint = hint;
+
+        public void ShowPronunciation(PronunciationView view) => _pronunciation = view;
+
+        void ClearVoiceViews()
+        {
+            _subtitle = default; _subtitleUntil = 0f; _hint = default; _pronunciation = default;
+        }
+
+        /// <summary>The subtitle to draw now (tag included), or null.</summary>
+        internal string SubtitleText => _clock < _subtitleUntil ? SubtitleLayer.Format(_subtitle) : null;
+        internal float SubtitleAge => _clock - _subtitleFrom;
+        internal HintView Hint => _hint;
+        internal PronunciationView Pronunciation => _pronunciation;
 
         // ---- internals ------------------------------------------------------------------
 
@@ -201,6 +232,12 @@ namespace Fnmw.UI
         /// <summary>The worked example's step ("Barrier" … "Decoded"), for tests and automated play; "None" when it is not up.</summary>
         public string ExampleStep => _modal == _example ? _example.Current.ToString() : "None";
         public int Cracks => Fx.Cracks;
+        /// <summary>What the roaming subtitle line shows now (null when hidden), for tests.</summary>
+        public string RoamingSubtitleShown => _subtitles.Root.gameObject.activeSelf ? _subtitles.Shown : null;
+        /// <summary>The console footer's text now, for tests ("" when the console is not up).</summary>
+        public string PuzzleFooterShown => _modal == _puzzle ? _puzzle.FooterShown : "";
+        /// <summary>The pronunciation cue on the payoff now ("" when hidden), for tests.</summary>
+        public string PronunciationCueShown => _decode.PronunciationCue;
         public int LanguagesLearned => Journal.Entries.Count;
         public Texture UiTexture => Rig.Rt;
 
@@ -210,6 +247,7 @@ namespace Fnmw.UI
         public void Tick(float dt, UiInput input)
         {
             if (_disposed) return;
+            _clock += dt;
             Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
             if (_lock > 0)
             {
@@ -238,6 +276,8 @@ namespace Fnmw.UI
             if (hud) _hud.Tick(dt, UiInput.None);
 
             modal?.Tick(dt, input);
+            // spoken lines while roaming; on the console they print in its footer instead
+            _subtitles.Tick(modal == null && s != null && !s.IsOver && phase != GamePhase.Title ? SubtitleText : null, SubtitleAge);
             bool tutorial = TutorialAllowed;
             if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
             if (tutorial) _tutorial.Tick(dt, UiInput.None);

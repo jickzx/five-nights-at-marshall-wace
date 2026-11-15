@@ -66,6 +66,8 @@ namespace Fnmw.Core
         public string Feature;       // the real feature in one or two plain sentences
         public string NowYouKnow;    // one true, memorable fact about the real language
         public string Concept;       // main concept the puzzle tested (see LangConcepts)
+        public string SpeechText;    // the sentence to speak: native script only, no romanisation or brackets
+        public string SpeechLang;    // ISO 639-1 code of SpeechText, e.g. "ja"
     }
 
     /// <summary>"Which rule makes that right?": the rule the puzzle tested against three false rules about the same language.</summary>

@@ -14,6 +14,8 @@ namespace Fnmw.Core
         public static IDifficultyDirector Difficulty = new Fakes.FakeDifficultyDirector();
         public static IBeastBrain BeastBrain = new Fakes.FakeBeastBrain();
         public static IAudioDirector Audio = new Fakes.FakeAudioDirector();
+        /// <summary>Optional voice features (hints, monster dialogue, pronunciation).</summary>
+        public static IVoiceDirector Voice = new Fakes.FakeVoiceDirector();
         static IGameUI _ui;
         public static IGameUI UI
         {
@@ -32,6 +34,7 @@ namespace Fnmw.Core
             Difficulty = new Fakes.FakeDifficultyDirector();
             BeastBrain = new Fakes.FakeBeastBrain();
             Audio = new Fakes.FakeAudioDirector();
+            Voice = new Fakes.FakeVoiceDirector();
             _ui = null;
             Player = null;
         }

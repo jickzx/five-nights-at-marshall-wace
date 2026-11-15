@@ -42,6 +42,10 @@ namespace Fnmw.UI
         Texture2D _writeTex;
         GlyphShape _writeShape;
         const string Hint = "KEYS PLACE  ·  BKSP UNDO  ·  ENTER SEND";
+        const string HintWithShip = "KEYS PLACE  ·  BKSP UNDO  ·  ENTER SEND  ·  H SHIP";
+        int _wrong;                       // wrong answers on this console: after the first, the legend offers H
+        string _footer = "", _hintText;   // what the footer shows; the hint text being typed out
+        float _hintT;
 
         public PuzzleScreen(GameUI ui) : base(ui, "Puzzle") { }
         public override GlassMode Glass => GlassMode.Console;
@@ -50,6 +54,7 @@ namespace Fnmw.UI
         public ScriptFamily Family => _fam;
         public int PickCount => _picks.Count;
         public bool Melting => _wrongT >= 0;
+        public string FooterShown => _footer;
 
         public List<Tile> PickedTiles()
         {
@@ -64,6 +69,7 @@ namespace Fnmw.UI
             _p = puzzle; _onSubmit = onSubmit; _fam = fam;
             _picks.Clear(); _tiles.Clear(); _stagger.Clear(); _slotGlyphs.Clear(); _slotCaps.Clear();
             _cursor = 0; _wrongT = -1; _msgT = -1; _feedback = null; _writeT = 1;
+            _wrong = 0; _footer = ""; _hintText = null; _hintT = 0;
             Build();
         }
 
@@ -250,11 +256,73 @@ namespace Fnmw.UI
             _onSubmit?.Invoke(ids);   // the director answers with ShowAnswerFeedback or ShowReveal
         }
 
+        /// <summary>H: ask the ship. Costs nothing but time; the voice director decides what (if anything) to show.</summary>
+        public void RequestHint()
+        {
+            if (!Interactive || _p == null) return;
+            try { Services.Voice.RequestHint(_p.Id); } catch (Exception e) { Debug.LogException(e); }
+        }
+
+        void SetFooter(string text)
+        {
+            if (text == _footer) return;
+            _footer = text;
+            Kit.SetText(_msg, text);
+        }
+
+        /// <summary>Hint, then subtitle, then the key legend. Long text pages two lines at a time.</summary>
+        void FooterIdle(float dt)
+        {
+            var hint = Ui.Hint;
+            if (hint.Visible && _p != null && hint.PuzzleId == _p.Id)
+            {
+                if (hint.Pending)
+                {
+                    _hintText = null;
+                    SetFooter("SHIP: ANALYSING" + (Kit.Blink(T, 3f) ? "…" : ""));
+                    _msg.color = Pal.Amber;
+                    return;
+                }
+                string tag = hint.Source == VoiceSource.Mock ? "SHIP (MOCK): " : "SHIP: ";
+                string full = (tag + (hint.Text ?? "")).ToUpperInvariant();
+                if (full != _hintText) { _hintText = full; _hintT = 0; }
+                _hintT += dt;
+                var pages = SubtitleLayer.Pages(full, R - L, 2);
+                float typed = _hintT * 60f;
+                int pageIndex = 0; float before = 0;
+                // type the first page out, then turn pages every five seconds
+                if (pages.Count > 1 && _hintT > pages[0].Length / 60f + 5f) pageIndex = (int)((_hintT - pages[0].Length / 60f) / 5f) % pages.Count;
+                string page = pages.Count > 0 ? pages[pageIndex] : "";
+                if (pageIndex == 0) { int chars = Mathf.Min(page.Length, (int)(typed - before)); page = page.Substring(0, Mathf.Max(0, chars)); }
+                SetFooter(page);
+                _msg.color = Pal.Amber;
+                return;
+            }
+            _hintText = null;
+            string sub = Ui.SubtitleText;
+            if (sub != null)
+            {
+                var pages = SubtitleLayer.Pages(sub, R - L, 2);
+                SetFooter(pages.Count == 0 ? "" : pages[Mathf.Min(pages.Count - 1, (int)(Ui.SubtitleAge / 4f))]);
+                _msg.color = Pal.RustHot;
+                return;
+            }
+            bool offer = _wrong > 0 && VoiceHintsAvailable();
+            SetFooter(offer ? HintWithShip : Hint);
+            _msg.color = Pal.BoneDim;
+        }
+
+        static bool VoiceHintsAvailable()
+        {
+            try { return Services.Voice != null && Services.Voice.HintsAvailable; } catch (Exception) { return false; }
+        }
+
         /// <summary>The machine rejects the phrase.</summary>
         public void Reject(AnswerResult result)
         {
             if (!Active) return;
             _wrongT = 0;
+            _wrong++;
             _feedback = result?.Feedback;
             _msgT = 0;
             Ui.Fx.Kick(shake: 1f, burst: 0.75f, tear: 0.9f, red: 0.55f);
@@ -309,18 +377,20 @@ namespace Fnmw.UI
                 if (_wrongT > 1.15f) { _wrongT = -1; _picks.Clear(); RefreshSlots(); }
             }
 
-            // the machine's own words, typed out
+            // the footer: the machine's own words (a rejection) first, then the ship's hint, then a spoken line, then the keys
             if (_msgT >= 0)
             {
                 _msgT += dt;
                 string full = string.IsNullOrEmpty(_feedback) ? "" : _feedback.ToUpperInvariant();
                 int chars = Mathf.Min(full.Length, (int)(_msgT * 48f));
-                Kit.SetText(_msg, full.Substring(0, chars) + (chars < full.Length && Kit.Blink(_msgT, 9f) ? "█" : ""));
+                SetFooter(full.Substring(0, chars) + (chars < full.Length && Kit.Blink(_msgT, 9f) ? "█" : ""));
                 _msg.color = Color.Lerp(Pal.Hex(0xFF5040), Pal.RustHot, Kit.Ramp(_msgT, 2.5f, 3f));
-                if (_msgT > 9f) { _msgT = -1; Kit.SetText(_msg, Hint); _msg.color = Pal.BoneDim; }
+                if (_msgT > 9f) _msgT = -1;
             }
+            else FooterIdle(dt);
 
             if (!Interactive) return;
+            if (input.Hint) { RequestHint(); return; }
             if (input.Digit >= 0) Place(input.Digit);
             else if (input.Space) Place(_cursor);
             else if (input.Back) Undo();

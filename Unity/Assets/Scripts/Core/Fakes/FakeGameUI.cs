@@ -20,6 +20,7 @@ namespace Fnmw.Core.Fakes
         QuizQuestion _quiz; Action<int> _onChoose;
         bool _escaped; Action _onAction;
         GUIStyle _big, _body;
+        HintView _hint; SubtitleLine _subtitle; float _subtitleUntil;
 
         public static FakeGameUI Create()
         {
@@ -35,7 +36,9 @@ namespace Fnmw.Core.Fakes
         public void ShowReveal(RevealInfo r, Action onContinue) { _screen = Screen.Reveal; _reveal = r; _onContinue = onContinue; }
         public void ShowQuiz(QuizQuestion q, Action<int> onChoose) { _screen = Screen.Quiz; _quiz = q; _onChoose = onChoose; }
         public void ShowEnd(bool escaped, GameState s, Action onRestart) { _screen = Screen.End; _escaped = escaped; _hud = s; _onAction = onRestart; }
-        public void HideAll() { _screen = Screen.None; _prompt = null; _feedback = null; }
+        public void HideAll() { _screen = Screen.None; _prompt = null; _feedback = null; _hint = default; _subtitle = default; }
+        public void ShowSubtitle(SubtitleLine line) { _subtitle = line; _subtitleUntil = Time.unscaledTime + Mathf.Max(0.5f, line.Seconds); }
+        public void ShowHint(HintView hint) => _hint = hint;
 
         void OnGUI()
         {
@@ -44,13 +47,14 @@ namespace Fnmw.Core.Fakes
             _body.fontSize = Mathf.Max(11, UnityEngine.Screen.height / 36);
             _big.fontSize = Mathf.Max(16, UnityEngine.Screen.height / 18);
             var e = Event.current;
-            int digit = -1; bool enter = false, back = false;
+            int digit = -1; bool enter = false, back = false, hintKey = false;
             if (e.type == EventType.KeyDown)
             {
                 if (e.keyCode >= KeyCode.Alpha1 && e.keyCode <= KeyCode.Alpha9) digit = e.keyCode - KeyCode.Alpha1;
                 if (e.keyCode >= KeyCode.Keypad1 && e.keyCode <= KeyCode.Keypad9) digit = e.keyCode - KeyCode.Keypad1;
                 enter = e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter || e.keyCode == KeyCode.Space;
                 back = e.keyCode == KeyCode.Backspace;
+                hintKey = e.keyCode == KeyCode.H;
             }
 
             if (_hud != null && _screen != Screen.Title)
@@ -83,10 +87,13 @@ namespace Fnmw.Core.Fakes
                     sb.AppendLine($"\nYour phrase: {string.Join(" ", pickedAlien)}");
                     sb.AppendLine("Number keys to add a tile, Backspace to clear, Enter to submit.");
                     if (_feedback != null) sb.AppendLine($"\n{_feedback}");
+                    if (_hint.Visible && _hint.PuzzleId == _puzzle.Id) sb.AppendLine(_hint.Pending ? "\nSHIP: ANALYSING..." : $"\nSHIP: {_hint.Text}");
+                    else if (Services.Voice.HintsAvailable) sb.AppendLine("H asks the ship for a hint.");
                     GUI.Label(new Rect(panel.x + 20, panel.y + 20, panel.width - 40, panel.height - 40), sb.ToString(), _body);
                     if (digit >= 0 && digit < _puzzle.Tiles.Count) { _picked.Add(_puzzle.Tiles[digit].Id); GameEvents.RaiseTilePicked(_puzzle.Tiles[digit]); }
                     if (back) { _picked.Clear(); GameEvents.RaiseTilesCleared(); }
                     if (enter && _picked.Count > 0) _onSubmit?.Invoke(_picked.ToArray());
+                    if (hintKey) Services.Voice.RequestHint(_puzzle.Id);
                     break;
                 }
 
@@ -115,7 +122,10 @@ namespace Fnmw.Core.Fakes
                     if (enter) Fire(ref _onAction);
                     break;
             }
-            if (digit >= 0 || enter || back) e.Use();
+            if (!string.IsNullOrEmpty(_subtitle.Text) && Time.unscaledTime < _subtitleUntil)
+                GUI.Label(new Rect(10, UnityEngine.Screen.height - 40, UnityEngine.Screen.width - 20, 30),
+                    (_subtitle.Channel == VoiceChannel.Monster ? "IT: " : "SHIP: ") + _subtitle.Text + (_subtitle.Source == VoiceSource.Mock ? "  [MOCK]" : ""), _body);
+            if (digit >= 0 || enter || back || hintKey) e.Use();
         }
 
         static void Fire(ref Action a) { var cb = a; a = null; cb?.Invoke(); }

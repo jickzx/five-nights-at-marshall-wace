@@ -47,7 +47,17 @@ Gotchas:
 - If the Editor opens in Safe Mode, there's a compile error, so the CLI can't connect. Close it with `unity close "$PWD" --force` and compile in batch mode with the `unity run ... -executeMethod` line above. Errors print to the log.
 - The project uses the **Input System only** (`activeInputHandler: 1`). Use `UnityEngine.InputSystem` (`Keyboard.current`), not `Input.GetKey`. Reference `Unity.InputSystem` in your asmdef.
 
-Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. In the quiz, the number keys pick an answer.
+Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. H asks the ship for a hint (the legend offers it after a wrong answer). In the quiz, the number keys pick an answer; on the payoff, P plays the decoded sentence again when voice is available. F2 shows the voice status line.
+
+### Optional voices (monster dialogue, ship hints, pronunciation)
+
+`Assets/Scripts/Voice` (`Fnmw.Voice`) is optional. With no configuration it makes **no network request** and shows authored hints only. To try the whole pipeline without provider keys, run the mock backend (`cd backend && npm install && npm run dev`, see [backend/README.md](../backend/README.md)) and create `Unity/UserSettings/fnmw-voice.json` (git-ignored):
+
+```json
+{ "url": "http://127.0.0.1:8787", "token": "<same value as FNMW_GAME_TOKENS in backend/.env>" }
+```
+
+Mock audio is a beeping tone, not speech; subtitles, the hint line, the payoff cue and F2 all say MOCK. Launch flags: `-voiceUrl`, `-voiceToken`, `-voice off`, `-voiceVolume 0.8`, `-subtitles off`. Provider keys live only in `backend/.env`; nothing under `Unity/` holds a key, a provider host or a voice id.
 
 ## Architecture
 
@@ -59,6 +69,7 @@ GameBootstrap (scene)  ->  Services.ResetToFakes()
                        ->  WorldModule.Install()    spawns level, consoles (Interactable)
                        ->  MonsterModule.Install()  Services.BeastBrain/Difficulty = ..., spawns beast
                        ->  GameModule.Install()     spawns player + GameDirector (phase machine)
+                       ->  VoiceModule.Install()    Services.Voice = ... (optional; offline without config)
 ```
 
 - **`Fnmw.Core`** (`Assets/Scripts/Core`) is the contract: `GameState`, `GameEvents` (static bus), the language data types and `ILanguageEngine`, `IDifficultyDirector`, `IBeastBrain`, `IAudioDirector`, `IGameUI`, `Services` (the locator), `ModelLoader` and `Interactable`.
@@ -77,6 +88,7 @@ GameBootstrap (scene)  ->  Services.ResetToFakes()
 | `Assets/Scripts/Game` | `Fnmw.Game` | Game-loop thread | player controller, `GameDirector` phase machine |
 | `Assets/Scripts/UI` | `Fnmw.UI` | UI thread | register `IGameUI` (puzzle, reveal, quiz, end screens, HUD) |
 | `Assets/Scripts/Audio` | `Fnmw.Audio` | Audio thread | register `IAudioDirector` (intensity, stingers) |
+| `Assets/Scripts/Voice` | `Fnmw.Voice` | Voice (sponsor features) | register `IVoiceDirector` (hints, monster lines, pronunciation via `backend/`) |
 | `Assets/Resources/Models` (+`Mock`) | – | Art | drop FBX files by name |
 | `Assets/Tests/EditMode` | `Fnmw.Tests.EditMode` | everyone, add files, don't edit others' | – |
 | `Assets/Scripts/Bootstrap`, `Assets/Scripts/Editor`, `Assets/Scenes`, `Packages`, `ProjectSettings` | – | scaffold owner | don't touch without asking |
