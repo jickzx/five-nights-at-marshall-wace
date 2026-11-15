@@ -104,5 +104,8 @@ namespace Fnmw.Core
         void ShowHint(HintView hint) { }
         /// <summary>The pronunciation cue on the quiz payoff. Optional.</summary>
         void ShowPronunciation(PronunciationView view) { }
+        /// <summary>A short account of the run on the end screen. May arrive after ShowEnd. Null/empty clears it.
+        /// Optional: defaults to nothing.</summary>
+        void ShowDebrief(string text) { }
     }
 }

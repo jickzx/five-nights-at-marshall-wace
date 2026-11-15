@@ -16,6 +16,7 @@ namespace Fnmw.Game
             director.AddComponent<GameDirector>();
             director.AddComponent<DevKeys>();
             director.AddComponent<TutorialCoach>();
+            director.AddComponent<Debrief.RunDebrief>();
         }
     }
 }

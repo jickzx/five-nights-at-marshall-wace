@@ -16,6 +16,8 @@ namespace Fnmw.Core
         public static IAudioDirector Audio = new Fakes.FakeAudioDirector();
         /// <summary>Optional voice features (hints, monster dialogue, pronunciation).</summary>
         public static IVoiceDirector Voice = new Fakes.FakeVoiceDirector();
+        /// <summary>Text generation (Gemini). The fake is never available, so features fall back to stock lines.</summary>
+        public static Ai.IAiText Ai = new Fakes.FakeAiText();
         static IGameUI _ui;
         public static IGameUI UI
         {
@@ -35,6 +37,7 @@ namespace Fnmw.Core
             BeastBrain = new Fakes.FakeBeastBrain();
             Audio = new Fakes.FakeAudioDirector();
             Voice = new Fakes.FakeVoiceDirector();
+            Ai = new Fakes.FakeAiText();
             _ui = null;
             Player = null;
         }
