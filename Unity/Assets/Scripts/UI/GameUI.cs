@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Fnmw.Core;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Fnmw.UI
 {
@@ -24,6 +25,8 @@ namespace Fnmw.UI
         DeathScreen _death;
         EscapeScreen _escape;
         UiScreen _modal;
+        RectTransform _timer;
+        Text _timerText;
         float _lock;
         bool _built, _disposed;
         LangPuzzle _lastPuzzle;
@@ -49,6 +52,10 @@ namespace Fnmw.UI
             _title = new TitleScreen(this);
             _death = new DeathScreen(this);
             _escape = new EscapeScreen(this);
+            _timer = Kit.Node("RunTimer", Rig.Stage, 480, 6, 130, 24);
+            Kit.Box("Back", _timer, Pal.Void.A(0.72f), 0, 0, 130, 24);
+            _timerText = Kit.Label("Time", _timer, "TIME 00:00", 16, Pal.Bone, TextAnchor.MiddleRight, 6, 4, 118, 16);
+            _timer.gameObject.SetActive(false);
             _hud.Build();
             _hud.Root.gameObject.SetActive(false);
             GameEvents.BeastStageChanged += OnBeastStage;
@@ -185,6 +192,10 @@ namespace Fnmw.UI
             if (Fx.Mode != glass) Fx.SetMode(glass);
             bool calmScreen = modal == _title || modal == _escape || modal == _death;
             Fx.Threat = calmScreen || s == null ? 0f : s.Threat;
+
+            bool timer = s != null && phase != GamePhase.Title && !s.IsOver && !calmScreen;
+            _timer.gameObject.SetActive(timer);
+            if (timer) Kit.SetText(_timerText, "TIME " + Lore.Clock(s.Elapsed));
 
             bool hud = modal == null && roaming;
             if (_hud.Root.gameObject.activeSelf != hud) _hud.Root.gameObject.SetActive(hud);
