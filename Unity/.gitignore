@@ -36,6 +36,9 @@ sysinfo.txt
 crashlytics-build.properties
 .DS_Store
 
+# Quest APK output (Fnmw > Quest > Build APK)
+[Bb]uilds/
+
 # Local API keys (see Docs/ai/README.md). Never commit.
 /secrets.json
 /Assets/Resources/Ai/

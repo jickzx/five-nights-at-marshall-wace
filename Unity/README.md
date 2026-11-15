@@ -47,6 +47,8 @@ Gotchas:
 - If the Editor opens in Safe Mode, there's a compile error, so the CLI can't connect. Close it with `unity close "$PWD" --force` and compile in batch mode with the `unity run ... -executeMethod` line above. Errors print to the log.
 - The project uses the **Input System only** (`activeInputHandler: 1`). Use `UnityEngine.InputSystem` (`Keyboard.current`), not `Input.GetKey`. Reference `Unity.InputSystem` in your asmdef.
 
+**Meta Quest 2 (VR):** see [Docs/oculus/SETUP.md](Docs/oculus/SETUP.md) for the install list, build steps and Touch controls. The VR code (`Assets/Scripts/XR`, `Fnmw.XR`) only turns on when an OpenXR runtime is running, i.e. in the Android/Quest build; the desktop build has no XR loader and plays unchanged. Other areas read VR input through `Fnmw.Core.XrBridge`, next to their keyboard reads.
+
 Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. In the quiz, the number keys pick an answer.
 
 ## Architecture
@@ -77,6 +79,7 @@ GameBootstrap (scene)  ->  Services.ResetToFakes()
 | `Assets/Scripts/Game` | `Fnmw.Game` | Game-loop thread | player controller, `GameDirector` phase machine |
 | `Assets/Scripts/UI` | `Fnmw.UI` | UI thread | register `IGameUI` (puzzle, reveal, quiz, end screens, HUD) |
 | `Assets/Scripts/Audio` | `Fnmw.Audio` | Audio thread | register `IAudioDirector` (intensity, stingers) |
+| `Assets/Scripts/XR` | `Fnmw.XR` | VR port | detect a headset, build the VR rig around the player (Quest only; no-op on desktop) |
 | `Assets/Resources/Models` (+`Mock`) | – | Art | drop FBX files by name |
 | `Assets/Tests/EditMode` | `Fnmw.Tests.EditMode` | everyone, add files, don't edit others' | – |
 | `Assets/Scripts/Bootstrap`, `Assets/Scripts/Editor`, `Assets/Scenes`, `Packages`, `ProjectSettings` | – | scaffold owner | don't touch without asking |

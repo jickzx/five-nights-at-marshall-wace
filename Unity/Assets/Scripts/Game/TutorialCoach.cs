@@ -91,7 +91,7 @@ namespace Fnmw.Game
                 Flow.Tick(Time.deltaTime, new TutorialFlow.Inputs
                 {
                     Phase = s.Phase, Moved = _moved, Looked = _looked, ConsoleDistance = dist, AtConsole = at,
-                    Solved = s.PuzzlesSolved, Total = s.TotalPuzzles, SkipHeld = kb != null && kb.qKey.isPressed,
+                    Solved = s.PuzzlesSolved, Total = s.TotalPuzzles, SkipHeld = kb != null && kb.qKey.isPressed || XrBridge.SkipHeld,
                     ExampleOpen = d && d.ExampleOpen,
                 });
                 if (!Flow.Active && d && d.ExampleOpen) d.EndWorkedExample();   // skipped mid-example: straight to the real puzzle
@@ -113,7 +113,7 @@ namespace Fnmw.Game
         {
             var p = Services.Player;
             if (!p) return;
-            float yaw = p.eulerAngles.y, pitch = _player ? _player.Pitch : 0f;
+            float yaw = _player ? _player.ViewYaw : p.eulerAngles.y, pitch = _player ? _player.Pitch : 0f;
             if (_tracking)
             {
                 var step = p.position - _lastPos; step.y = 0;

@@ -80,6 +80,21 @@ namespace Fnmw.Game.Intro
             _bottom.sizeDelta = new Vector2(0, h);
         }
 
+        /// <summary>VR: draw the overlay through this camera (the intro camera, which the XR theater shows on its
+        /// screen; then the player's own camera for the fade-up). Overlay canvases never reach a headset.</summary>
+        public void BindCamera(Camera cam)
+        {
+            if (!Root || !cam) return;
+            var canvas = Root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = Mathf.Max(cam.nearClipPlane * 2f, 0.1f);
+            // a camera only draws a screen-space-camera canvas on a layer it renders (the intro camera sees one layer)
+            int layer = 0;
+            while (layer < 31 && (cam.cullingMask & (1 << layer)) == 0) layer++;
+            foreach (var t in Root.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
+        }
+
         public void SetFade(float alpha) { var c = Color.black; c.a = Mathf.Clamp01(alpha); _fade.color = c; }
         public float Fade => _fade.color.a;
 
