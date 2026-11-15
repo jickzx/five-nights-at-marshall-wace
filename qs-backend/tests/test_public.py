@@ -33,3 +33,21 @@ def test_public_view_shows_one_employer_read_only(world):
     assert "Real Person" not in text and "example.com" not in text
     assert c.post(f"/v1/public/sessions/{sa['id']}/summary").status_code == 405
     assert c.get("/v1/sessions").status_code == 401                            # employer API still needs sign-in
+
+
+def test_public_read_writes_a_missing_summary_once(world):
+    calls = []
+    _, s, t = world.new_session("a")
+    world.consent(s["id"], t)
+    world.backend.summarizer = lambda f, r: {"status": "unavailable", "reason": "no key", "summary": None}
+    for b in simulate_batches():
+        world.post(s["id"], t, b)
+    world.store.tables["qs_summaries"].clear()            # as if the background task never ran
+    settings = dataclasses.replace(world.settings, public_employer_id=world.users["a"]["employer"])
+    backend = backend_from_settings(settings, world.store)
+    backend.summarizer = lambda f, r: calls.append(1) or {"status": "ok", "model": "m",
+                                                           "summary": {"observations": [], "data_quality": [], "limitations": []}}
+    c = TestClient(create_app(backend))
+    assert c.get(f"/v1/public/sessions/{s['id']}/summary").json()["status"] == "ok"
+    assert c.get(f"/v1/public/sessions/{s['id']}/summary").json()["status"] == "ok"
+    assert len(calls) == 1
