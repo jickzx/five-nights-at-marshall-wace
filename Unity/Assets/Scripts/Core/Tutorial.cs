@@ -20,6 +20,7 @@ namespace Fnmw.Core
         Beast,       // it grows with time and with misfires; it freezes while you look at it
         NextConsole, // n of N: more consoles, then the ship
         Example,     // the worked example is on the console (before the first real puzzle)
+        Hands,       // VR only, first: look down at the controllers in your hands, the lit button is the one to press
     }
 
     /// <summary>

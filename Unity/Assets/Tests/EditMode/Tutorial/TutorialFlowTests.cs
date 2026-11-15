@@ -122,7 +122,7 @@ namespace Fnmw.Tests
             f.Tick(0.1f, In(GamePhase.Reveal, solved: 1));
             Assert.AreEqual(TutorialCue.Reveal, f.Cue);
             Assert.IsTrue(f.Taught, "solving the guided console is what counts");
-            Assert.AreEqual(0f, f.Grace, "after the first console the hunt is on");
+            Assert.AreEqual(TutorialFlow.RampStart, f.Grace, 1e-4f, "after the first console the hunt starts, eased in (VrTutorialTests)");
             f.Tick(0.1f, In(GamePhase.Quiz, solved: 1));
             Assert.AreEqual(TutorialCue.Quiz, f.Cue);
             f.Tick(0.1f, In(GamePhase.Explore, solved: 1));

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Fnmw.Core;
 
 namespace Fnmw.XR
@@ -57,6 +58,48 @@ namespace Fnmw.XR
                 case XrContext.Console: x = hint ? "SHIP HINT" : ""; y = tutorial ? "LEAVE · HOLD SKIP" : "LEAVE"; stick = "CURSOR"; grip = ""; return;
                 case XrContext.Screen: x = speak ? "HEAR AGAIN" : ""; y = ""; stick = "CURSOR"; grip = ""; return;
                 default: x = ""; y = ""; stick = ""; grip = ""; return;
+            }
+        }
+
+        /// <summary>One button on one controller.</summary>
+        public readonly struct Key
+        {
+            public readonly bool Left;
+            public readonly XrControllerModel.Button Button;
+            public Key(bool left, XrControllerModel.Button button) { Left = left; Button = button; }
+            public override string ToString() => (Left ? "L." : "R.") + Button;
+        }
+
+        static readonly Key RA = new Key(false, XrControllerModel.Button.Face1), RB = new Key(false, XrControllerModel.Button.Face2),
+            RTrig = new Key(false, XrControllerModel.Button.Trigger), RStick = new Key(false, XrControllerModel.Button.Stick),
+            LX = new Key(true, XrControllerModel.Button.Face1), LY = new Key(true, XrControllerModel.Button.Face2),
+            LStick = new Key(true, XrControllerModel.Button.Stick), LGrip = new Key(true, XrControllerModel.Button.Grip);
+        static readonly Key[] None = new Key[0];
+
+        /// <summary>
+        /// The buttons a tutorial step asks the player to press: the rig pulses them on the controllers in the hands,
+        /// so the card's "[A] SEND" and the glowing A are the same thing. Must agree with the XR copy in TutorialLayer
+        /// and with what the buttons actually do in that context (RightLabels / LeftLabels).
+        /// </summary>
+        public static IReadOnlyList<Key> TutorialHighlights(TutorialCue cue, XrContext c)
+        {
+            switch (cue)
+            {
+                case TutorialCue.Hands: return new[] { RA, RB, LX, LY, RTrig };
+                case TutorialCue.Move: return new[] { LStick, RStick };
+                case TutorialCue.Objective: return new[] { LStick, LX };
+                case TutorialCue.Console: return c == XrContext.Roam ? new[] { RA, RTrig } : None;
+                case TutorialCue.PuzzleRead: return None;
+                case TutorialCue.PuzzleTiles: return new[] { RTrig };
+                case TutorialCue.PuzzleSend: return new[] { RA, RB };
+                case TutorialCue.Misfire: return new[] { RB, RA };
+                case TutorialCue.Reveal: return new[] { RA };
+                case TutorialCue.Quiz: return new[] { RTrig };
+                case TutorialCue.Beast: return new[] { LX, LGrip };
+                case TutorialCue.NextConsole: return new[] { LStick };
+                case TutorialCue.Example:
+                    return c == XrContext.LessonReading || c == XrContext.LessonBuilding ? new[] { RA, RTrig } : None;
+                default: return None;
             }
         }
 

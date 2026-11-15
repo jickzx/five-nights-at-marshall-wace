@@ -44,6 +44,10 @@ namespace Fnmw.Core
         /// The controller labels then show "hold Y: skip tutorial".</summary>
         public static bool TutorialActive;
 
+        /// <summary>The tutorial step on screen right now (None when no card is up). Set by the TutorialCoach every frame;
+        /// the rig lights and pulses the buttons that step asks for on the controllers in the player's hands.</summary>
+        public static TutorialCue TutorialCue;
+
         /// <summary>The UI publishes the worked-example step for controller help.</summary>
         public static XrLessonStage LessonStage;
 
@@ -80,7 +84,7 @@ namespace Fnmw.Core
         public static void Reset()
         {
             Active = false; Head = null; Glass = null; CutscenePlaying = false; GlassLayer = 0;
-            HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false; LessonStage = XrLessonStage.None;
+            HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false; TutorialCue = TutorialCue.None; LessonStage = XrLessonStage.None;
             HintOffered = SpeakOffered = false;
             ClearFrame();
         }

@@ -402,15 +402,21 @@ namespace Fnmw.XR
             if (_paused) { XrBridge.ClearFrame(); return; }
 
             Calibrate();
+            Vector2 turnStick = _turn.ReadValue<Vector2>();
             if (_eye && !_theater && Roaming(phase) && _player && _player.gameObject.activeInHierarchy)
             {
                 FollowHead();
-                float yaw = _turner.Tick(_turn.ReadValue<Vector2>().x, Time.deltaTime);
+                float yaw = _turner.Tick(turnStick, Time.deltaTime);
                 if (yaw != 0f) { _player.Rotate(0f, yaw, 0f, Space.World); XrBridge.StickTurnDegrees += Mathf.Abs(yaw); }
-                bool moving = XrBridge.Move.sqrMagnitude > 0.04f || (_turner.Smooth && Mathf.Abs(_turn.ReadValue<Vector2>().x) > 0.15f);
+                bool moving = XrBridge.Move.sqrMagnitude > 0.04f || (_turner.Smooth && Mathf.Abs(turnStick.x) > 0.15f);
                 _vignetteA = Mathf.MoveTowards(_vignetteA, moving ? 0.85f : 0f, dt * 4f);
             }
-            else _vignetteA = Mathf.MoveTowards(_vignetteA, 0f, dt * 4f);
+            else
+            {
+                // On a screen the right stick steps the cursor: a stick still held when roaming resumes must not turn.
+                _turner.Rest(turnStick);
+                _vignetteA = Mathf.MoveTowards(_vignetteA, 0f, dt * 4f);
+            }
             if (_vignette)
             {
                 _vignette.enabled = _vignetteA > 0.01f && !_theater;
@@ -419,9 +425,30 @@ namespace Fnmw.XR
             if (_rClick.WasPressedThisFrame())
             {
                 _turner.Smooth = !_turner.Smooth;
+                _turner.Rest(turnStick);   // switching to snap with the stick pushed over must not snap at once
                 PlayerPrefs.SetInt(SmoothTurnPref, _turner.Smooth ? 1 : 0);
             }
-            if (!_theater) { ShowButtons(); RefreshHelp(); }
+            if (!_theater)
+            {
+                GuideButtons();
+                ShowButtons();
+                RefreshHelp();
+                if (_eye) { _leftModel?.FaceLabels(_eye.position); _rightModel?.FaceLabels(_eye.position); }
+            }
+        }
+
+        int _guideKey = -1;
+
+        /// <summary>The tutorial step's buttons pulse on the controllers in the hands (XrHelp.TutorialHighlights).</summary>
+        void GuideButtons()
+        {
+            var c = Context;
+            int key = (int)XrBridge.TutorialCue * 16 + (int)c;
+            if (key == _guideKey) return;
+            _guideKey = key;
+            var keys = XrHelp.TutorialHighlights(XrBridge.TutorialCue, c);
+            _leftModel?.Guide(keys);
+            _rightModel?.Guide(keys);
         }
 
         /// <summary>

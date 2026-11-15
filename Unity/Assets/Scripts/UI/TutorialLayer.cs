@@ -71,21 +71,42 @@ namespace Fnmw.UI
         // Everything else is the same copy. The layout is Fnmw.XR's TouchMapper.
         static readonly Dictionary<TutorialCue, Copy> XrScript = new Dictionary<TutorialCue, Copy>
         {
-            { TutorialCue.Move, new Copy("VISOR",
+            { TutorialCue.Hands, new Copy("YOUR HANDS",
+                "LOOK DOWN: THOSE ARE YOUR CONTROLLERS. EVERY BUTTON IS LABELLED.",
+                "THE BUTTON THAT PULSES IS THE ONE THIS STEP WANTS.") },
+            { TutorialCue.Move, new Copy("MOVE",
                 "[L-STICK] WALK   ·   [R-STICK] TURN",
-                "TRY BOTH NOW   ·   [L-GRIP] RUN   ·   [X] LAMP") },
+                "TRY BOTH NOW.   HOLD [L-GRIP] TO RUN.") },
             { TutorialCue.Objective, new Copy("OBJECTIVE",
                 "WAKE THE SHIP: DECODE {TOTAL} CONSOLES.",
-                "FOLLOW THE CHEVRON ON THE GROUND. CONTROLS: LEFT WRIST.") },
+                "FOLLOW THE CHEVRON ON THE GROUND.   [X] LAMP.") },
+            { TutorialCue.Console, new Copy("CONSOLE",
+                "PRESS [A] OR PULL RIGHT [TRIGGER] TO USE THE CONSOLE.",
+                "READ IT WRONG AND THE GLASS CRACKS. THE BEAST STIRS.") },
+            { TutorialCue.PuzzleRead, new Copy("THE ROWS",
+                "SAME AS THE EXAMPLE: A MEANING, THEN ITS REAL WORDS.",
+                "COMPARE THE ROWS. FIND THE RULE.   [Y] STEP AWAY.") },
             { TutorialCue.PuzzleTiles, new Copy("THE TILES",
-                "THE TILES ARE THE WORDS. AIM AT ONE, PULL [TRIGGER].",
+                "AIM THE RIGHT HAND AT A TILE, PULL [TRIGGER] TO PLACE IT.",
                 "BUILD THE BOTTOM ROW'S MEANING, IN ORDER.") },
             { TutorialCue.PuzzleSend, new Copy("SEND",
-                "[A] SEND   ·   [B] TAKE ONE BACK",
+                "[A] SEND   ·   [B] TAKE ONE BACK   ·   HOLD [B] CLEAR",
                 "A MISFIRE CRACKS THE GLASS AND NAMES THE RULE YOU BROKE.") },
+            { TutorialCue.Misfire, new Copy("MISFIRE",
+                "WRONG. THE HINT BELOW NAMES THE RULE YOU BROKE.",
+                "[B] TAKE TILES BACK, FIX THE ORDER, [A] SEND AGAIN.") },
+            { TutorialCue.Reveal, new Copy("DECODED",
+                "THE WORDS WERE REAL ALL ALONG. ONLY THE GLYPHS WERE ALIEN.",
+                "READ THE RULE, THEN PRESS [A] TO NAME THE LANGUAGE.") },
             { TutorialCue.Quiz, new Copy("QUIZ",
                 "WHICH LANGUAGE WAS IT? AIM AT IT, PULL [TRIGGER].",
                 "NO PENALTY HERE. GUESS IF YOU MUST.") },
+            { TutorialCue.Beast, new Copy("THE BEAST",
+                "IT GROWS WITH TIME, AND FASTER WITH EVERY MISFIRE.",
+                "LOOK AT IT AND IT FREEZES.   [X] LAMP   ·   HOLD [L-GRIP] RUN") },
+            { TutorialCue.NextConsole, new Copy("OBJECTIVE",
+                "{SOLVED} OF {TOTAL} CONSOLES WOKEN.",
+                "THE REST, THEN THE SHIP. [L-STICK] TO WALK.") },
         };
 
         public const string SkipText = "HOLD Q  ·  SKIP TUTORIAL";
@@ -98,6 +119,10 @@ namespace Fnmw.UI
             if (XrBridge.Active && XrScript.TryGetValue(cue, out var xr)) return xr;
             return Script.TryGetValue(cue, out var c) ? c : null;
         }
+
+        /// <summary>Tests: the cues the desktop tutorial has a card for, and a cue's headset lines (null if none).</summary>
+        internal static IEnumerable<TutorialCue> DesktopCues => Script.Keys;
+        internal static string[] XrLines(TutorialCue cue) => XrScript.TryGetValue(cue, out var c) ? c.Lines : null;
 
         /// <summary>Every string the layer can emit, for the font-coverage test.</summary>
         public static IEnumerable<string> AllCopy()
