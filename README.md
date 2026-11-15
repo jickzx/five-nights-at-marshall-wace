@@ -1,129 +1,198 @@
+<div align="center">
+
+<img src="docs/media/title.gif" alt="Five Nights at Marshall Wace title screen" width="720">
+
 # Five Nights at Marshall Wace
 
-A language-learning horror game built at a hackathon. You are stranded on a blood-sea planet, and each console you need to restart the ship shows a sentence in a real Earth language (Japanese, Mandarin, Arabic, German, French, Spanish, Turkish) written in an alien script. You work out the grammar from example rows, build the answer from tiles, and then the game reveals the real language and quizzes you on it, while a beast called The Principal grows and hunts you. It plays on desktop and on a Meta Quest 2.
+**A language-learning horror game for desktop and Meta Quest 2.**
 
-The repo also holds two optional services the game can talk to (a voice server and a motion-telemetry service), an employer-facing web page for that telemetry, and the art pipeline.
+Crack real Earth languages hidden in an alien script, restart your ship,<br>
+and get off a blood-sea planet before the thing in the fog works out how you think.
 
-## What's in the repo
+[The idea](#the-idea) · [How a run plays](#how-a-run-plays) · [Languages](#seven-real-languages) · [The beast](#the-beast) · [Run it](#run-it) · [Repository](#whats-in-the-repository) · [License](#license)
 
-| Path | What it is | Docs |
+</div>
+
+---
+
+## The idea
+
+Most language apps teach by flashcard. Field linguists learn a language differently: they look at a handful of real sentences, compare them, and work out the rules themselves. This game turns that process into a survival horror.
+
+You crash through a wormhole onto TrES-2b, a planet of red fog and a sea of blood. Your ship needs power, and the only way to get it is to talk to three alien consoles on the shore. Each console speaks a **real Earth language** (Japanese, Mandarin, Arabic, German, French, Spanish or Turkish) written in a procedurally drawn alien script. You get two or three example phrases with their meanings, and from those alone you work out the grammar and build the answer from word tiles.
+
+Get it right and the alien glyphs decode into the real script in front of you: 扉を探して, دارس, Werkzeug. The game shows you the pattern you just used, asks you which language it was, and tells you something true about it. Get it wrong and the glass cracks, the ship hints at the rule you broke, and the beast lunges.
+
+The words are real, the grammar is real, and every puzzle is checked by brute force to have exactly one answer a reasoning player could justify. You leave the planet having actually learned how three languages work.
+
+<div align="center">
+<img src="docs/media/gameplay.gif" alt="Solving a Japanese console, the decoded reveal, and lift-off" width="720">
+<br>
+<sub>Building <i>tobira o sagashite</i> ("search for the door") at a Japanese console, the reveal, and the escape.</sub>
+</div>
+
+## How a run plays
+
+1. **Transit.** A wormhole intro drops you on the shore. A short tutorial (replayable with T, skippable by holding Q) teaches movement, the lamp and the consoles, and a worked example shows how to read a puzzle.
+2. **Explore.** Walk the shore in the fog with a lamp. Three consoles glow green. Something is out there, and it freezes when you look at it.
+3. **Decode.** At a console, compare the example rows, place glyph tiles in order and submit. A wrong answer earns a hint that names the rule, never the answer.
+4. **Reveal and quiz.** The script decodes into the real language, the pattern is explained with the language's name blacked out, and you guess which language it was before it is stamped on.
+5. **Escape or die.** With all three consoles restored the beast makes its final chase. Reach the ship and you lift off through the clouds to a debrief of everything you carry out. Get caught and you get the death ending.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/media/puzzle.jpg" alt="A Japanese console puzzle with glyph tiles"><br><sub><b>The console.</b> Example rows above, glyph tiles below.</sub></td>
+    <td width="33%"><img src="docs/media/reveal.jpg" alt="German reveal: Werkzeug"><br><sub><b>The reveal.</b> Werkzeug, literally "work stuff", is a tool.</sub></td>
+    <td width="33%"><img src="docs/media/decoded.jpg" alt="Japanese payoff screen"><br><sub><b>The payoff.</b> The language is named, with a fact to keep.</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/media/shore.jpg" alt="The blood-red shore in the fog"><br><sub><b>The shore.</b> Red fog, dead trees, and something watching.</sub></td>
+    <td width="33%"><img src="docs/media/escape.jpg" alt="The ship lifting off above the clouds"><br><sub><b>Lift-off.</b> Out through the clouds.</sub></td>
+    <td width="33%"><img src="docs/media/debrief.jpg" alt="End screen listing the languages decoded"><br><sub><b>What you carry out.</b> Every phrase you built, and your time.</sub></td>
+  </tr>
+</table>
+
+## Seven real languages
+
+Each run picks languages from a seed and generates its puzzles from word tables, so no two runs are the same. Between them the languages have 22 puzzle types across four difficulty tiers.
+
+| Language | What the puzzles teach | From the game |
 |---|---|---|
-| `Unity/` | **The game.** Unity 6000.6.9f1 (URP), built code-first: `Assets/Scenes/Main.unity` holds one `GameBootstrap` object and everything else is spawned from code. Scripts in `Assets/Scripts/{Core,Game,Lang,Monster,UI,Audio,World,Voice,XR,Bootstrap,Editor}`; EditMode tests in `Assets/Tests/EditMode`. Includes the wormhole intro, tutorial, worked example, sentence puzzles, reveal and quiz, final chase, escape and death endings, run debrief, and the Quest 2 port (OpenXR, Touch controls). | [Unity/README.md](Unity/README.md), [Unity/Docs](Unity/Docs) |
-| `backend/` | **Voice server** (Node, TypeScript, no runtime dependencies). Gemini writes monster lines and ship hints from game facts; ElevenLabs speaks them and the decoded sentence. When Gemini is unavailable or out of credit, the server writes monster lines itself. Has a keyless `mock` mode. | [backend/README.md](backend/README.md) |
-| `qs-backend/` | **QS telemetry service** (FastAPI on Vercel, Postgres and Realtime on Supabase). Turns raw head and controller motion from the headset into one record per question, serves them to employers under row-level security, and pushes live updates. Migrations in `supabase/migrations/`. | [qs-backend/README.md](qs-backend/README.md), [qs-backend/docs](qs-backend/docs) |
-| `index.html`, `src/`, `qs/`, `vite.config.ts` | **Vite site** with two pages. `/` is the early Three.js web prototype of the game (`src/game`, `src/lang`, `src/world`, `src/ui`), superseded by the Unity game. `/qs/` is the "QS Data Pipeline" employer page (`src/qs/`), which runs on synthetic demo data unless an API URL is configured. | this file |
-| `assets/`, `tools/blender/` | Procedural Blender art kit: the 15 low-poly models the game loads from `Unity/Assets/Resources/Models/`, including The Principal. Rebuilding needs Blender 5.2.1 LTS, ffmpeg and Python with Pillow. | [assets/README.md](assets/README.md) |
-| `docs/` | Pitch notes (`PITCH.md`: how the puzzles, answers and beast actually work), sponsor API research, plan, report and security review, and `answer-key/`, a small .NET program that prints the puzzles and answers for any seed, using the .NET SDK bundled with the Unity Editor. | [docs/PITCH.md](docs/PITCH.md), [docs/answer-key/README.md](docs/answer-key/README.md) |
-| `TASKS.md` | The original hackathon task split for the web prototype. Historical. | |
+| Japanese | Verb-last order, the particles が and を, kanji compounds | 電話 *denwa*, "electric talk": telephone |
+| German | Nouns glued into compounds where the last part names the thing; verb-final clauses after *weil* | *Handschuh*, "hand shoe": glove |
+| Arabic | Three-consonant roots carry the meaning, vowel patterns carry the role | k-t-b: *kataba* "he wrote", *kātib* "writer" |
+| Turkish | Suffixes in a fixed order, with vowel harmony | *köylerimde*, "in my villages" |
+| Mandarin | Measure words between a number and a noun, chosen by kind | 三只狼 *sān zhī láng*, "three wolves" |
+| French | Adjectives after the noun, gender agreement, silent written plurals | *les murs verts* |
+| Spanish | The verb ending carries the subject; ¿ opens a question | *¿Aprende?*, "does she learn?" |
 
-## How the parts connect
+Before a puzzle is used, the engine lists the "rival grammars" a player might wrongly assume (English word order, the wrong suffix order, head-first compounds), keeps the ones the examples cannot rule out, and tries every ordering of every subset of the tiles. If more than one answer could be justified, the puzzle is thrown away and rebuilt. The full answer sheet and the reasoning behind it are in [docs/PITCH.md](docs/PITCH.md), and [docs/answer-key](docs/answer-key/README.md) prints the answers for any seed.
 
-```
-Unity game ──HTTPS/loopback──▶ backend/ (voice) ──▶ Gemini (text), ElevenLabs (speech)
-     │
-     └──(off by default)──▶ qs-backend/ (Vercel) ──▶ Supabase Postgres + Realtime
-                                    ▲                        │
-                                    └──── /qs/ employer page ◀┘  (REST via the API, live updates via Realtime)
-```
+## The beast
 
-- **Game → voice backend.** Optional. With no voice settings (a `fnmw-voice.json`, `-voiceUrl`/`-voiceToken`, or `FNMW_VOICE_URL`/`FNMW_VOICE_TOKEN`), the game makes no network request and shows authored hints. Provider keys live only in `backend/.env`.
-- **Game → QS backend.** Optional and off by default. `Assets/Scripts/Core/Telemetry` sends 1 s motion windows plus game events once it has a `qs.json` (or `FNMW_QS_*` variables) *and* the player's consent.
-- **QS backend → Supabase → `/qs/`.** The API stores records in Supabase; the employer page reads them through the API and subscribes to Realtime for live updates.
-- **Gemini in the Unity Editor.** Separately, `Services.Ai` can call Gemini directly in the Editor with a local key in `Unity/secrets.json` (used for the run debrief), overridable with `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL` and `FNMW_AI_DISABLED`. Builds never carry a key; see [Unity/Docs/ai/README.md](Unity/Docs/ai/README.md).
+The Principal is not scripted to a timer. It runs a small online Bayesian model of you: a logistic regression that updates after every answer and estimates your skill on each grammar concept, with uncertainty. It uses that model to pick each console's difficulty, aiming for about a 70 percent chance that you succeed, and it grows bolder when you are weak or on a losing streak.
 
-## Run it locally
+- It lurks in the fog, stalks behind you, freezes while you look at it, creeps closer while you work a console, lunges on a wrong answer and backs off on a right one.
+- It evolves through three stages over time and with each mistake, and can only catch you at the last one.
+- It remembers you between runs. Press F3 to see what it has learned about you.
 
-### The game (desktop)
+Everything you hear is synthesised in C# at runtime: an 11-layer generative score that moves between dread, tension and panic with the beast's distance, a melody built from the phrase you just solved, and the beast's voice placed in 3D. There are no audio files in the game.
 
-1. Install **Unity 6000.6.9f1** (from `Unity/ProjectSettings/ProjectVersion.txt`) and open the `Unity/` folder.
-2. Open `Assets/Scenes/Main.unity` and press Play. Don't edit or save the scene: everything is spawned from code.
+## Run it
 
-Controls: Enter (or Space) starts; T on the title replays the tutorial, and holding Q skips it. WASD and the mouse move and look, Shift runs, F toggles the lamp, E uses the green console, Esc or Tab leaves it. At a console, number keys or the arrows plus Space place tiles, Backspace undoes, Delete clears, Enter submits, and H asks the ship for a hint (authored text offline; generated hints and speech need the voice backend). On the quiz payoff, P replays the decoded sentence. The full desktop and Touch table is in [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md#5-controls-touch).
+### Desktop
 
-Dev keys: F1 toggles demo mode (fixed seed 4242, forgiving beast; restarts the run; also the `-demo` launch flag), F5 restarts, F6–F12 skip to explore, puzzle, reveal, quiz, chase, escape and death. F9 also opens the audio audition mode. F2 shows the voice status line and F3 the beast-learning overlay.
+1. Install **Unity 6000.6.9f1** and open the `Unity/` folder.
+2. Open `Assets/Scenes/Main.unity` and press Play. Everything is spawned from code, so there is nothing to edit in the scene.
 
-[Unity/README.md](Unity/README.md) covers driving the Editor from the Unity CLI (open, recompile, play, screenshot, record), the module architecture and folder ownership. For a compile check without opening the project: `python3 Unity/Tools/cc.py` (it borrows compiler settings from a checkout Unity has already opened, so it needs an existing `Unity/Library`).
+| Action | Keys |
+|---|---|
+| Start | Enter or Space |
+| Move, look, run | WASD, mouse, Shift |
+| Lamp | F |
+| Use a console / leave it | E / Esc or Tab |
+| Place tiles, undo, clear, submit | Number keys or arrows and Space, Backspace, Delete, Enter |
+| Ask the ship for a hint | H |
+| Demo mode (fixed seed 4242, forgiving beast) | F1, or the `-demo` launch flag |
 
-### The game on Meta Quest 2
+Developer keys F5 to F12 restart and skip between phases. The full desktop and Touch tables are in [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md#5-controls-touch), and [Unity/README.md](Unity/README.md) covers driving the Editor from the command line.
 
-Follow [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md): install Android Build Support, enable developer mode, then in the Editor run **Fnmw > Quest > Configure project for Quest** and **Fnmw > Quest > Build APK**, which writes `Unity/Builds/Quest/FiveNightsAtMarshallWace-Quest.apk`. From a terminal on macOS, with the Editor closed (other platforms: adjust the Unity path):
+### Meta Quest 2
+
+Install Android Build Support, enable developer mode on the headset, then in the Editor run **Fnmw > Quest > Configure project for Quest** and **Fnmw > Quest > Build APK**. With the headset connected:
 
 ```bash
-cd Unity
-/Applications/Unity/Hub/Editor/6000.6.9f1/Unity.app/Contents/MacOS/Unity -batchmode -nographics -quit \
-  -projectPath "$PWD" -executeMethod Fnmw.XR.EditorTools.QuestSetup.BuildApk -logFile /tmp/quest-build.log
-adb install -r Builds/Quest/FiveNightsAtMarshallWace-Quest.apk
-adb shell am start -n com.fnmw.fivenights/com.unity3d.player.UnityPlayerGameActivity
+adb install -r Unity/Builds/Quest/FiveNightsAtMarshallWace-Quest.apk
 ```
 
-Release signing reads `FNMW_KEYSTORE`, `FNMW_KEYSTORE_PASS`, `FNMW_KEY_ALIAS` (and optionally `FNMW_KEY_PASS`, `FNMW_VERSION_CODE`). The Touch control table is in the setup doc. The desktop build has no XR loader and is unaffected.
+The setup guide, signing variables and batch-mode build command are in [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md).
 
-### Voice backend (`backend/`)
+### Optional services
 
-Needs Node 22.18+ (it runs the TypeScript sources directly; no build step).
+The game plays fully offline. Two optional services add to it:
+
+- **Voice server** ([backend/](backend/README.md)). Gemini writes the beast's taunts and the ship's hints from what is happening in the run, and ElevenLabs speaks them and pronounces the decoded sentence. It has a keyless mock mode: `cd backend && npm install && npm run dev`.
+- **QS telemetry** ([qs-backend/](qs-backend/README.md)). With the player's consent, the headset streams head, hand and breathing data to a FastAPI service on Vercel backed by Supabase. It turns that into one record per question and a plain-language summary for a live employer page at `/qs/`. It is off by default.
+
+## What's in the repository
+
+| Path | What it is |
+|---|---|
+| [`Unity/`](Unity/README.md) | The game. Unity 6000.6.9f1 with URP, built code-first from one `GameBootstrap` object. Scripts are split into Core, Game, Lang, Monster, UI, Audio, World, Voice and XR, with EditMode tests. |
+| [`backend/`](backend/README.md) | Voice server in Node and TypeScript with no runtime dependencies. |
+| [`qs-backend/`](qs-backend/README.md) | QS telemetry service: FastAPI on Vercel, Postgres and Realtime on Supabase, migrations in `supabase/migrations/`. |
+| `src/`, `qs/`, `index.html` | Vite site. `/qs/` is the employer page; `/` is the early Three.js prototype from the first hours of the hackathon. |
+| [`assets/`](assets/README.md), `tools/blender/` | Procedural Blender kit that builds the game's 15 low-poly models, including the beast. |
+| [`docs/`](docs/PITCH.md) | Pitch notes and answer sheet, the answer-key tool, sponsor integration research and the security review. |
+
+```
+Unity game ──▶ backend/ (voice) ──▶ Gemini (text), ElevenLabs (speech)
+     │
+     └──(opt-in)──▶ qs-backend/ (Vercel) ──▶ Supabase Postgres + Realtime ──▶ /qs/ employer page
+```
+
+<details>
+<summary><b>Running the services and tests locally</b></summary>
+
+<br>
+
+**Voice server** (Node 22.18+):
 
 ```bash
 cd backend
 npm install
-cp .env.example .env   # .env is git-ignored; set FNMW_GAME_TOKENS (e.g. openssl rand -hex 24) before starting
-npm run dev            # mock mode, no provider keys needed, on http://127.0.0.1:8787
-npm start              # uses FNMW_PROVIDER_MODE from .env
+cp .env.example .env   # set FNMW_GAME_TOKENS before starting
+npm run dev            # mock mode on http://127.0.0.1:8787, no provider keys needed
 ```
 
-The server refuses to start without at least one `FNMW_GAME_TOKENS` entry, even in mock mode. The example `.env` sets `FNMW_PROVIDER_MODE=mock`; set it to `live` (or remove it: the code default is `live`) for real providers, which also needs `FNMW_SESSION_SECRET`.
+Point the game at it with `Unity/UserSettings/fnmw-voice.json` holding `url` and `token`. Details and every variable are in [backend/README.md](backend/README.md).
 
-Env vars (names only; see `backend/.env.example`): `FNMW_PROVIDER_MODE` (`mock` or `live`), `FNMW_BIND` (default `127.0.0.1:8787`), `FNMW_GAME_TOKENS`, `FNMW_SESSION_SECRET` (required in live mode), `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `FNMW_GEMINI_MODEL`, `FNMW_TTS_MODEL`, `FNMW_VOICE_MONSTER`, `FNMW_VOICE_SHIP`, `FNMW_VOICE_NATIVE` (plus per-language `FNMW_VOICE_NATIVE_JA` etc.), optional limit overrides, `FNMW_TRUSTED_PROXIES`, and `FNMW_MOCK_FAULT` (mock mode only).
-
-Point the game at it with a `fnmw-voice.json` holding `url` and `token` (one of the `FNMW_GAME_TOKENS` values): in the Editor at `Unity/UserSettings/fnmw-voice.json` (git-ignored), in a build under the player's persistent data folder. The `-voiceUrl`/`-voiceToken` flags and `FNMW_VOICE_URL`/`FNMW_VOICE_TOKEN` also work. The game accepts plain `http://` only to `127.0.0.1`, `localhost` or `[::1]`, and a standalone build may refuse plain HTTP even then (the project's "Allow downloads over HTTP" is off), so put the backend behind HTTPS for builds.
-
-### QS backend (`qs-backend/`)
-
-Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+**QS backend** (Python 3.12+ and uv):
 
 ```bash
 cd qs-backend
 uv sync
-# without Supabase: in-memory store, employer tokens are HS256 JWTs signed with SUPABASE_JWT_SECRET
-QS_STORE=memory SUPABASE_JWT_SECRET=<a long random dev-only secret> uv run uvicorn main:app --reload
-# API docs at http://localhost:8000/docs
+QS_STORE=memory SUPABASE_JWT_SECRET=<long dev secret> uv run uvicorn main:app --reload
 ```
 
-With a real or local Supabase stack, apply `supabase/migrations/20261115000000_qs_init.sql`, copy `.env.example` to `.env`, and run `uv run uvicorn main:app --reload --env-file .env`. Env vars: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server only), `SUPABASE_JWT_SECRET` (legacy projects only), `GEMINI_API_KEY`, `GEMINI_MODEL`, `QS_GEMINI_DISABLED`, `QS_CORS_ORIGINS`, `QS_STORE` (`supabase` or `memory`). Provisioning and the Vercel deploy (Root Directory `qs-backend`) are in [qs-backend/README.md](qs-backend/README.md).
+Provisioning Supabase and deploying to Vercel are covered in [qs-backend/README.md](qs-backend/README.md); the game-side sender is in [Unity/Docs/qs/README.md](Unity/Docs/qs/README.md).
 
-To send real motion from the game, copy `Unity/qs.example.json` to `Unity/Assets/Resources/Qs/qs.json` (git-ignored) or set `FNMW_QS_ENABLED`, `FNMW_QS_URL`, `FNMW_QS_SESSION`, `FNMW_QS_TOKEN`. See [Unity/Docs/qs/README.md](Unity/Docs/qs/README.md).
-
-### Vite site (web prototype and `/qs/` page)
+**Vite site:**
 
 ```bash
 npm install
-npm run dev        # prints the URL; the prototype is at /, the employer page at /qs/
-npm run build      # tsc && vite build, both pages
-npm run preview
+npm run dev
 ```
 
-The prototype takes `?demo` (fixed seed, slow creature) and `?seed=<n>`. The `/qs/` page runs in demo mode with synthetic data whenever `VITE_QS_API_URL` is unset (or `?demo` is in the URL). For live mode set `VITE_QS_API_URL`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in a root `.env` (see `.env.example`). These are bundled into the browser, so only public values belong there; the page refuses a Supabase secret or `service_role` key.
-
-## Tests
+**Tests:**
 
 | Part | Command |
 |---|---|
-| Unity (EditMode) | from `Unity/`, Editor closed: `~/.unity/bin/unity test "$PWD" --mode EditMode -o /tmp/test-results.xml`; Editor open: `~/.unity/bin/unity command test run --project-path "$PWD" --mode editor`. Or Window > General > Test Runner. |
-| Unity compile only | `python3 Unity/Tools/cc.py` |
-| Voice backend | `cd backend && npm test` (node:test; providers are faked) and `npm run typecheck` |
-| QS backend | `cd qs-backend && uv run pytest` (the RLS tests start a throwaway Postgres through `pgserver`) |
-| Vite site | `npm test` (Vitest: the prototype's language engine and the QS page) and `npm run build` |
+| Unity (EditMode) | Window > General > Test Runner, or from `Unity/` with the Editor closed: `~/.unity/bin/unity test "$PWD" --mode EditMode -o /tmp/test-results.xml` |
+| Unity compile check | `python3 Unity/Tools/cc.py` |
+| Voice server | `cd backend && npm test && npm run typecheck` |
+| QS backend | `cd qs-backend && uv run pytest` |
+| Vite site | `npm test && npm run build` |
 
-The Unity CLI commands assume the `unity` CLI at `~/.unity/bin/unity`; see [Unity/README.md](Unity/README.md).
+</details>
 
 ## Secrets
 
-The repo is public. Nothing secret is committed, and the following stay git-ignored: `.env` files (root, `backend/`, `qs-backend/`), `Unity/secrets.json`, `Unity/UserSettings/` (voice settings), `Unity/Assets/Resources/Ai/` and `Unity/Assets/Resources/Qs/`. Each `*.example*` file lists names only. `AiKeyBuildGuard` fails a Unity build if a Gemini key would be bundled.
+The repository is public and nothing secret is committed. `.env` files, `Unity/secrets.json`, `Unity/UserSettings/`, `Unity/Assets/Resources/Ai/` and `Unity/Assets/Resources/Qs/` are git-ignored, and each `*.example` file lists variable names only. A build guard fails any Unity build that would bundle a Gemini key.
 
-## Status and known gaps
+## Status
 
-- **Quest 2.** The port is merged (PRs #17, #18) and covered by EditMode tests. The setup doc lists what still needs a headset to judge: controller model proportions, label and wrist-card readability, the death scare's timing and distance, and the ground chevron's brightness. A VR tutorial step and more visible controller models are in progress and not yet in `main`.
-- **QS telemetry is not live.** No Supabase project or Vercel deployment has been set up from this repo yet (provisioning is in progress), so the `/qs/` page's live mode has never run against them. The game has no consent screen yet, so the sender waits in `AwaitingConsent` and sends nothing, even with `qs.json`. The employer names on the `/qs/` page are invented placeholders (`src/qs/employers.ts`).
-- **Gemini.** The last live check (15 November 2026) got HTTP 402: the project had no credit. So no Gemini-written line, hint or debrief has been seen yet. Monster lines fall back to server-written text, ship hints to authored text, and the debrief to stock text.
-- **Live AI in builds.** A player build reaches Gemini only through a generateContent proxy, and none exists in this repo, so builds always show the stock run debrief.
-- **Voice backend.** It runs as a single long-lived process (its rate limits are in memory) and has no deployment; a standalone build may refuse plain HTTP even to localhost, so a build needs the backend behind HTTPS. Its README lists the provider behaviour that has not been verified, and the hint rule texts still need a teacher's review.
-- **Web prototype.** `/` is the early Three.js scaffold from the first hours of the hackathon, not the game.
+- **Quest 2.** The port, visible Touch controllers and the VR tutorial are merged and covered by EditMode tests, and the APK builds. It has not yet been played on a real headset, so comfort, readability and the scare timing still need a pass in VR.
+- **AI features.** Generated taunts, hints and the run debrief depend on Gemini credit. Without it the game falls back to server-written taunts, authored hints and a stock debrief, so a run never blocks on the network.
+- **Voice server.** Runs as a single long-lived process and is not deployed. Standalone builds need it behind HTTPS.
+- **QS employer page.** Deployed and reading live data from the demo employer. The employer names on it are placeholders.
+
+## Credits
+
+Built at a hackathon by the team listed on the [contributors page](https://github.com/jickzx/five-nights-at-marshall-wace/graphs/contributors).
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE).
+
+The bundled fonts keep their own licenses: **DotGothic16** and **Unifont** are under the SIL Open Font License 1.1 (the full texts sit next to the fonts in `Unity/Assets/Resources/UI/Fonts/`, and DotGothic16's also in `public/qs/fonts/`). The Unity engine and its packages are not part of this repository and are covered by Unity's own terms. Gemini, ElevenLabs, Supabase and Vercel are used under their providers' terms.
