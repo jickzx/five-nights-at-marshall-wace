@@ -78,25 +78,34 @@ namespace Fnmw.Core.Ai
             return cfg;
         }
 
-        /// <summary>Read secrets.json from the Unity project folder (or the save folder in a build), then the environment.</summary>
+        /// <summary>Resources path of the baked-in key file (Assets/Resources/Ai/secrets.json, gitignored).</summary>
+        public const string ResourcePath = "Ai/secrets";
+
+        /// <summary>
+        /// Read the key file, then the environment. The file is looked for baked into the app (Resources, so a build
+        /// made on a machine that has it needs no setup), then in the Unity project folder, then in the save folder.
+        /// </summary>
         public static AiConfig Load()
         {
             string json = null;
-            foreach (var path in new[]
-            {
-                Path.Combine(Application.dataPath, "..", SecretsFileName),
-                Path.Combine(Application.persistentDataPath, SecretsFileName),
-            })
-            {
-                try
+            var baked = Resources.Load<TextAsset>(ResourcePath);
+            if (baked != null && !string.IsNullOrWhiteSpace(baked.text)) json = baked.text;
+            if (json == null)
+                foreach (var path in new[]
                 {
-                    if (File.Exists(path)) { json = File.ReadAllText(path); break; }
-                }
-                catch (Exception ex)
+                    Path.Combine(Application.dataPath, "..", SecretsFileName),
+                    Path.Combine(Application.persistentDataPath, SecretsFileName),
+                })
                 {
-                    Debug.LogWarning("[Ai] could not read " + SecretsFileName + ": " + ex.Message);
+                    try
+                    {
+                        if (File.Exists(path)) { json = File.ReadAllText(path); break; }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning("[Ai] could not read " + SecretsFileName + ": " + ex.Message);
+                    }
                 }
-            }
             return From(json, Environment.GetEnvironmentVariable);
         }
     }

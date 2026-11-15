@@ -38,3 +38,5 @@ crashlytics-build.properties
 
 # Local API keys (see Docs/ai/README.md). Never commit.
 /secrets.json
+/Assets/Resources/Ai/
+/Assets/Resources/Ai.meta

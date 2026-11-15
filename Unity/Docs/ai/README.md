@@ -4,12 +4,12 @@
 
 ## Turn it on
 
-1. Copy `Unity/secrets.example.json` to `Unity/secrets.json` and paste the key into `geminiApiKey`. The file is gitignored.
+1. Copy `Unity/secrets.example.json` to `Unity/Assets/Resources/Ai/secrets.json` and paste the key into `geminiApiKey`. The whole `Assets/Resources/Ai` folder is gitignored.
 2. Press Play. The console prints `[Ai] Gemini ready: model ...`. Each request then logs `[Ai] <feature> <status> in <ms> ms`.
 
-Environment variables override the file: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off.
+Because that file is under `Resources`, a build made on a machine that has it carries the key inside the app and needs no setup where it runs. `Unity/secrets.json` (project folder, Editor only) and a `secrets.json` in the save folder are also read. Environment variables override all of them: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off.
 
-Never commit a key or ship one in a build, because keys in a build can be extracted. A distributed build sets `aiProxyUrl` instead: the client POSTs the same body to that URL with `?model=<model>` and no key, and the proxy adds the key and forwards it to Gemini. The proxy is not written yet.
+This repository is public, so the key file must stay out of git: a key pushed to GitHub can be used by anyone and is likely to be disabled by Google. A key baked into a build can also be extracted from it, which is acceptable for a demo build handed to judges and not for a public release. A public release sets `aiProxyUrl` instead: the client POSTs the same body to that URL with `?model=<model>` and no key, and the proxy adds the key and forwards it to Gemini. The proxy is not written yet.
 
 The default model is `gemini-3.5-flash-lite`. Change `geminiModel` if the account has no access to it.
 
@@ -54,9 +54,9 @@ if (Services.Ai.Available)
 
 `IGameUI` has three optional methods for these features, each a no-op until the UI implements it: `ShowMonsterLine(text, seconds)`, `ShowHint(text)` and `ShowDebrief(text)`.
 
-## Not verified yet
+## What has been verified
 
-The request and reply JSON are covered by tests against the documented `generateContent` format, but no live call has been made, because no key was available when this was written. The first run with a real key should confirm the model name and the reply.
+The request and reply JSON are covered by tests. On 15 November 2026 a real key listed `gemini-3.5-flash-lite` as supporting `generateContent`, and the endpoint accepted the key, but the call itself was refused with HTTP 402 because the project's prepaid credits were used up. So a successful live reply has not been seen yet. A 402 reaches a feature as `BadResponse`, and it keeps its stock line.
 
 ## Checking your work without the Editor
 
