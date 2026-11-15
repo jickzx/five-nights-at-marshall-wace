@@ -227,7 +227,9 @@ namespace Fnmw.UI
             bool calmScreen = modal == _title || modal == _escape || modal == _death;
             Fx.Threat = calmScreen || s == null ? 0f : s.Threat;
 
-            bool timer = s != null && phase != GamePhase.Title && !s.IsOver && !calmScreen;
+            // the tutorial's band across the top of the console (and the worked example's) prints where the timer sits
+            bool bandUp = modal == _example || (modal == _puzzle && _tutorial.CueShown != "None");
+            bool timer = s != null && phase != GamePhase.Title && !s.IsOver && !calmScreen && !bandUp;
             _timer.gameObject.SetActive(timer);
             if (timer) Kit.SetText(_timerText, "TIME " + Lore.Clock(s.Elapsed));
 
