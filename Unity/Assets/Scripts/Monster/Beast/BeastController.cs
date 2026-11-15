@@ -65,7 +65,7 @@ namespace Fnmw.Monster.Beast
                 BeastPosition = transform.position, PlayerPosition = player.position, Distance = dist,
                 Phase = s.Phase, Stage = s.BeastStage, Elapsed = s.Elapsed,
                 Aggression = Services.Difficulty.BeastAggression, Mistakes = s.Mistakes,
-                PlayerForward = fwd, Watched = Watched,
+                PlayerForward = fwd, Watched = Watched, Grace = s.BeastGrace,
             }, Time.deltaTime);
             LastIntent = intent;
             s.SetBeastStage(intent.DesiredStage);

@@ -22,8 +22,10 @@ namespace Fnmw.UI
         HudLayer _hud;
         PuzzleScreen _puzzle;
         DecodeScreen _decode;
+        WorkedExampleScreen _example;
         DeathScreen _death;
         EscapeScreen _escape;
+        TutorialLayer _tutorial;
         UiScreen _modal;
         RectTransform _timer;
         Text _timerText;
@@ -49,6 +51,7 @@ namespace Fnmw.UI
             _hud = new HudLayer(this);
             _puzzle = new PuzzleScreen(this);
             _decode = new DecodeScreen(this);
+            _example = new WorkedExampleScreen(this);
             _title = new TitleScreen(this);
             _death = new DeathScreen(this);
             _escape = new EscapeScreen(this);
@@ -58,6 +61,8 @@ namespace Fnmw.UI
             _timer.gameObject.SetActive(false);
             _hud.Build();
             _hud.Root.gameObject.SetActive(false);
+            _tutorial = new TutorialLayer(this);     // built last: it draws over every screen
+            _tutorial.Build();
             GameEvents.BeastStageChanged += OnBeastStage;
             Fx.SetMode(GlassMode.Off, true);
             Fx.Tick(0);
@@ -108,6 +113,15 @@ namespace Fnmw.UI
             Fx.Kick(burst: 0.35f, tear: 0.5f);
         }
 
+        public void ShowWorkedExample(WorkedExample example, Action onDone)
+        {
+            if (example?.Puzzle == null || example.Answer == null || example.Answer.Length == 0) { onDone?.Invoke(); return; }
+            Swap(_example);
+            // the example is in a language this run never uses: its glyphs take that language's hand, not the console's
+            _example.Show(example, GlyphGen.FamilyFor(example.LanguageName), onDone);
+            Fx.Kick(burst: 0.35f, tear: 0.5f);
+        }
+
         public void ShowAnswerFeedback(AnswerResult result)
         {
             if (result == null || result.Correct) return;      // a right answer is answered by the reveal
@@ -143,6 +157,8 @@ namespace Fnmw.UI
             _hud.SetPrompt(null);
         }
 
+        public void ShowTutorial(TutorialView view) => _tutorial.Show(view);
+
         // ---- internals ------------------------------------------------------------------
 
         void Swap(UiScreen next)
@@ -160,12 +176,30 @@ namespace Fnmw.UI
 
         internal void RememberAnswer(List<Tile> tiles) => _lastAnswer = tiles;
 
+        /// <summary>The screen in front, if any, and the console, for layers that point at parts of it.</summary>
+        internal UiScreen Front => _modal;
+        internal PuzzleScreen Puzzle => _puzzle;
+        internal WorkedExampleScreen Example => _example;
+        /// <summary>The tutorial may draw over the shore, the console and the decode screen; never over the title or an ending.</summary>
+        internal bool TutorialAllowed
+        {
+            get
+            {
+                var s = State ?? Services.State;
+                if (s == null || s.Phase == GamePhase.Title || s.IsOver) return false;
+                return _modal != _title && _modal != _death && _modal != _escape;
+            }
+        }
+
         /// <summary>Name of the screen in front, for tests and automated play.</summary>
         public string ScreenName => _modal == null ? "None" : _modal == _title ? "Title" : _modal == _puzzle ? "Puzzle"
-            : _modal == _decode ? _decode.StepName : _modal == _death ? "Death" : "Escape";
+            : _modal == _example ? "Example" : _modal == _decode ? _decode.StepName : _modal == _death ? "Death" : "Escape";
 
         public string PromptShown => _hud.PromptShown;
+        public string TutorialCueShown => _tutorial.CueShown;
         public int PuzzlePicks => _puzzle.PickCount;
+        /// <summary>The worked example's step ("Barrier" … "Decoded"), for tests and automated play; "None" when it is not up.</summary>
+        public string ExampleStep => _modal == _example ? _example.Current.ToString() : "None";
         public int Cracks => Fx.Cracks;
         public int LanguagesLearned => Journal.Entries.Count;
         public Texture UiTexture => Rig.Rt;
@@ -193,7 +227,9 @@ namespace Fnmw.UI
             bool calmScreen = modal == _title || modal == _escape || modal == _death;
             Fx.Threat = calmScreen || s == null ? 0f : s.Threat;
 
-            bool timer = s != null && phase != GamePhase.Title && !s.IsOver && !calmScreen;
+            // the tutorial's band across the top of the console (and the worked example's) prints where the timer sits
+            bool bandUp = modal == _example || (modal == _puzzle && _tutorial.CueShown != "None");
+            bool timer = s != null && phase != GamePhase.Title && !s.IsOver && !calmScreen && !bandUp;
             _timer.gameObject.SetActive(timer);
             if (timer) Kit.SetText(_timerText, "TIME " + Lore.Clock(s.Elapsed));
 
@@ -202,6 +238,9 @@ namespace Fnmw.UI
             if (hud) _hud.Tick(dt, UiInput.None);
 
             modal?.Tick(dt, input);
+            bool tutorial = TutorialAllowed;
+            if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
+            if (tutorial) _tutorial.Tick(dt, UiInput.None);
             Fx.Tick(dt);
         }
     }

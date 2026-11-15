@@ -86,12 +86,31 @@ namespace Fnmw.UI
             out RawImage glyphImg, out Text capText)
         {
             string alien = tile?.Alien ?? "";
-            float w = Mathf.Max(GlyphPx + 4, FontBook.Width(alien, 16) + 6);
-            w = Mathf.Ceil(w / 2f) * 2f;
+            float w = WordWidth(tile);
             int seed = tile != null ? tile.GlyphSeed : 0;
             glyphImg = Kit.Pic("Glyph", parent, GlyphGen.Texture(seed, fam, GlyphPx), glyph, x + (w - GlyphPx) / 2f, y, GlyphPx, GlyphPx);
             capText = Kit.Label("Sound", parent, alien, 16, caption, TextAnchor.MiddleCenter, x, y + GlyphPx + 1, w, 16);
             return w;
+        }
+
+        /// <summary>The cell width Word will use for a tile.</summary>
+        public static float WordWidth(Tile tile)
+        {
+            float w = Mathf.Max(GlyphPx + 4, FontBook.Width(tile?.Alien ?? "", 16) + 6);
+            return Mathf.Ceil(w / 2f) * 2f;
+        }
+
+        public static float KeycapWidth(string key) => Mathf.Max(18, FontBook.Width(key, 16) + 8);
+
+        /// <summary>A key drawn as a keycap: bone frame, ash fill, the key's name. 18 px tall.</summary>
+        public static RectTransform Keycap(Transform parent, string key, float x, float y)
+        {
+            float kw = KeycapWidth(key);
+            var cap = Kit.Node("Cap", parent, x, y, kw, 18);
+            Kit.Box("Fill", cap, Pal.Ash, 1, 1, kw - 2, 16);
+            Kit.Frame("Frame", cap, Pal.Bone, 0, 0, kw, 18);
+            Kit.Label("Key", cap, key, 16, Pal.Bone, TextAnchor.MiddleCenter, 0, 1, kw, 16);
+            return cap;
         }
 
         static readonly HashSet<string> Small = new HashSet<string> { "the", "a", "an", "is", "are", "of", "for", "to", "in", "my", "it", "this" };

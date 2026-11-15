@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Fnmw.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,10 +32,12 @@ namespace Fnmw.UI
         readonly List<Image> _stars = new List<Image>();
         readonly List<Vector3> _orbits = new List<Vector3>();      // radius, angle, speed (orbiting stars)
         readonly List<Image> _trail = new List<Image>();
-        RectTransform _cue, _sky, _ship;
+        RectTransform _cue, _sky, _ship, _replay;
         RawImage _hole;
         float _swapT;
         int _seed = 7;
+
+        public const string ReplayText = "T  \u00B7  REPLAY TUTORIAL";
 
         const int HoleTex = 112;
         static readonly Vector2 HoleAt = new Vector2(UiRig.StageW / 2f, 50f);   // centre, stage pixels from top-left
@@ -90,6 +93,19 @@ namespace Fnmw.UI
             }
             Kit.Label("Line", Root, TitleCopy.Line, 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 238, 600, 16);
             _cue = Widgets.Cue(Root, 264, TitleCopy.Cue, Pal.Bone);
+            // once the tutorial has been seen (or skipped) this session, it can be asked for again
+            _replay = null;
+            if (TutorialSession.Seen)
+            {
+                // top right corner, clear of the black hole and the title
+                _replay = Kit.Node("Replay", Root, 0, 14, UiRig.StageW, 18);
+                string rest = ReplayText.Substring(1);          // the T is drawn as a keycap
+                float tw = FontBook.Width(rest, 16);
+                float rx = UiRig.StageW - 24 - (18 + tw);
+                Kit.Frame("Cap", _replay, Pal.BoneDim, rx, 0, 18, 18);
+                Kit.Label("Key", _replay, "T", 16, Pal.BoneDim, TextAnchor.MiddleCenter, rx, 1, 18, 16);
+                Kit.Label("Text", _replay, rest, 16, Pal.BoneDim, TextAnchor.MiddleLeft, rx + 18, 1, tw + 4, 16);
+            }
             Tick(0, UiInput.None);
         }
 
@@ -168,6 +184,17 @@ namespace Fnmw.UI
             }
 
             if (_cue) _cue.gameObject.SetActive(Kit.Blink(T, 1.2f));
+            if (_replay)
+            {
+                var g = Kit.Group(_replay);
+                g.alpha = Kit.Ramp(T, 0.8f, 0.5f) * (0.7f + 0.3f * Mathf.PingPong(T * 0.8f, 1f));
+            }
+            if (T > 0.25f && _replay && input.Replay)
+            {
+                TutorialSession.ReplayRequested = true;
+                var cb = _onStart; _onStart = null; cb?.Invoke();
+                return;
+            }
             if (T > 0.25f && (input.Confirm || input.Click)) { var cb = _onStart; _onStart = null; cb?.Invoke(); }
         }
 
