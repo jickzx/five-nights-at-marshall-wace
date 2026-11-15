@@ -15,7 +15,6 @@ namespace Fnmw.UI
         public const string Over = "F I V E   N I G H T S   A T";
         public const string Name = "MARSHALL WACE";
         public const string Target = "TrES-2b  ·  BEYOND THE WORMHOLE  ·  UNCHARTED";
-        public const string Line = "A hole in the sky. A dead tongue. Wake the ship before it wakes.";
         public const string Cue = "BEGIN TRANSIT";
         public const string EscapeLine = "The ship tears free of TrES-2b and its blood sea.";
     }
@@ -92,7 +91,6 @@ namespace Fnmw.UI
                 _glyphs.Add(Kit.Pic("Glyph", Root, GlyphGen.Texture(_seed++ * 7919, (ScriptFamily)(i % 7), 24), Pal.Rust, gx, 206, 24, 24));
                 gx += 32;
             }
-            Kit.Label("Line", Root, TitleCopy.Line, 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 238, 600, 16);
             _cue = Widgets.Cue(Root, 264, TitleCopy.Cue, Pal.Bone);
             // once the tutorial has been seen (or skipped) this session, it can be asked for again
             _replay = null;
