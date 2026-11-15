@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "endpointUrl": "https://your-qs-backend.vercel.app",
+  "sessionId": "",
+  "ingestToken": "",
+  "windowSeconds": 1.0,
+  "hopSeconds": 0.5,
+  "calibrationSeconds": 20
+}
