@@ -247,7 +247,13 @@ def create_app(backend: Backend | None = None) -> FastAPI:
 
     @app.get("/v1/public/sessions/{session_id}/summary")
     def public_summary(session_id: str, db: Db = Depends(public)):
-        row = service.get_summary(db, _uuid(session_id))
+        sid = _uuid(session_id)
+        row = service.get_summary(db, sid)
+        if row is None and service.get_session(db, sid).get("status") == "ended":
+            # The end-of-session background task is not guaranteed to run on a serverless platform, so the first
+            # read of an ended session without a summary writes it (stored, so Gemini is called once).
+            service.auto_summary(b.server_db(), sid, b.summarizer, b.broadcaster)
+            row = service.get_summary(db, sid)
         if row is None:
             raise HTTPException(404, "no summary yet")
         return row
