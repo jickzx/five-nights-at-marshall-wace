@@ -96,6 +96,7 @@ namespace Fnmw.Game
                     ExampleOpen = d && d.ExampleOpen,
                     // in a headset the body turns with the right stick, not the head: practise it once
                     NeedTurn = XrBridge.Active, Turned = XrBridge.StickTurnDegrees - _turn0,
+                    HandsStep = XrBridge.Active, LookingDown = LookingAtHands(), AnyButton = AnyXrButton(),
                 });
                 if (!Flow.Active && d && d.ExampleOpen) d.EndWorkedExample();   // skipped mid-example: straight to the real puzzle
                 if (Flow.Taught && !TutorialSession.Seen || Flow.Taught && TutorialSession.ReplayRequested)
@@ -106,12 +107,25 @@ namespace Fnmw.Game
                 }
                 if (!Flow.Active) Debug.Log("[Tutorial] finished");
             }
-            s.BeastGrace = Flow.Grace;
+            // the guided console holds the beast back; the rest of a tutorial run eases it in (TutorialFlow.GraceFor)
+            s.BeastGrace = Flow.GraceFor(s.Phase, s.PuzzlesSolved, s.TotalPuzzles);
             XrBridge.TutorialActive = Flow.Active;
+            XrBridge.TutorialCue = Flow.Active ? Flow.Cue : TutorialCue.None;
             if (s.IsOver) return;
             try { Services.UI.ShowTutorial(Flow.View(s.PuzzlesSolved, s.TotalPuzzles)); }
             catch (System.Exception ex) { Debug.LogException(ex); }
         }
+
+        /// <summary>VR: the head is pitched well down, where the hands are held.</summary>
+        static bool LookingAtHands()
+        {
+            var h = XrBridge.Head;
+            return XrBridge.Active && h && h.forward.y < -0.5f;   // ~30 degrees or more below the horizon
+        }
+
+        /// <summary>VR: any Touch button went down this frame (the bridge holds one frame of mapped input).</summary>
+        static bool AnyXrButton() => XrBridge.Active &&
+            (XrBridge.Interact || XrBridge.Flashlight || XrBridge.Enter || XrBridge.Click || XrBridge.Back || XrBridge.Leave || XrBridge.Hint);
 
         void Track()
         {

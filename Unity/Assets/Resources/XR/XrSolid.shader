@@ -1,6 +1,6 @@
 // Opaque, depth-writing, stereo-safe flat shading for the VR port's own props (the Touch controller bodies,
 // their buttons and the ground guide's base). A fixed key light from above gives the shapes some form in the
-// dark without depending on the scene's lights. _Emit lifts the colour towards full brightness (button presses).
+// dark (never below 60%, so the controllers stay visible on the black shore) without depending on the scene's lights. _Emit lifts the colour towards full brightness (button presses).
 Shader "Fnmw/XR/Solid"
 {
     Properties
@@ -30,7 +30,7 @@ Shader "Fnmw/XR/Solid"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 float3 n = normalize(UnityObjectToWorldNormal(v.normal));
-                o.shade = 0.45 + 0.55 * saturate(dot(n, normalize(float3(0.3, 1.0, -0.2))) * 0.5 + 0.5);
+                o.shade = 0.6 + 0.4 * saturate(dot(n, normalize(float3(0.3, 1.0, -0.2))) * 0.5 + 0.5);
                 return o;
             }
             fixed4 frag(v2f i) : SV_Target
