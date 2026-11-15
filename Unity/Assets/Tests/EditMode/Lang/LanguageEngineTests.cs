@@ -10,6 +10,7 @@ namespace Fnmw.Tests.Lang
     public class LanguageEngineTests
     {
         static readonly float[] Difficulties = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+        const int Seeds = 300;
         static readonly HashSet<string> KnownConcepts = new HashSet<string>(LangConcepts.All);
 
         static IEnumerable<(LanguageWorld w, LangPuzzle p, int index, float diff)> Sweep(LanguageEngine eng, int seeds, float[] diffs)
@@ -45,6 +46,45 @@ namespace Fnmw.Tests.Lang
             Services.ResetToFakes();
         }
 
+        /// <summary>The fast bitmask hint check gives the same verdict as AllDeducible plus the "no hint holds the whole target" rule.</summary>
+        [Test]
+        public void DeducibleMasks_AgreesWithAllDeducible()
+        {
+            var rng = new Rng(42);
+            int yes = 0;
+            for (int trial = 0; trial < 20000; trial++)
+            {
+                ulong t = rng.Next() & 0x3FF, a = rng.Next() & 0x3FF, b = rng.Next() & 0x3FF, c = rng.Next() & 0x3FF;
+                if (t == 0) continue;
+                List<string> Morphs(ulong m) => Enumerable.Range(0, 10).Where(i => (m >> i & 1) != 0).Select(i => "m" + i).ToList();
+                var tm = Morphs(t);
+                var ex = new List<List<string>> { Morphs(a), Morphs(b), Morphs(c) };
+                bool slow = !ex.Any(e => tm.All(e.Contains)) && PuzzleBuilder.AllDeducible(ex, tm, out _);
+                Assert.AreEqual(slow, PuzzleBuilder.DeducibleMasks(t, a, b, c), $"t {t} a {a} b {b} c {c}");
+                if (slow) yes++;
+            }
+            Assert.Greater(yes, 0, "some random triples should qualify");
+
+            // the pruned triple search finds a triple exactly when brute force does (over hints that share a target morph)
+            int found = 0;
+            for (int trial = 0; trial < 3000; trial++)
+            {
+                ulong t = rng.Next() & 0xFF;
+                if (t == 0) continue;
+                var masks = Enumerable.Range(0, 12).Select(_ => rng.Next() & 0xFF).ToList();
+                bool any = false;
+                for (int x = 0; x < masks.Count && !any; x++)
+                for (int y = x + 1; y < masks.Count && !any; y++)
+                for (int z = y + 1; z < masks.Count && !any; z++)
+                    any = (masks[x] & t) != 0 && (masks[y] & t) != 0 && (masks[z] & t) != 0
+                          && PuzzleBuilder.DeducibleMasks(t, masks[x], masks[y], masks[z]);
+                var pick = PuzzleBuilder.FindHintTriple(t, masks, rng);
+                Assert.AreEqual(any, pick != null, $"trial {trial}");
+                if (pick != null) { found++; Assert.IsTrue(PuzzleBuilder.DeducibleMasks(t, masks[pick[0]], masks[pick[1]], masks[pick[2]])); }
+            }
+            Assert.Greater(found, 0);
+        }
+
         [Test]
         public void SameSeed_GivesSameWorld_AndDifferentSeedsDiffer()
         {
@@ -74,12 +114,12 @@ namespace Fnmw.Tests.Lang
         {
             var eng = new LanguageEngine();
             int n = 0;
-            foreach (var (w, p, i, d) in Sweep(eng, 300, Difficulties))
+            foreach (var (w, p, i, d) in Sweep(eng, Seeds, Difficulties))
             {
                 n++;
                 string ctx = $"seed {w.Seed} console {i} difficulty {d}";
-                Assert.That(p.Examples.Count, Is.InRange(2, 3), ctx);
-                Assert.That(p.Tiles.Count, Is.InRange(2, 6), ctx);
+                Assert.AreEqual(PuzzleBuilder.ExampleCount, p.Examples.Count, "three hint sentences " + ctx);
+                Assert.That(p.Tiles.Count, Is.InRange(PuzzleBuilder.MinAnswerTiles + 1, PuzzleBuilder.MaxTiles), ctx);
                 Assert.IsFalse(string.IsNullOrWhiteSpace(p.TargetMeaning), ctx);
                 Assert.IsFalse(string.IsNullOrWhiteSpace(p.AlienName), ctx);
                 Assert.That(p.Difficulty, Is.InRange(0f, 1f), ctx);
@@ -95,19 +135,28 @@ namespace Fnmw.Tests.Lang
 
                 var built = LanguageEngine.Inspect(w, p.Id);
                 Assert.Less(built.AnswerIds.Length, p.Tiles.Count, "at least one distractor " + ctx);
+                Assert.That(built.AnswerIds.Length, Is.InRange(PuzzleBuilder.MinAnswerTiles, PuzzleBuilder.MaxAnswerTiles), "the target is a sentence of several tiles " + ctx);
+                // no single hint already holds the whole answer: the player has to combine hints
+                var answerMorphs = built.AnswerKey.Split('+').Distinct().ToList();
+                foreach (var e in p.Examples)
+                {
+                    var em = new HashSet<string>(e.Words.SelectMany(t => t.Id.Split('+')));
+                    Assert.IsFalse(answerMorphs.All(em.Contains), "one hint contains the whole target " + ctx);
+                }
                 Assert.AreEqual(built.AcceptedKeys.Count, built.ValidAnswerCount, ctx);
                 var ok = eng.Check(w, p.Id, built.AnswerIds);
                 Assert.IsTrue(ok.Correct, ctx);
                 Assert.IsNull(ok.MissedConcept, ctx);
                 Assert.IsFalse(string.IsNullOrWhiteSpace(ok.Feedback), ctx);
             }
-            Assert.AreEqual(300 * LanguageEngine.DefaultPuzzleCount * Difficulties.Length, n);
+            Assert.AreEqual(Seeds * LanguageEngine.DefaultPuzzleCount * Difficulties.Length, n);
         }
 
         /// <summary>
-        /// Independent of the engine's own solver: try every sequence of distinct tiles through the public
-        /// Check and count how many are accepted. Exactly the real answers (one, or two where Japanese allows
-        /// the object first), and every rejected one names a known concept.
+        /// Independent of the engine's own solver: put every ordering of the answer tiles, and every answer with one
+        /// tile swapped for a distractor or left out, through the public Check. Exactly the real orders are accepted
+        /// (one, or two where Japanese allows the object first), and every rejected one names a known concept.
+        /// (Trying every sequence of up to ten tiles is too slow now that answers are whole sentences.)
         /// </summary>
         [Test]
         public void EveryPuzzle_AcceptsExactlyTheRealAnswers()
@@ -115,29 +164,50 @@ namespace Fnmw.Tests.Lang
             var eng = new LanguageEngine();
             foreach (var (w, p, i, d) in Sweep(eng, 40, new[] { 0f, 0.5f, 1f }))
             {
-                int accepted = 0;
-                var used = new bool[p.Tiles.Count];
-                var seq = new List<string>();
-                void Dfs()
+                var b = LanguageEngine.Inspect(w, p.Id);
+                string ctx = $"seed {w.Seed} console {i} difficulty {d}: {p.TargetMeaning}";
+                void Reject(string[] guess)
                 {
-                    if (seq.Count > 0)
+                    var r = eng.Check(w, p.Id, guess);
+                    Assert.IsFalse(r.Correct, $"{ctx}: accepted {string.Join(" ", guess)}");
+                    Assert.That(KnownConcepts, Does.Contain(r.MissedConcept), $"untagged wrong answer {string.Join(" ", guess)}");
+                }
+
+                int accepted = 0;
+                var ans = b.AnswerIds;
+                var used = new bool[ans.Length];
+                var seq = new List<string>();
+                void Perm()
+                {
+                    if (seq.Count == ans.Length)
                     {
                         var r = eng.Check(w, p.Id, seq.ToArray());
                         if (r.Correct) accepted++;
-                        else Assert.That(KnownConcepts, Does.Contain(r.MissedConcept), $"untagged wrong answer {string.Join(" ", seq)}");
+                        else Assert.That(KnownConcepts, Does.Contain(r.MissedConcept), $"untagged wrong order {string.Join(" ", seq)}");
+                        return;
                     }
-                    for (int k = 0; k < p.Tiles.Count; k++)
+                    for (int k = 0; k < ans.Length; k++)
                     {
                         if (used[k]) continue;
-                        used[k] = true; seq.Add(p.Tiles[k].Id);
-                        Dfs();
+                        used[k] = true; seq.Add(ans[k]);
+                        Perm();
                         seq.RemoveAt(seq.Count - 1); used[k] = false;
                     }
                 }
-                Dfs();
-                var b = LanguageEngine.Inspect(w, p.Id);
-                Assert.AreEqual(b.AcceptedKeys.Count, accepted, $"seed {w.Seed} console {i} difficulty {d}: {p.TargetMeaning}");
+                Perm();
+                Assert.AreEqual(b.AcceptedKeys.Count, accepted, ctx);
                 Assert.AreEqual(b.Draft.AlsoCorrect.Count + 1, b.AcceptedKeys.Count, "every extra order is distinct");
+
+                var distractors = p.Tiles.Select(t => t.Id).Where(id => !ans.Contains(id)).ToList();
+                for (int slot = 0; slot < ans.Length; slot++)
+                {
+                    Reject(ans.Where((_, k) => k != slot).ToArray());
+                    foreach (var x in distractors)
+                    {
+                        var g = (string[])ans.Clone(); g[slot] = x; Reject(g);
+                        Reject(ans.Take(slot).Append(x).Concat(ans.Skip(slot)).ToArray());
+                    }
+                }
             }
         }
 

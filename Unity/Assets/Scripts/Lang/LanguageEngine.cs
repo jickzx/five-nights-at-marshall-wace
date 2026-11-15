@@ -15,7 +15,7 @@ namespace Fnmw.Lang
     {
         public const int DefaultPuzzleCount = 5;
         public const float NeutralDifficulty = 0.5f;
-        const int MaxAttempts = 60;
+        const int MaxAttempts = 120;
 
         readonly int _puzzleCount;
 
@@ -126,6 +126,7 @@ namespace Fnmw.Lang
 
         public static int TierFor(float eff) => Math.Min(3, (int)(eff * 4f));
         public static int DistractorsFor(float eff) => 1 + (int)Math.Round(eff * 2f);
+        // languages now supply exactly 3 non-optional examples, so dropping optional ones is a no-op
         public static bool DropOptionalFor(float eff) => eff >= 0.65f;
 
         // ------------------------------------------------------------------ internals

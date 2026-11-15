@@ -93,12 +93,15 @@ namespace Fnmw.UI
             return w;
         }
 
-        /// <summary>The cell width Word will use for a tile.</summary>
+        /// <summary>The cell width <see cref="Word"/> uses for a tile: the glyph, or the caption if wider.</summary>
         public static float WordWidth(Tile tile)
         {
             float w = Mathf.Max(GlyphPx + 4, FontBook.Width(tile?.Alien ?? "", 16) + 6);
             return Mathf.Ceil(w / 2f) * 2f;
         }
+
+        /// <summary>Height of a <see cref="Word"/> cell: glyph, a pixel, then the caption.</summary>
+        public const int WordH = GlyphPx + 1 + 16;
 
         public static float KeycapWidth(string key) => Mathf.Max(18, FontBook.Width(key, 16) + 8);
 

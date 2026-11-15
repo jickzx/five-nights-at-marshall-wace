@@ -5,8 +5,10 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Arabic, transliterated: many words are a three-consonant root (the meaning) set into a vowel pattern (the role):
-    /// "he did it", "one who does it", "place of doing it". Every word shown is a real word from the table below.
+    /// Arabic (Modern Standard), transliterated: many words are a three-consonant root (the meaning) set into a
+    /// vowel pattern (the role): "he did it", "one who does it", "place of doing it". Puzzles are short sentences
+    /// ("jalasa al-kātib fī al-maktab", the writer sat in the office) built only from real words in the table below.
+    /// Case endings are left off, as in unvowelled writing and pause; nouns carry al- (with sun-letter assimilation).
     /// </summary>
     public sealed class Arabic : SourceLanguage
     {
@@ -25,98 +27,228 @@ namespace Fnmw.Lang.Languages
             ("PLACE", "maCCaC", "place of"),     // maktab
         };
 
-        sealed class Entry { public string Root, Pattern, Ar, Tr, En; }
+        // En: verb = English past; agent/place = English noun. Prep: how English says "fī" with this place.
+        sealed class Entry { public string Root, Pattern, Ar, Tr, En, Prep; }
         // only real words, and only where the word really has this pattern
         static readonly Entry[] Words =
         {
-            new Entry { Root = "ktb", Pattern = "PERF", Ar = "كتب", Tr = "kataba", En = "he wrote" },
-            new Entry { Root = "ktb", Pattern = "AGENT", Ar = "كاتب", Tr = "kātib", En = "writer (one who writes)" },
-            new Entry { Root = "ktb", Pattern = "PLACE", Ar = "مكتب", Tr = "maktab", En = "office (a place for writing)" },
-            new Entry { Root = "qtl", Pattern = "PERF", Ar = "قتل", Tr = "qatala", En = "he killed" },
-            new Entry { Root = "qtl", Pattern = "AGENT", Ar = "قاتل", Tr = "qātil", En = "killer (one who kills)" },
-            new Entry { Root = "qtl", Pattern = "PLACE", Ar = "مقتل", Tr = "maqtal", En = "place of killing" },
-            new Entry { Root = "skn", Pattern = "PERF", Ar = "سكن", Tr = "sakana", En = "he dwelt" },
-            new Entry { Root = "skn", Pattern = "AGENT", Ar = "ساكن", Tr = "sākin", En = "inhabitant (one who dwells)" },
-            new Entry { Root = "skn", Pattern = "PLACE", Ar = "مسكن", Tr = "maskan", En = "dwelling (a place for living)" },
-            new Entry { Root = "lb", Pattern = "AGENT", Ar = "لاعب", Tr = "lāʿib", En = "player (one who plays)" },
-            new Entry { Root = "lb", Pattern = "PLACE", Ar = "ملعب", Tr = "malʿab", En = "stadium (a place for playing)" },
-            new Entry { Root = "rkb", Pattern = "AGENT", Ar = "راكب", Tr = "rākib", En = "rider (one who rides)" },
-            new Entry { Root = "rkb", Pattern = "PLACE", Ar = "مركب", Tr = "markab", En = "boat (a thing to ride in)" },
-            new Entry { Root = "drs", Pattern = "PERF", Ar = "درس", Tr = "darasa", En = "he studied" },
-            new Entry { Root = "drs", Pattern = "AGENT", Ar = "دارس", Tr = "dāris", En = "learner (one who studies)" },
-            new Entry { Root = "jls", Pattern = "PERF", Ar = "جلس", Tr = "jalasa", En = "he sat" },
+            new Entry { Root = "ktb", Pattern = "PERF", Ar = "كتب", Tr = "kataba", En = "wrote" },
+            new Entry { Root = "ktb", Pattern = "AGENT", Ar = "كاتب", Tr = "kātib", En = "writer" },
+            new Entry { Root = "ktb", Pattern = "PLACE", Ar = "مكتب", Tr = "maktab", En = "office", Prep = "in" },
+            new Entry { Root = "qtl", Pattern = "PERF", Ar = "قتل", Tr = "qatala", En = "killed" },
+            new Entry { Root = "qtl", Pattern = "AGENT", Ar = "قاتل", Tr = "qātil", En = "killer" },
+            new Entry { Root = "skn", Pattern = "PERF", Ar = "سكن", Tr = "sakana", En = "lived" },
+            new Entry { Root = "skn", Pattern = "AGENT", Ar = "ساكن", Tr = "sākin", En = "tenant" },
+            new Entry { Root = "skn", Pattern = "PLACE", Ar = "مسكن", Tr = "maskan", En = "home", Prep = "in" },
+            new Entry { Root = "lb", Pattern = "AGENT", Ar = "لاعب", Tr = "lāʿib", En = "player" },
+            new Entry { Root = "lb", Pattern = "PLACE", Ar = "ملعب", Tr = "malʿab", En = "stadium", Prep = "in" },
+            new Entry { Root = "rkb", Pattern = "AGENT", Ar = "راكب", Tr = "rākib", En = "rider" },
+            new Entry { Root = "rkb", Pattern = "PLACE", Ar = "مركب", Tr = "markab", En = "boat", Prep = "on" },
+            new Entry { Root = "drs", Pattern = "PERF", Ar = "درس", Tr = "darasa", En = "studied" },
+            new Entry { Root = "drs", Pattern = "AGENT", Ar = "دارس", Tr = "dāris", En = "student" },
+            new Entry { Root = "jls", Pattern = "PERF", Ar = "جلس", Tr = "jalasa", En = "sat" },
+            new Entry { Root = "tbkh", Pattern = "PERF", Ar = "طبخ", Tr = "ṭabakha", En = "cooked" },
+            new Entry { Root = "tbkh", Pattern = "PLACE", Ar = "مطبخ", Tr = "maṭbakh", En = "kitchen", Prep = "in" },
+            new Entry { Root = "dkhl", Pattern = "PERF", Ar = "دخل", Tr = "dakhala", En = "entered" },
+            new Entry { Root = "dkhl", Pattern = "PLACE", Ar = "مدخل", Tr = "madkhal", En = "entrance", Prep = "at" },
+            new Entry { Root = "khrj", Pattern = "PERF", Ar = "خرج", Tr = "kharaja", En = "left" },
+            new Entry { Root = "khrj", Pattern = "PLACE", Ar = "مخرج", Tr = "makhraj", En = "exit", Prep = "at" },
         };
         static readonly Dictionary<string, string> RootGloss = new Dictionary<string, string>
         {
             { "ktb", "k-t-b (write)" }, { "qtl", "q-t-l (kill)" }, { "skn", "s-k-n (dwell)" }, { "lb", "l-ʿ-b (play)" },
-            { "rkb", "r-k-b (ride)" }, { "drs", "d-r-s (study)" }, { "jls", "j-l-s (sit)" },
+            { "rkb", "r-k-b (ride)" }, { "drs", "d-r-s (study)" }, { "jls", "j-l-s (sit)" }, { "tbkh", "ṭ-b-kh (cook)" },
+            { "dkhl", "d-kh-l (enter)" }, { "khrj", "kh-r-j (go out)" },
         };
 
-        static readonly string[] Roots = { "ktb", "qtl", "skn", "lb", "rkb", "drs", "jls" };
+        static readonly string[] Roots = { "ktb", "qtl", "skn", "lb", "rkb", "drs", "jls", "tbkh", "dkhl", "khrj" };
+
+        // which places each intransitive verb sensibly takes with fī
+        static readonly Dictionary<string, string[]> VerbPlaces = new Dictionary<string, string[]>
+        {
+            { "jls", new[] { "ktb", "lb", "rkb", "tbkh", "dkhl", "khrj", "skn" } },
+            { "ktb", new[] { "ktb", "rkb", "skn" } },
+            { "drs", new[] { "ktb", "skn", "rkb" } },
+            { "skn", new[] { "skn", "rkb" } },
+            { "tbkh", new[] { "tbkh", "rkb", "skn" } },
+        };
+        static readonly string[] Enterable = { "ktb", "lb", "rkb", "tbkh", "skn" };   // dakhala X, kharaja min X
 
         public Arabic()
         {
             foreach (var r in Roots) Add("r." + r, MorphKind.Root3, RootGloss[r].Split(' ')[0], RootGloss[r], LangConcepts.ConsonantRoot);
             foreach (var (key, shape, gloss) in Patterns) Add("p." + key, MorphKind.Pattern, shape, gloss, LangConcepts.VowelPattern);
+            Add("fi", MorphKind.Particle, "fī", "in");
+            Add("min", MorphKind.Particle, "min", "from");
 
-
-            Kind("root-pattern", 0, (r, t) => RootPattern(r, false));
-            Kind("root-pattern-lean", 2, (r, t) => RootPattern(r, true));
+            BuildPool();
+            // Targets are always "verb subject fī place". A "kharaja X min Y" target cannot be pinned down by three
+            // hints: min always comes with a verb, a place and (or not) a subject, so its pieces never separate.
+            Kind("root-pattern", 0, (r, t) => Make(r, Sentence.Where, false));
+            Kind("root-pattern-lean", 2, (r, t) => Make(r, Sentence.Where, true));
         }
 
-        /// <summary>A root in a pattern is looked up, never generated, so only real words appear.</summary>
+        /// <summary>
+        /// A root in a pattern is looked up, never generated, so only real words appear. Nouns (every non-verb
+        /// pattern) are definite: al-, assimilated before a sun letter (as-sākin, ar-rākib, ad-dāris).
+        /// </summary>
         public override string Surface(Word w) =>
-            w.M.Length == 2 ? (Find(w.M[0].Substring(2), w.M[1].Substring(2)) ?? throw new KeyNotFoundException($"Arabic: no real word for {w.Id}")).Tr
+            w.M.Length == 2 ? Tr(Find(w.M[0].Substring(2), w.M[1].Substring(2)) ?? throw new KeyNotFoundException($"Arabic: no real word for {w.Id}"))
                             : base.Surface(w);
 
         static Entry Find(string root, string pattern) => Words.FirstOrDefault(e => e.Root == root && e.Pattern == pattern);
+        static Entry FindW(Word w) => w.M.Length == 2 ? Find(w.M[0].Substring(2), w.M[1].Substring(2)) : null;
         static Word Wd(string root, string pattern) => W("r." + root, "p." + pattern);
-        // reading first, script in brackets: Lore.SplitReal swaps them, and UI/Rtl.cs joins the letters
-        static string Real(Entry e) => $"{e.Tr} ({e.Ar})";
 
-        /// <summary>
-        /// Full: examples R1P1, R1P2, R2P1, target R2P2. Lean (harder): examples R1P2, R2P3, target R1P3.
-        /// </summary>
-        Draft RootPattern(Rng rng, bool lean)
+        const string SunLetters = "tdrzsṣḍṭẓln";
+        static bool Noun(Entry e) => e.Pattern != "PERF";
+        static string Tr(Entry e) => !Noun(e) ? e.Tr : SunLetters.IndexOf(e.Tr[0]) >= 0 ? "a" + e.Tr[0] + "-" + e.Tr : "al-" + e.Tr;
+        static string Ar(Entry e) => Noun(e) ? "ال" + e.Ar : e.Ar;
+
+        // ---- the sentence pool: every sentence a puzzle may show
+        enum Sentence { Where, From, Is, Enter, Bare, Kill, Via, He }
+        sealed class Sent { public int Index; public Sentence Type; public List<Word> Words; public string En; public HashSet<string> Morphs; public ulong Mask; }
+        readonly List<Sent> _pool = new List<Sent>();
+
+        static Entry Agent(string r) => Find(r, "AGENT");
+        static Entry Place(string r) => Find(r, "PLACE");
+        static Entry Verb(string r) => Find(r, "PERF");
+
+        void BuildPool()
         {
-            var roots = Roots.ToList();
-            var pats = Patterns.Select(p => p.key).ToList();
-            while (true)
+            var agents = Words.Where(e => e.Pattern == "AGENT").ToList();
+            var places = Words.Where(e => e.Pattern == "PLACE").ToList();
+            void Put(Sentence t, string en, params Word[] ws) =>
+                _pool.Add(new Sent { Type = t, Words = ws.ToList(), En = en, Morphs = new HashSet<string>(ws.SelectMany(w => w.M)), Mask = MorphMask(ws) });
+            Word Wn(Entry e) => Wd(e.Root, e.Pattern);
+            foreach (var s in agents)
             {
-                var rs = rng.Sample(roots, 2);
-                var ps = rng.Sample(pats, 3);
-                string r1 = rs[0], r2 = rs[1], p1 = ps[0], p2 = ps[1], p3 = ps[2];
-                (string root, string pat)[] ex;
-                (string root, string pat) tgt;
-                if (lean) { ex = new[] { (r1, p2), (r2, p3) }; tgt = (r1, p3); }
-                else { ex = new[] { (r1, p1), (r1, p2), (r2, p1) }; tgt = (r2, p2); }
-                var target = Find(tgt.root, tgt.pat);
-                var examples = ex.Select(x => Find(x.root, x.pat)).ToList();
-                if (target == null || examples.Any(e => e == null)) continue;
-
-                var place = Words.Where(w => w.Pattern == "PLACE").Take(3).ToList();
-                var ktb = Words.Where(w => w.Root == "ktb").ToList();
-                var d = new Draft
+                foreach (var kv in VerbPlaces)
                 {
-                    Concept = LangConcepts.ConsonantRoot,
-                    Concepts = new[] { LangConcepts.VowelPattern },
-                    HypConcepts = new string[] { null },
-                    TargetMeaning = Cap(target.En),
-                    Target = h => P(Wd(target.Root, target.Pattern)),
-                    RealText = Real(target),
-                    Translation = target.En,
-                    Feature = $"Arabic builds words from a root of three consonants, the meaning, set into a vowel pattern, the role: k-t-b 'writing' gives {string.Join(", ", ktb.Select(e => $"{e.Tr} '{Short(e.En)}'"))}.",
-                    NowYouKnow = $"The pattern ma-CC-a-C means 'place of': {string.Join(", ", place.Select(e => $"{e.Tr} '{Short(e.En)}' ({RootGloss[e.Root].Split(' ')[0]})"))}.",
-                };
-                foreach (var e in examples) d.Example(Cap(e.En), h => P(Wd(e.Root, e.Pattern)));
-                // wrong root with the right pattern, right root with the wrong pattern: only words that really exist
-                foreach (var r in roots.Where(x => x != tgt.root && Find(x, tgt.pat) != null)) d.Mistake(P(Wd(r, tgt.pat)), LangConcepts.ConsonantRoot);
-                foreach (var p in pats.Where(x => x != tgt.pat && Find(tgt.root, x) != null)) d.Mistake(P(Wd(tgt.root, p)), LangConcepts.VowelPattern);
-                return d;
+                    var v = Verb(kv.Key);
+                    foreach (var pr in kv.Value)
+                    {
+                        var p = Place(pr);
+                        Put(Sentence.Where, $"The {s.En} {v.En} {p.Prep} the {p.En}.", Wn(v), Wn(s), W("fi"), Wn(p));
+                    }
+                    Put(Sentence.Bare, $"The {s.En} {v.En}.", Wn(v), Wn(s));
+                }
+                Put(Sentence.Bare, $"The {s.En} came in.", Wn(Verb("dkhl")), Wn(s));
+                Put(Sentence.Bare, $"The {s.En} went out.", Wn(Verb("khrj")), Wn(s));
+                Put(Sentence.Via, $"The {s.En} came in the entrance.", Wn(Verb("dkhl")), Wn(s), W("min"), Wn(Place("dkhl")));
+                Put(Sentence.Via, $"The {s.En} left by the exit.", Wn(Verb("khrj")), Wn(s), W("min"), Wn(Place("khrj")));
+                foreach (var p in places) Put(Sentence.Is, $"The {s.En} is {p.Prep} the {p.En}.", Wn(s), W("fi"), Wn(p));
+                foreach (var pr in Enterable)
+                {
+                    var p = Place(pr);
+                    Put(Sentence.Enter, $"The {s.En} entered the {p.En}.", Wn(Verb("dkhl")), Wn(s), Wn(p));
+                    Put(Sentence.From, $"The {s.En} left the {p.En}.", Wn(Verb("khrj")), Wn(s), W("min"), Wn(p));
+                }
+                foreach (var o in agents.Where(o => o != s))
+                    Put(Sentence.Kill, $"The {s.En} killed the {o.En}.", Wn(Verb("qtl")), Wn(s), Wn(o));
             }
+            // the verb ending already says 'he', so a sentence needs no subject word: kharaja min al-maktab 'he left the office'
+            foreach (var kv in VerbPlaces)
+            {
+                var v = Verb(kv.Key);
+                foreach (var pr in kv.Value)
+                {
+                    var p = Place(pr);
+                    Put(Sentence.He, $"He {v.En} {p.Prep} the {p.En}.", Wn(v), W("fi"), Wn(p));
+                }
+            }
+            foreach (var pr in Enterable)
+            {
+                var p = Place(pr);
+                Put(Sentence.He, $"He entered the {p.En}.", Wn(Verb("dkhl")), Wn(p));
+                Put(Sentence.He, $"He left the {p.En}.", Wn(Verb("khrj")), W("min"), Wn(p));
+            }
+            _pool.RemoveAll(s => s.Type == Sentence.Bare && s.Words[0].M[0] == "r.skn");   // bare "sakana" means "calmed down"
+            for (int i = 0; i < _pool.Count; i++) _pool[i].Index = i;
         }
 
-        static string Short(string en) { int i = en.IndexOf(" ("); return i < 0 ? en : en.Substring(0, i); }
-        static string Cap(string s) => char.ToUpperInvariant(s[0]) + s.Substring(1);
+        static string Real(Sent s) =>
+            // reading first, script in brackets: Lore.SplitReal swaps them, and UI/Rtl.cs joins the letters
+            $"{string.Join(" ", s.Words.Select(w => FindW(w) is Entry e ? Tr(e) : w.M[0] == "fi" ? "fī" : "min"))} " +
+            $"({string.Join(" ", s.Words.Select(w => FindW(w) is Entry e ? Ar(e) : w.M[0] == "fi" ? "في" : "من"))})";
+
+        /// <summary>
+        /// Target: a verb-first sentence (verb, subject, fī/min, place). Hints: three other real sentences that,
+        /// compared with each other, pin down every root and every pattern of the target, so the target's nouns
+        /// (often never seen as whole words) are derived as root + pattern. Lean: no word of the target is shown
+        /// whole in a hint; every noun must be assembled from a root seen elsewhere.
+        /// </summary>
+        // targets with no valid hint triple at all (the pool is fixed, and the search finds a triple whenever one exists)
+        static readonly HashSet<(int, bool)> Unsolvable = new HashSet<(int, bool)>();
+
+        Draft Make(Rng rng, Sentence type, bool lean)
+        {
+            var targets = _pool.Where(s => s.Type == type).ToList();
+            rng.Shuffle(targets);
+            foreach (var tgt in targets)
+            {
+                // one draw per target whether or not it is searched, so skipping a known dead end keeps a seed's puzzles the same
+                var sub = new Rng(rng.Next());
+                lock (Unsolvable) if (Unsolvable.Contains((tgt.Index, lean))) continue;
+                var tWords = new HashSet<string>(tgt.Words.Where(w => w.M.Length == 2 && Noun(FindW(w))).Select(w => w.Id));
+                var cands = _pool.Where(x => x != tgt && (!lean || !x.Words.Any(w => tWords.Contains(w.Id)))).ToList();
+                var pick = PuzzleBuilder.FindHintTriple(tgt.Mask, cands.Select(x => x.Mask).ToList(), sub);
+                if (pick == null) { lock (Unsolvable) Unsolvable.Add((tgt.Index, lean)); continue; }
+                return Draft(tgt, pick.Select(i => cands[i]).ToList());
+            }
+            return Draft(targets[0], _pool.Take(3).ToList());   // PuzzleBuilder rejects it and the engine retries
+        }
+
+        Draft Draft(Sent tgt, List<Sent> ex)
+        {
+            var words = tgt.Words;
+            var nouns = words.Where(w => w.M.Length == 2 && Noun(FindW(w))).Select(FindW).ToList();
+            var verb = FindW(words[0]);
+            var subj = FindW(words[1]);
+            var place = nouns.Last();
+            // verb-subject order is the normal one in writing; subject-first (SVO) is also correct Arabic
+            var svo = new List<Word> { words[1], words[0] }.Concat(words.Skip(2)).ToList();
+            var d = new Draft
+            {
+                Concept = LangConcepts.ConsonantRoot,
+                Concepts = new[] { LangConcepts.VowelPattern },
+                OrderConcept = LangConcepts.WordOrder,
+                HypConcepts = new string[] { null },
+                TargetMeaning = tgt.En,
+                Target = h => words.ToList(),
+                RealText = Real(tgt),
+                Translation = tgt.En,
+                Feature = $"Words are a three-consonant root set into a vowel pattern: {Tr(subj)} '{subj.En}' is {Rg(subj)} in CāCiC 'one who does', " +
+                          $"{Tr(place)} '{place.En}' is {Rg(place)} in maCCaC 'place of'.",
+            };
+            d.Also(svo);
+            var facts = new List<string>
+            {
+                $"Arabic usually puts the verb first: {Tr(verb)} {Tr(subj)} is word for word '{verb.En} the {subj.En}'.",
+                "The pattern ma-CC-a-C means 'place of': maktab 'office' (k-t-b, write), malʿab 'stadium' (l-ʿ-b, play), maṭbakh 'kitchen' (ṭ-b-kh, cook).",
+            };
+            if (nouns.Any(n => SunLetters.IndexOf(n.Tr[0]) >= 0))
+                facts.Add($"'The' is al-, but it takes on a following 'sun letter' in speech: {string.Join(", ", nouns.Where(n => SunLetters.IndexOf(n.Tr[0]) >= 0).Select(Tr))}, still written ال.");
+            d.NowYouKnow = facts[(int)(Hash.Fnv(tgt.En) % (uint)facts.Count)];
+
+            foreach (var e in ex) d.Example(e.En, h => e.Words.ToList());
+
+            // wrong root in the right pattern, right root in the wrong pattern: only words that really exist
+            for (int i = 0; i < words.Count; i++)
+            {
+                var e = FindW(words[i]);
+                if (e == null)
+                {
+                    d.Mistake(Swap(words, i, W(words[i].M[0] == "fi" ? "min" : "fi")), LangConcepts.Vocabulary);
+                    continue;
+                }
+                foreach (var r in Roots.Where(x => x != e.Root && Find(x, e.Pattern) != null)) d.Mistake(Swap(words, i, Wd(r, e.Pattern)), LangConcepts.ConsonantRoot);
+                foreach (var p in Patterns.Select(x => x.key).Where(x => x != e.Pattern && Find(e.Root, x) != null)) d.Mistake(Swap(words, i, Wd(e.Root, p)), LangConcepts.VowelPattern);
+            }
+            return d;
+        }
+
+        static List<Word> Swap(List<Word> ws, int i, Word w) { var c = ws.ToList(); c[i] = w; return c; }
+        static string Rg(Entry e) => RootGloss[e.Root].Split(' ')[0];
     }
 }

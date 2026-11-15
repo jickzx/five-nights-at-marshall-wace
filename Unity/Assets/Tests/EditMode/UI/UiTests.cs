@@ -406,6 +406,108 @@ namespace Fnmw.UI.Tests
             Assert.That(languages.Count, Is.GreaterThanOrEqualTo(7), "expected every source language to be exercised");
         }
 
+        static void AssertOnStage(Rect r, string what)
+        {
+            Assert.That(r.xMin, Is.GreaterThanOrEqualTo(PuzzleLayout.L - 0.5f), what + " left edge " + r);
+            Assert.That(r.xMax, Is.LessThanOrEqualTo(PuzzleLayout.R + 0.5f), what + " right edge " + r);
+            Assert.That(r.yMin, Is.GreaterThanOrEqualTo(PuzzleLayout.Top - 2f), what + " top " + r);
+            Assert.That(r.yMax, Is.LessThanOrEqualTo(PuzzleLayout.Foot + 0.5f), what + " bottom " + r);
+        }
+
+        static Rect Inset(Rect r) => new Rect(r.x + 0.5f, r.y + 0.5f, r.width - 1f, r.height - 1f);
+
+        [Test]
+        public void SentencePuzzles_FitTheConsole()
+        {
+            int checkedPuzzles = 0;
+            float minScale = 1f, minSlotScale = 1f, maxTiles = 0;
+            for (int seed = 1; seed <= 24; seed++)
+            {
+                var world = _engine.Generate(seed);
+                Services.State.World = world;
+                Services.State.TotalPuzzles = world.Puzzles.Count;
+                for (int i = 0; i < world.Puzzles.Count; i++)
+                    foreach (float difficulty in new[] { 0.05f, 0.35f, 0.65f, 0.95f })
+                    {
+                        var p = _engine.GetPuzzle(world, i, difficulty);
+                        string tag = "seed " + seed + " puzzle " + i + " d" + difficulty + ": ";
+                        Assert.That(p.Tiles.Count, Is.LessThanOrEqualTo(PuzzleLayout.MaxSlots), tag + "more tiles than number keys");
+                        var lay = PuzzleLayout.For(p);
+                        maxTiles = Mathf.Max(maxTiles, p.Tiles.Count);
+
+                        Assert.IsFalse(lay.TwoCol, tag + "three examples stay in one column");
+                        for (int e = 0; e < lay.Rows.Length; e++)
+                        {
+                            var row = lay.Rows[e];
+                            AssertOnStage(row.Plate, tag + "example " + e + " plate");
+                            Assert.That(row.Plate.yMax, Is.LessThanOrEqualTo(lay.YAnswer - 4 + 0.5f), tag + "example " + e + " plate runs into the answer");
+                            for (int k = 0; k < row.Widths.Length; k++)
+                            {
+                                var w = row.Word(k);
+                                AssertOnStage(w, tag + "example " + e + " word " + k);
+                                Assert.That(w.xMin, Is.GreaterThanOrEqualTo(row.Plate.xMax), tag + "word over its plate");
+                                Assert.That(w.yMax, Is.LessThanOrEqualTo(lay.YAnswer - 4 + 1f), tag + "example word runs into the answer");
+                            }
+                            minScale = Mathf.Min(minScale, row.Scale);
+                        }
+
+                        AssertOnStage(lay.Slots, tag + "slots");
+                        AssertOnStage(lay.Send, tag + "send");
+                        Assert.That(lay.Slots.xMax, Is.LessThanOrEqualTo(lay.Send.xMin), tag + "slots run under SEND");
+
+                        // the answer, and every tile at once, fit the slots (with the cursor while not full)
+                        var answer = Fnmw.Lang.LanguageEngine.DebugSolution(world, p.Id);
+                        foreach (var picks in new[] { answer, p.Tiles.ConvertAll(t => t.Id).ToArray() })
+                        {
+                            var widths = new List<float>();
+                            foreach (var id in picks) widths.Add(PuzzleLayout.WordWidth(p.Tiles.Find(t => t.Id == id)));
+                            float room = lay.SlotRoom(widths.Count);
+                            PuzzleLayout.Fit(widths, room, out float gap, out float scale);
+                            float used = -gap;
+                            foreach (var w in widths) used += w + gap;
+                            Assert.That(used * scale, Is.LessThanOrEqualTo(room + 0.5f), tag + "placed words overflow the slots");
+                            float cursorRight = lay.Slots.x + (used + gap) * scale + 2 + (widths.Count < PuzzleLayout.MaxSlots ? 32 : 0);
+                            Assert.That(cursorRight, Is.LessThanOrEqualTo(lay.Send.xMin), tag + "cursor runs under SEND");
+                            minSlotScale = Mathf.Min(minSlotScale, scale);
+                        }
+
+                        Assert.That(lay.Tiles.Length, Is.EqualTo(p.Tiles.Count));
+                        Assert.That(lay.TileRows, Is.LessThanOrEqualTo(2), tag);
+                        for (int a = 0; a < lay.Tiles.Length; a++)
+                        {
+                            AssertOnStage(lay.Tiles[a], tag + "tile " + a);
+                            Assert.That(lay.Tiles[a].yMin, Is.GreaterThanOrEqualTo(lay.Slots.yMax - 2f), tag + "tile under the answer row");
+                            for (int b = a + 1; b < lay.Tiles.Length; b++)
+                                Assert.IsFalse(Inset(lay.Tiles[a]).Overlaps(Inset(lay.Tiles[b])), tag + "tiles " + a + " and " + b + " overlap");
+                        }
+
+                        // and the screen itself builds from the same layout, and takes the engine's own answer
+                        if (difficulty < 0.1f || difficulty > 0.9f)
+                        {
+                            int submits = 0;
+                            _ui.ShowPuzzle(p, ids => submits++);
+                            Wait(0.6f);
+                            foreach (var id in answer) Press(UiInput.Key(p.Tiles.FindIndex(t => t.Id == id)));
+                            Assert.AreEqual(answer.Length, _ui.PuzzlePicks, tag + "every answer tile places");
+                            Press(UiInput.PressEnter);
+                            Assert.AreEqual(1, submits, tag);
+                            foreach (var rt in _ui.GetComponentsInChildren<RectTransform>(true))
+                            {
+                                if (!rt.name.StartsWith("Tile") || rt.parent == null || rt.parent.name != "Tiles") continue;
+                                int idx = int.Parse(rt.name.Substring(4));
+                                var want = lay.Tiles[idx];
+                                Assert.That(rt.anchoredPosition.x, Is.EqualTo(Mathf.Round(want.x)).Within(0.01f), tag + rt.name);
+                                Assert.That(-rt.anchoredPosition.y, Is.EqualTo(Mathf.Round(want.y)).Within(0.01f), tag + rt.name);
+                            }
+                            _ui.HideAll();
+                        }
+                        checkedPuzzles++;
+                    }
+            }
+            Assert.That(checkedPuzzles, Is.GreaterThan(0));
+            Debug.Log("[UI] sentence layout: " + checkedPuzzles + " puzzles, max tiles " + maxTiles + ", smallest example scale " + minScale + ", smallest slot scale " + minSlotScale);
+        }
+
         [Test]
         public void FullRun_FiveConsoles_ToTheEscapeSummary()
         {
