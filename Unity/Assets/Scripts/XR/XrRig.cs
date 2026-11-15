@@ -241,7 +241,7 @@ namespace Fnmw.XR
 
         static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
 
-        XrContext Context => XrHelp.ContextFor(Services.State.Phase, _theater);
+        XrContext Context => XrHelp.ContextFor(Services.State.Phase, _theater, XrBridge.LessonStage);
 
         /// <summary>The wrist card and the button labels for what the player is doing now. Cheap when nothing changed.</summary>
         void RefreshHelp()

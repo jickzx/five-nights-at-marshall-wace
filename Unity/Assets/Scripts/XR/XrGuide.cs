@@ -99,6 +99,10 @@ namespace Fnmw.XR
             Vector3 feet = _player.position;
             Vector3 at = feet + dir * Ahead;
             if (!Ground(at, feet.y, out var point, out var normal)) return false;
+            // The sea is displaced in its shader and has no collider. Keep the marker above its crests.
+            var state = Services.State;
+            float waterTop = state.SeaLevel + state.SeaWaveCrest;
+            if (point.y < waterTop) { point.y = waterTop; normal = Vector3.up; }
             // pointing along the ground, tilted with it
             Vector3 along = Vector3.ProjectOnPlane(dir, normal);
             if (along.sqrMagnitude < 1e-4f) along = dir;

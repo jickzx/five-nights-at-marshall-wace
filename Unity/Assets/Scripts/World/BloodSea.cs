@@ -16,6 +16,8 @@ namespace Fnmw.World
             go.AddComponent<MeshFilter>().sharedMesh = Grid(560f, 560f, 280, 280);
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = new Material(Ps1Look.Load("BloodSea")) { name = "blood_sea" };
+            // Sum of the absolute Swell coefficients in BloodSea.shader bounds every animated crest.
+            Services.State.SeaWaveCrest = Mathf.Abs(mr.sharedMaterial.GetFloat("_WaveHeight")) * 1.34f;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             // A coarse far sea under the detailed one, out to the horizon, so it reads as an ocean from the air.

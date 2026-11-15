@@ -57,6 +57,25 @@ namespace Fnmw.XR.Tests
         }
 
         [Test]
+        public void FloodedGround_KeepsGuideAboveWaveCrests_ThenReturnsToDryGround()
+        {
+            Services.ResetToFakes();
+            Box("Ground", new Vector3(0, -0.5f, 0), new Vector3(40, 1, 40), Quaternion.identity);
+            var g = Guide(out _);
+            Physics.SyncTransforms();
+            Services.State.SeaLevel = 0.4f;
+            Services.State.SeaWaveCrest = 0.402f;
+            Assert.IsTrue(g.PlaceToward(Vector3.forward));
+            Assert.That(g.Chevron.position.y, Is.InRange(0.81f, 0.85f));
+            Assert.Less(Vector3.Angle(g.Chevron.up, Vector3.up), 0.01f);
+            Services.State.SeaLevel = -1f;
+            Assert.IsTrue(g.PlaceToward(Vector3.forward));
+            Assert.That(g.Chevron.position.y, Is.InRange(0.005f, 0.05f));
+            Assert.AreEqual((float)UnityEngine.Rendering.CompareFunction.LessEqual,
+                g.Chevron.GetComponent<Renderer>().sharedMaterial.GetFloat("_ZTest"));
+        }
+
+        [Test]
         public void FollowsASlope_AndARaisedStep()
         {
             // a ramp rising towards +Z at 20 degrees

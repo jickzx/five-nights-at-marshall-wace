@@ -13,6 +13,8 @@ namespace Fnmw.Core
     /// The game reads these fields exactly where it reads the keyboard, so the rules, screens and flow stay
     /// one-to-one; only where the input comes from and where the picture goes changes.
     /// </summary>
+    public enum XrLessonStage { None, Reading, Building }
+
     public static class XrBridge
     {
         /// <summary>True only while the game runs in a headset. Never true in the desktop build.</summary>
@@ -42,6 +44,9 @@ namespace Fnmw.Core
         /// The controller labels then show "hold Y: skip tutorial".</summary>
         public static bool TutorialActive;
 
+        /// <summary>The UI publishes the worked-example step for controller help.</summary>
+        public static XrLessonStage LessonStage;
+
         /// <summary>Layer the UI glass should sit on (0 normally; the theater's own layer while a cutscene is up).</summary>
         public static int GlassLayer;
 
@@ -65,7 +70,7 @@ namespace Fnmw.Core
         public static void Reset()
         {
             Active = false; Head = null; Glass = null; CutscenePlaying = false; GlassLayer = 0;
-            HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false;
+            HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false; LessonStage = XrLessonStage.None;
             ClearFrame();
         }
 

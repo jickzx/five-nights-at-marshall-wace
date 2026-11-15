@@ -132,6 +132,23 @@ namespace Fnmw.XR.Tests
         }
 
         [Test]
+        public void WorkedExample_HelpNamesSkippingInsteadOfClearing_AndTracksPracticeStep()
+        {
+            var reading = XrHelp.ContextFor(GamePhase.Puzzle, false, XrLessonStage.Reading);
+            Assert.AreEqual(XrContext.LessonReading, reading);
+            XrHelp.RightLabels(reading, false, out var a, out var b, out _, out _, out _);
+            Assert.AreEqual("NEXT", a);
+            StringAssert.Contains("SKIP EXAMPLE", b);
+            StringAssert.DoesNotContain("CLEAR", b);
+            var building = XrHelp.ContextFor(GamePhase.Puzzle, false, XrLessonStage.Building);
+            Assert.AreEqual(XrContext.LessonBuilding, building);
+            StringAssert.Contains("place / send", XrHelp.Card(building, false, true));
+            StringAssert.Contains("skip example", XrHelp.Card(building, false, true));
+            StringAssert.DoesNotContain("clear", XrHelp.Card(building, false, true));
+            StringAssert.DoesNotContain("B  back", XrHelp.Card(XrContext.Screen, false, false));
+        }
+
+        [Test]
         public void Labels_NameOnlyWhatWorks()
         {
             XrHelp.RightLabels(XrContext.Console, false, out var a, out var b, out _, out var trig, out _);
