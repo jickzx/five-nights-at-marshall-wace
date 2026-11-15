@@ -81,7 +81,7 @@ namespace Fnmw.UI
             var head = Section("Head");
             Kit.Label("Tongue", head, (_p.AlienName ?? world?.AlienName ?? "UNKNOWN TONGUE").ToUpperInvariant(), 16, Pal.RustHot, TextAnchor.MiddleLeft, L, 14, 300, 16);
             int total = state != null ? state.TotalPuzzles : 0, solved = state != null ? state.PuzzlesSolved : 0;
-            Widgets.Power(head, R - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
+            Widgets.Power(head, R - 140 - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
             Kit.Box("Rule", head, Pal.Rust, L, 36, R - L, 1);
 
             // tile rows first: they decide how much room the mural gets
