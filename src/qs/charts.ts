@@ -5,13 +5,13 @@ import { FAMILY, rank } from "./states";
 import { questionBands, type SessionView } from "./store";
 import type { LiveWindow } from "./types";
 
-export const INK = "#070506";
+export const INK = "#E8DCC0";      // Pal.Bone: the "now" line
 export const COLORS = {
   alarm: "#D0112B",     // Pal.Blood
   arousal: "#CE682E",   // Pal.RustHot
-  calm: "#10152E",      // Pal.Indigo
-  line: "#C9D6E6",      // Pal.Dawn
-  soft: "#4A423B",      // Pal.Ink
+  calm: "#C9D6E6",      // Pal.Dawn
+  line: "#4A2214",      // Pal.RustDeep
+  soft: "#9A8D76",      // Pal.BoneDim
 };
 
 function fit(canvas: HTMLCanvasElement) {

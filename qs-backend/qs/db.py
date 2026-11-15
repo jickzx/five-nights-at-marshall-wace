@@ -380,3 +380,37 @@ class MemoryDb:
                                                         if str(i["candidate_id"]) != cid]
             self.s.tables["qs_candidates"] = [c for c in self.s.tables["qs_candidates"] if str(c["id"]) != cid]
         return {"candidate_id": cid, "sessions": len(sessions), **counts, "realtime_messages": 0}
+
+
+# ---------------------------------------------------------------- public view ---------------------------
+
+PUBLIC_TABLES = frozenset({"qs_question_sets", "qs_questions", "qs_candidates", "qs_sessions", "qs_consents",
+                           "qs_motion_windows", "qs_events", "qs_records", "qs_summaries"})
+
+
+class PublicDb:
+    """Read-only view of ONE employer's pseudonymous data, for the no-sign-in demo page (QS_PUBLIC_EMPLOYER_ID).
+
+    Every read is filtered to that employer; identities, tokens, devices and memberships are not reachable, and
+    every write raises. Built on the server connection, so the employer filter here is the only guard: keep the
+    table list to pseudonymous data."""
+
+    def __init__(self, server: Db, employer_id: str):
+        self._db = server
+        self._emp = employer_id
+
+    def select(self, table, q=None, columns="*"):
+        if table not in PUBLIC_TABLES:
+            raise DbError(403, "not available in the public view")
+        q = copy.deepcopy(q) if q else Query()
+        q.eq["employer_id"] = self._emp
+        return self._db.select(table, q, columns)
+
+    def insert(self, *a, **k):
+        raise DbError(403, "the public view is read-only")
+
+    def update(self, *a, **k):
+        raise DbError(403, "the public view is read-only")
+
+    def rpc(self, *a, **k):
+        raise DbError(403, "the public view is read-only")

@@ -5,7 +5,8 @@ import "./qs.css";
 import { COLORS, ribbon, sparkline } from "./charts";
 import { DemoSource, type Fixture } from "./demo";
 import { FEATURES, OUTCOME_LABELS, fmt } from "./labels";
-import { assertBrowserSafeKey, readConfig, type QsSource } from "./source";
+import { PublicSource } from "./public";
+import { readConfig, type QsSource } from "./source";
 import { because, chipText, current, FAMILY, headline, questionName, topOf, vsCalm } from "./states";
 import { applyMessage, emptyView, orderedRecords, type SessionView } from "./store";
 import type { LiveWindow, Observation, QsMessage, QsRecord, Question, RecordState, Session, SummaryResult } from "./types";
@@ -300,7 +301,7 @@ function paintSummary() {
   } else if (s.status === "unavailable" || s.status === "rejected") {
     html = `<p class="notice"><b>Summary unavailable.</b> ${esc(s.reason ?? s.status)}</p><p class="fine">The states and question records above do not depend on it.</p>`;
   } else html = `<p class="lede">${ended ? "Waiting for the summary." : "When the session ends, Gemini Flash writes a short summary from the question records, their states and evidence."}</p>`;
-  body.innerHTML = `${html}<p class="actions">${button}</p>`;
+  body.innerHTML = demo ? `${html}<p class="actions">${button}</p>` : html;   // the public view only reads summaries
   $("make-summary")?.addEventListener("click", async () => {
     if (!state.view || !state.source) return;
     const v = state.view;
@@ -313,39 +314,11 @@ function paintSummary() {
   });
 }
 
-// ---------------------------------------------------------------- sign in (live mode only)
-
-function showSignIn(source: import("./live").LiveSource) {
-  show("intro");
-  const el = $("signin");
-  el.innerHTML = `<form>
-      <label>Work email<input name="email" type="email" autocomplete="username" required></label>
-      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-      <button type="submit">Sign in</button>
-      <p class="fine" role="alert"></p>
-    </form>`;
-  el.querySelector("form")!.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.target as HTMLFormElement);
-    const alert = el.querySelector("[role=alert]")!;
-    alert.textContent = "Signing in…";
-    const err = await source.signIn(String(f.get("email")), String(f.get("password")));
-    if (err) { alert.textContent = `Sign-in failed: ${err}. Check the email and password.`; return; }
-    $("intro").hidden = true;
-    await start(source);
-  });
-}
-
 // ---------------------------------------------------------------- boot
 
 async function start(source: QsSource) {
   state.source = source;
   show("sessions", "now", "vitals", "timeline", "questions", "summary");
-  if (source.mode === "live") {
-    const out = $("signout");
-    out.hidden = false;
-    out.onclick = async () => { await (source as import("./live").LiveSource).signOut(); location.reload(); };
-  }
   state.prompts = await source.questionPrompts().catch(() => ({}));
   await refreshSessions();
   source.watchSessions(() => void refreshSessions());
@@ -397,17 +370,8 @@ async function boot() {
   }
   mode.className = "mode live";
   mode.textContent = "Live";
-  try {
-    assertBrowserSafeKey(cfg.publishableKey);
-  } catch (e) {
-    mode.textContent = "Misconfigured";
-    show("intro");
-    $("signin").innerHTML = `<p class="notice">${esc((e as Error).message)}</p>`;
-    return;
-  }
-  const { LiveSource } = await import("./live");
-  const live = await LiveSource.create(cfg);
-  if (await live.signedIn()) await start(live); else showSignIn(live);
+  // No sign-in: the API's public view serves the demo employer's pseudonymous sessions, read-only.
+  await start(new PublicSource(cfg));
 }
 
 void boot();

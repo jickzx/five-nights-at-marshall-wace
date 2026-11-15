@@ -26,6 +26,8 @@ class Settings:
     # "memory" runs the whole API on an in-process store (local demo, tests). "supabase" needs the keys above.
     store: str = "supabase"
     cors_origins: tuple[str, ...] = ()
+    # Employer whose pseudonymous data the no-sign-in page may read (GET /v1/public/...). Empty: no public view.
+    public_employer_id: str = ""
     consent_version: str = "qs-consent-2026-11-mic"
 
     @staticmethod
@@ -42,6 +44,7 @@ class Settings:
             gemini_disabled=_env("QS_GEMINI_DISABLED") in ("1", "true", "yes"),
             store=store,
             cors_origins=origins,
+            public_employer_id=_env("QS_PUBLIC_EMPLOYER_ID"),
         )
 
     @property
