@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from . import gemini, service
 from .auth import AuthError, verify_employer_token
 from .config import Settings
-from .db import Db, DbError, MemoryStore, PostgrestDb, Principal
+from .db import Db, DbError, MemoryStore, PostgrestDb, Principal, PublicDb
 from .models import CandidateIn, ConsentIn, DeviceIn, DeviceSessionIn, IngestBatch, QuestionSetIn, SessionIn
 from .realtime import Broadcaster, NullBroadcaster, SupabaseBroadcaster
 
@@ -212,6 +212,44 @@ def create_app(backend: Backend | None = None) -> FastAPI:
         row = service.get_summary(db, _uuid(session_id))
         if row is None:
             raise HTTPException(404, "no summary yet; POST to create one")
+        return row
+
+    # ---- public, read-only view of one employer (no sign-in), for the demo page
+    def public() -> Db:
+        if not settings.public_employer_id:
+            raise HTTPException(404, "no public view on this server")
+        return PublicDb(b.server_db(), settings.public_employer_id)
+
+    @app.get("/v1/public/question-sets")
+    def public_question_sets(db: Db = Depends(public)):
+        return service.list_question_sets(db)
+
+    @app.get("/v1/public/sessions")
+    def public_sessions(limit: int = Q(default=50, ge=1, le=200), db: Db = Depends(public)):
+        return service.list_sessions(db, None, limit)
+
+    @app.get("/v1/public/sessions/{session_id}")
+    def public_session(session_id: str, db: Db = Depends(public)):
+        return service.get_session(db, _uuid(session_id))
+
+    @app.get("/v1/public/sessions/{session_id}/qs")
+    def public_records(session_id: str, db: Db = Depends(public)):
+        return service.get_records(db, _uuid(session_id))
+
+    @app.get("/v1/public/sessions/{session_id}/windows")
+    def public_windows(session_id: str, after_seq: int = Q(default=-1, ge=-1), limit: int = Q(default=2000, ge=1, le=5000),
+                       tail: bool = False, db: Db = Depends(public)):
+        return [service.live_window(w) for w in service.get_windows(db, _uuid(session_id), after_seq, limit, tail)]
+
+    @app.get("/v1/public/sessions/{session_id}/events")
+    def public_events(session_id: str, db: Db = Depends(public)):
+        return service.get_events(db, _uuid(session_id))
+
+    @app.get("/v1/public/sessions/{session_id}/summary")
+    def public_summary(session_id: str, db: Db = Depends(public)):
+        row = service.get_summary(db, _uuid(session_id))
+        if row is None:
+            raise HTTPException(404, "no summary yet")
         return row
 
     @app.post("/v1/sessions/{session_id}/summary")
