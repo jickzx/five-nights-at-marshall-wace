@@ -35,6 +35,19 @@ Every named action is sampled on every frame at 24 fps. Temporary NLA strips pre
 
 Use Generic rigs and set looping from the manifest. Walk, run, stalk and chase have no net forward travel; the game controller supplies locomotion. Preserve their animated vertical offsets and limb poses. Lunge moves its root 0.9 m forward. The player's seven-second `death_martyr` ends at `(0, -0.384, -0.015)` m relative to its starting root. The ship's nine-second `takeoff` starts with the hatch closed and ends at `(1.6, 12.35, -13.2)` m, with folded landing feet and the nose raised. Apply those authored movements once. Hold the final martyr, lunge, hatch-close and door-open poses; finish the escape transition at the end of takeoff.
 
+## The Principal (current beast)
+
+`beast_stage1..3` are now "The Principal": a generic, faceless, too-thin fund boss in a charcoal suit, covered in rival funds' wordmarks (not modelled on, named after or labelled as any real person). Build it with:
+
+```sh
+python3 tools/blender/ceo_beast_atlas.py   # 256x256 atlas -> Unity/Assets/Resources/Models/Textures/beast_ceo_atlas.png
+/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/ceo_beast.py -- 1 2 3
+```
+
+Same names, takes (idle 97f, stalk 73f, chase 19f, lunge 37f), heights (2.35 / 2.9 / 3.55 m) and rig type as before. Unlike the rest of the kit, the beast faces Unity **+Z**, because `BeastController` turns it with `LookRotation` and leaves the model's local rotation at identity (the old beast faced -Z and so ran backwards). One textured material (`principal_atlas`, point filtered, no mipmaps) plus emissive `eye`. Stage 3 samples the blood-smeared bottom half of the atlas.
+
+The previous beast (Drowned Witness) is kept in `assets/backup/beast_drowned_witness/` (FBX with their original `.meta`, `.blend`, previews and manifest entries). To revert, copy `fbx/*` back to `Unity/Assets/Resources/Models/`, `blender/*` to `assets/blender/`, and restore the three entries from `manifest_entries.json`.
+
 ## Interactive geometry
 
 The console has a blank 0.79 × 0.19 m UV-mapped `screen`, centred at `(0, 1.235, -0.343)`, and independent `tile_0` through `tile_3` meshes. Its front faces -Z. Press a tile 0.025 m along model-local +Z, then restore its original position. Mesh origins remain at the asset base; mesh bounds give each key's visible centre. The ship has a decorative cockpit dashboard and a hinged side ramp. Its entry is 1.58 m wide with at least 1.91 m vertical clearance, and its open ramp extends to X = 2.87559 m. Play `hatch_close` before `takeoff`.
