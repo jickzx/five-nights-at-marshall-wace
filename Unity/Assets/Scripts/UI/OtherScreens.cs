@@ -169,14 +169,15 @@ namespace Fnmw.UI
     internal sealed class DeathScreen : UiScreen
     {
         Action _onRestart;
-        Text _line;
+        Text _line, _debrief;
         RawImage _key;
+        const float DebriefAt = 6.4f;
 
         public DeathScreen(GameUI ui) : base(ui, "Death") { }
         public override GlassMode Glass => GlassMode.Death;
         public const string Line = "Unfortunately, after careful consideration, we decided to move forward with other candidates.";
 
-        public void Show(Action onRestart)
+        public void Show(Action onRestart, string debrief = null)
         {
             Open();
             _onRestart = onRestart;
@@ -184,14 +185,37 @@ namespace Fnmw.UI
             _line.enabled = false;
             _key = Kit.Pic("Key", Root, Pictograms.Get("enter"), Pal.Ivory, 313, 204, 13, 13);
             _key.enabled = false;
+            _debrief = null;
+            SetDebrief(debrief);
             Ui.Fx.WhiteTarget = 1f;
             Ui.Fx.InkTarget = 0f;
         }
+
+        /// <summary>The run's account under the line. Can change while the screen is up (a live reply replacing the stock one).</summary>
+        public void SetDebrief(string text)
+        {
+            if (string.IsNullOrEmpty(text)) { if (_debrief) _debrief.text = ""; return; }
+            int lines = Mathf.Max(1, Kit.Lines(text, 16, 540));
+            if (!_debrief)
+            {
+                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Ivory, TextAnchor.UpperCenter, 50, 236, 540, lines * 17, wrap: true);
+                Kit.Pitch(_debrief, 17);
+                _debrief.enabled = T > DebriefAt;
+            }
+            else
+            {
+                Kit.SetText(_debrief, text);
+                Kit.Place(_debrief.rectTransform, 50, 236, 540, lines * 17);
+            }
+        }
+
+        public string DebriefText => _debrief && _debrief.text.Length > 0 ? _debrief.text : null;
 
         protected override void OnTick(float dt, UiInput input)
         {
             Ui.Fx.WhiteTarget = 1f;
             if (T > 4.6f) { _line.enabled = true; Ui.Fx.InkTarget = 1f; }
+            if (_debrief) _debrief.enabled = T > DebriefAt;   // after the line has had a moment to itself
             _key.enabled = T > 9f && Mathf.Repeat(T, 2.4f) < 1.2f;
             if (T > 3f && (input.Confirm || input.Click)) { var cb = _onRestart; _onRestart = null; cb?.Invoke(); }
         }
@@ -203,6 +227,9 @@ namespace Fnmw.UI
         Action _onRestart;
         RectTransform _sky, _cue, _ship;
         Image _trail;
+        Text _debrief;
+        Image _debriefBack;   // dark panel: the account sits on the bright horizon of the sky
+        float _debriefAt;
         readonly List<Image> _stars = new List<Image>();
         readonly List<Graphic> _fadeIn = new List<Graphic>();
         readonly List<float> _fadeAt = new List<float>();
@@ -229,11 +256,26 @@ namespace Fnmw.UI
             return _gradient;
         }
 
-        public void Show(GameState state, RunJournal journal, Action onRestart)
+        // the run's account sits in a band above the AGAIN cue, across the full width under the ship's trail
+        const float DebriefX = 44, DebriefW = 552, DebriefBottom = 328, DebriefPitch = 17;
+        /// <summary>Lines kept free even before the account arrives, so a late one never lands on the list. Four: a
+        /// debrief may be 210 characters, which wraps to four lines at this width.</summary>
+        public const int DebriefReserve = 4;
+        const float TightEntry = 32;       // a tongue's name and one phrase, closed right up
+        float _debriefTop;                 // the top of the band the list was laid out to leave free
+
+        static float DebriefTop(string text) =>
+            DebriefBottom - Mathf.Max(DebriefReserve, string.IsNullOrEmpty(text) ? 0 : Kit.Lines(text, 16, DebriefW)) * DebriefPitch;
+
+        public void Show(GameState state, RunJournal journal, Action onRestart, string debrief = null)
         {
             Open();
             _onRestart = onRestart;
             _stars.Clear(); _fadeIn.Clear(); _fadeAt.Clear();
+            _debrief = null;
+            _debriefBack = null;
+            _debriefTop = DebriefTop(debrief);
+            float bottom = _debriefTop - 4;
 
             // sky across the whole glass, not just the stage
             Kit.Kill(_sky ? _sky.gameObject : null);
@@ -253,9 +295,11 @@ namespace Fnmw.UI
             // a run decodes up to five tongues: with more than two, the list drops to two lines each
             int count = journal != null ? Mathf.Min(journal.Entries.Count, 5) : 0;
             bool roomy = count <= 2;
-            float y = roomy ? 34 : 24;
+            // five tongues, each with a phrase, above a full debrief band: pull the header up so none loses its rows
+            bool compact = !roomy && 24 + 38 + 24 + 25 + count * TightEntry > bottom;
+            float y = roomy ? 34 : compact ? 20 : 24;
             Fade(Kit.Label("Title", Root, "LIFT-OFF", 32, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, 400, 32), 0.6f);
-            y += 38;
+            y += compact ? 34 : 38;
             if (roomy)
             {
                 Fade(Kit.Label("Sub", Root, TitleCopy.EscapeLine, 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
@@ -266,22 +310,26 @@ namespace Fnmw.UI
                 string stats = "CONSOLES " + state.PuzzlesSolved + "/" + state.TotalPuzzles + "  \u00B7  MISFIRES " + state.Mistakes + "  \u00B7  " + Lore.Clock(state.Elapsed);
                 Fade(Kit.Label("Stats", Root, stats, 16, Pal.BoneDim, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.5f);
             }
-            y += roomy ? 30 : 24;
+            y += roomy ? 30 : compact ? 20 : 24;
             Fade(Kit.Label("Tag", Root, count > 0 ? "WHAT YOU CARRY OUT" : "NO TONGUE DECODED THIS TIME", 16, Pal.Amber, TextAnchor.MiddleLeft, 44, y, 420, 16), 2.0f);
             Fade(Kit.Box("Rule", Root, Pal.Amber.A(0.6f), 44, y + 19, 250, 1), 2.0f);
-            y += roomy ? 28 : 25;
+            y += roomy ? 28 : compact ? 22 : 25;
 
             float at = 2.4f;
+            // five tongues and the account do not fit at the usual spacing: close the rows up
+            bool tight = !roomy && y + count * 37 > bottom;
             for (int i = 0; i < count; i++)
             {
                 var e = journal.Entries[i];
+                if (y + 16 > bottom) break;
                 float nw = FontBook.Width(e.Language.ToUpperInvariant(), 16);
                 Fade(Kit.Label("Lang", Root, e.Language.ToUpperInvariant(), 16, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, nw + 4, 16), at);
                 if (e.Named) Fade(Kit.Pic("Named", Root, Pictograms.Get("check"), Pal.Amber, 44 + nw + 8, y + 1, 13, 13), at);
-                y += roomy ? 20 : 17;
+                y += roomy ? 20 : tight ? 16 : 17;
                 int phrases = Mathf.Min(e.Phrases.Count, roomy ? 3 : 1);
                 for (int p = 0; p < phrases; p++)
                 {
+                    if (y + 16 > bottom) break;
                     var ph = e.Phrases[p];
                     float rw = FontBook.Width(Rtl.Visual(ph.Real), 16);
                     Fade(Kit.Label("Real", Root, ph.Real, 16, Pal.Amber, TextAnchor.MiddleLeft, 56, y, rw + 4, 16), at + 0.15f);
@@ -289,26 +337,63 @@ namespace Fnmw.UI
                     float mw = FontBook.Width(ph.Translation ?? "", 16);
                     if (56 + rw + 14 + mw <= 516)
                         Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 56 + rw + 14, y, 460 - rw, 16), at + 0.15f);
-                    else if (roomy)
+                    else if (roomy && y + 19 + 16 <= bottom)
                     {
                         y += 19;
                         Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 68, y, 448, 16), at + 0.15f);
                     }
-                    y += roomy ? 19 : 17;
+                    y += roomy ? 19 : tight ? 16 : 17;
                 }
-                if (roomy && !string.IsNullOrEmpty(e.Fact))
+                int room = Mathf.FloorToInt((bottom - y - 2) / 18f);
+                if (roomy && !string.IsNullOrEmpty(e.Fact) && room >= 1)
                 {
-                    int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 430), 1, 3);
+                    int lines = Mathf.Clamp(Kit.Lines(e.Fact, 16, 430), 1, Mathf.Min(3, room));
                     var t = Kit.Label("Fact", Root, e.Fact, 16, Pal.Dawn, TextAnchor.UpperLeft, 56, y + 2, 430, lines * 18, true);
                     Kit.Pitch(t, 18);
                     Fade(t, at + 0.3f);
                     y += lines * 18 + 4;
                 }
-                y += roomy ? 8 : 3;
+                y += roomy ? 8 : tight ? 0 : 3;
                 at += roomy ? 0.5f : 0.3f;
             }
+            _debriefAt = Mathf.Max(3f, at);
+            SetDebrief(debrief);
             _cue = Widgets.Cue(Root, 334, "AGAIN", Pal.Ivory);
         }
+
+        /// <summary>The run's account above the cue. Can arrive or change while the screen is up; a change fades in again.</summary>
+        public void SetDebrief(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                if (_debrief) _debrief.text = "";
+                if (_debriefBack) _debriefBack.enabled = false;
+                return;
+            }
+            int lines = Mathf.Max(1, Kit.Lines(text, 16, DebriefW));
+            float h = lines * DebriefPitch;
+            // never above the band the list left free: an account longer than the band grows down toward the cue instead
+            float top = Mathf.Max(DebriefBottom - h, _debriefTop);
+            if (!_debriefBack) _debriefBack = Kit.Box("DebriefBack", Root, Pal.Indigo.A(0.78f), 0, 0, 1, 1);
+            _debriefBack.enabled = true;
+            Kit.Place(_debriefBack.rectTransform, DebriefX - 8, top - 4, DebriefW + 16, h + 8);
+            if (!_debrief)
+            {
+                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Ivory, TextAnchor.UpperLeft, DebriefX, top, DebriefW, h, wrap: true);
+                Kit.Pitch(_debrief, DebriefPitch);
+            }
+            else
+            {
+                if (_debrief.text == Rtl.Visual(text)) return;
+                Kit.SetText(_debrief, text);
+                Kit.Place(_debrief.rectTransform, DebriefX, top, DebriefW, h);
+            }
+            _debriefAt = Mathf.Max(_debriefAt, T);
+            _debrief.canvasRenderer.SetAlpha(0);
+            _debriefBack.canvasRenderer.SetAlpha(0);
+        }
+
+        public string DebriefText => _debrief && _debrief.text.Length > 0 ? _debrief.text : null;
 
         void Fade(Graphic g, float at)
         {
@@ -326,6 +411,8 @@ namespace Fnmw.UI
         {
             for (int i = 0; i < _fadeIn.Count; i++)
                 if (_fadeIn[i]) _fadeIn[i].canvasRenderer.SetAlpha(Kit.Ramp(T, _fadeAt[i], 0.6f));
+            if (_debrief) _debrief.canvasRenderer.SetAlpha(Kit.Ramp(T, _debriefAt, 0.6f));
+            if (_debriefBack) _debriefBack.canvasRenderer.SetAlpha(Kit.Ramp(T, _debriefAt, 0.6f));
             for (int i = 0; i < _stars.Count; i++)
                 _stars[i].color = Pal.Dawn.A(0.35f + 0.65f * Mathf.Abs(Mathf.Sin(T * (0.4f + (i % 5) * 0.17f) + i)));
             // the ship climbs slowly, for as long as you watch

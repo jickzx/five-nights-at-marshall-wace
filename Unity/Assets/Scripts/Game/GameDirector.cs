@@ -18,6 +18,8 @@ namespace Fnmw.Game
     public class GameDirector : MonoBehaviour
     {
         public static GameDirector Instance { get; private set; }
+        /// <summary>Raised just before Restart reloads the scene, so pending work for this run can be dropped.</summary>
+        public static event Action Restarting;
 
         public IReadOnlyList<Interactable> Route => _route;
         public Interactable Ship => _ship;
@@ -42,6 +44,15 @@ namespace Fnmw.Game
         GameState S => Services.State;
 
         void Awake() => Instance = this;
+
+        /// <summary>Domain reload is off on entering play mode, so statics outlive a play session: drop the last one's
+        /// Restarting subscribers and instance before the first scene loads.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            Restarting = null;
+            Instance = null;
+        }
 
         void Start()
         {
@@ -371,6 +382,7 @@ namespace Fnmw.Game
 
         public void Restart()
         {
+            Guard(() => Restarting?.Invoke(), "Restarting");
             int idx = SceneManager.GetActiveScene().buildIndex;
             SceneManager.LoadScene(idx >= 0 ? idx : 0);
         }

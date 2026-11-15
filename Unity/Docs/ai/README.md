@@ -4,12 +4,18 @@
 
 ## Turn it on
 
-1. Copy `Unity/secrets.example.json` to `Unity/Assets/Resources/Ai/secrets.json`, then paste the key into `geminiApiKey` in the copy. Never put a key in the example file: it is tracked. The whole `Assets/Resources/Ai` folder is gitignored.
+**In the Editor (local development):**
+
+1. Copy `Unity/secrets.example.json` to `Unity/secrets.json` (the Unity project folder, outside `Assets`), then paste the key into `geminiApiKey` in the copy. Never put a key in the example file: it is tracked. `Unity/secrets.json` is gitignored and, being outside `Assets`, is never bundled into a build.
 2. Press Play. The console prints `[Ai] Gemini ready: model ...`. Each request then logs `[Ai] <feature> <status> in <ms> ms`.
 
-Because that file is under `Resources`, a build made on a machine that has it carries the key inside the app and needs no setup where it runs. A `secrets.json` in the Unity project folder (beside a build's data folder, in a build) and one in the save folder are also read. Building with the key file present logs a warning that the build carries the key. Environment variables override all of them: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off.
+Environment variables override the file: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off. A `secrets.json` in the save folder is also read. A key left in the older location, `Assets/Resources/Ai/secrets.json`, still works in the Editor, but any build then fails (below) until it moves to `Unity/secrets.json`.
 
-This repository is public, so the key file must stay out of git: a key pushed to GitHub can be used by anyone and is likely to be disabled by Google. A key baked into a build can also be extracted from it, which is acceptable for a demo build handed to judges and not for a public release. A public release sets `aiProxyUrl` instead: the client POSTs the same body to that URL with `?model=<model>` and no key, and the proxy adds the key and forwards it to Gemini. The proxy is not written yet.
+**In a player build (desktop or Quest): proxy only.** `AiConfig.Load` ignores every key outside the Editor, from any file or the environment, so a build reaches Gemini only through `aiProxyUrl` (or `FNMW_AI_PROXY_URL`). The client POSTs the same generateContent body to that URL with `?model=<model>` and no key; the proxy adds the key server-side. To give a build a proxy, put `{"aiProxyUrl": "https://..."}` in `Unity/Assets/Resources/Ai/secrets.json` (gitignored, bundled). `AiKeyBuildGuard` fails the build if that file holds a `geminiApiKey`, so a key on the build machine cannot ship by accident.
+
+**No generateContent proxy exists in this repository.** The sponsor backend (`backend/`) serves the ship hints, monster lines and pronunciation through its own endpoints and is not a generic Gemini relay. So today a build has no live Gemini text: every Core.Ai feature (currently only the run debrief) shows its stock text. Live text is seen only in the Editor with a local key, and only when the Gemini project has credit (see "What has been verified").
+
+This repository is public, so keys must stay out of git: a key pushed to GitHub can be used by anyone and is likely to be disabled by Google.
 
 The default model is `gemini-3.5-flash-lite`. Change `geminiModel` if the account has no access to it.
 
@@ -25,16 +31,16 @@ _pending?.Cancel();
 if (Services.Ai.Available)
     _pending = Services.Ai.Request(new AiRequest
     {
-        Feature = "taunt",
-        System = "You are ... Reply with one line of at most 14 words.",
+        Feature = "debrief",
+        System = "You are ... Reply with two short sentences.",
         Prompt = facts,
         SchemaJson = "{\"type\":\"OBJECT\",\"properties\":{\"line\":{\"type\":\"STRING\"}},\"required\":[\"line\"]}",
     }, r =>
     {
-        if (!r.Ok || !AiText.TryParseJson(r.Text, out Reply reply)) return;   // keep the stock line
+        if (!r.Ok || !AiText.TryParseJson(r.Text, out Reply reply)) return;   // keep the stock text
         string line = AiText.Clean(reply.line);
-        if (!AiText.Fits(line, 110, 18)) return;
-        Services.UI.ShowMonsterLine(line, 4f);
+        if (!AiText.Fits(line, 210, 42)) return;
+        Services.UI.ShowDebrief(line);
     });
 ```
 
@@ -52,7 +58,7 @@ if (Services.Ai.Available)
 
 ## UI seams
 
-`IGameUI` has three optional methods for these features, each a no-op until the UI implements it: `ShowMonsterLine(text, seconds)`, `ShowHint(text)` and `ShowDebrief(text)`.
+`IGameUI.ShowDebrief(text)` is the optional seam for the run debrief (see `run-debrief.md`). Ship hints, monster lines and subtitles belong to the sponsor voice integration (`Services.Voice`, `ShowHint(HintView)`, `ShowSubtitle`), which talks to `backend/`; do not add a second Gemini path for them. The scaffold's earlier `ShowMonsterLine(text, seconds)` and `ShowHint(text)` seams were removed: nothing called them, and they competed with the voice footer.
 
 ## What has been verified
 

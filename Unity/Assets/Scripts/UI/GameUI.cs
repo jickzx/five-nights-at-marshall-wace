@@ -26,6 +26,7 @@ namespace Fnmw.UI
         DeathScreen _death;
         EscapeScreen _escape;
         TutorialLayer _tutorial;
+        SubtitleLayer _subtitles;
         UiScreen _modal;
         RectTransform _timer;
         Text _timerText;
@@ -33,6 +34,12 @@ namespace Fnmw.UI
         bool _built, _disposed;
         LangPuzzle _lastPuzzle;
         List<Tile> _lastAnswer;
+        float _clock;                 // unscaled seconds the UI has ticked (subtitle timing)
+        SubtitleLine _subtitle;
+        float _subtitleFrom, _subtitleUntil;
+        HintView _hint;
+        PronunciationView _pronunciation;
+        string _debrief;
 
         public static GameUI Create()
         {
@@ -61,6 +68,7 @@ namespace Fnmw.UI
             _timer.gameObject.SetActive(false);
             _hud.Build();
             _hud.Root.gameObject.SetActive(false);
+            _subtitles = new SubtitleLayer(Rig.Stage);
             _tutorial = new TutorialLayer(this);     // built last: it draws over every screen
             _tutorial.Build();
             GameEvents.BeastStageChanged += OnBeastStage;
@@ -73,7 +81,7 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             _disposed = true;
-            if (XrBridge.Active) XrBridge.LessonStage = XrLessonStage.None;
+            if (XrBridge.Active) { XrBridge.LessonStage = XrLessonStage.None; XrBridge.HintOffered = XrBridge.SpeakOffered = false; }
             GameEvents.BeastStageChanged -= OnBeastStage;
             _puzzle?.Close(); _escape?.Close(); _title?.Close();
             Fx?.Dispose();
@@ -96,6 +104,7 @@ namespace Fnmw.UI
 
         public void ShowTitle(Action onStart)
         {
+            _debrief = null;   // a new run starts without the last one's account
             Swap(_title);
             _title.Show(onStart);
             Fx.SetMode(GlassMode.Title, true);
@@ -148,17 +157,52 @@ namespace Fnmw.UI
         {
             State = state ?? State;
             _hud.SetPrompt(null);
-            if (escaped) { Swap(_escape); _escape.Show(State, Journal, onRestart); }
-            else { Swap(_death); _death.Show(onRestart); }
+            ClearVoiceViews();
+            if (escaped) { Swap(_escape); _escape.Show(State, Journal, onRestart, _debrief); }
+            else { Swap(_death); _death.Show(onRestart, _debrief); }
         }
+
+        public void ShowDebrief(string text)
+        {
+            // kept even with no end screen up: the account is usually ready during the ending cutscene, before ShowEnd
+            _debrief = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            if (_modal == _escape) _escape.SetDebrief(_debrief);
+            else if (_modal == _death) _death.SetDebrief(_debrief);
+        }
+
+        /// <summary>The debrief printed on the end screen in front, for tests and automated play; null when there is none.</summary>
+        public string DebriefShown => _modal == _escape ? _escape.DebriefText : _modal == _death ? _death.DebriefText : null;
 
         public void HideAll()
         {
             Swap(null);
             _hud.SetPrompt(null);
+            ClearVoiceViews();
         }
 
         public void ShowTutorial(TutorialView view) => _tutorial.Show(view);
+
+        public void ShowSubtitle(SubtitleLine line)
+        {
+            _subtitle = line;
+            _subtitleFrom = _clock;
+            _subtitleUntil = string.IsNullOrWhiteSpace(line.Text) ? _clock : _clock + Mathf.Clamp(line.Seconds, 0.5f, 20f);
+        }
+
+        public void ShowHint(HintView hint) => _hint = hint;
+
+        public void ShowPronunciation(PronunciationView view) => _pronunciation = view;
+
+        void ClearVoiceViews()
+        {
+            _subtitle = default; _subtitleUntil = 0f; _hint = default; _pronunciation = default;
+        }
+
+        /// <summary>The subtitle to draw now (tag included), or null.</summary>
+        internal string SubtitleText => _clock < _subtitleUntil ? SubtitleLayer.Format(_subtitle) : null;
+        internal float SubtitleAge => _clock - _subtitleFrom;
+        internal HintView Hint => _hint;
+        internal PronunciationView Pronunciation => _pronunciation;
 
         // ---- internals ------------------------------------------------------------------
 
@@ -207,6 +251,12 @@ namespace Fnmw.UI
         /// <summary>The worked example's step ("Barrier" … "Decoded"), for tests and automated play; "None" when it is not up.</summary>
         public string ExampleStep => _modal == _example ? _example.Current.ToString() : "None";
         public int Cracks => Fx.Cracks;
+        /// <summary>What the roaming subtitle line shows now (null when hidden), for tests.</summary>
+        public string RoamingSubtitleShown => _subtitles.Root.gameObject.activeSelf ? _subtitles.Shown : null;
+        /// <summary>The console footer's text now, for tests ("" when the console is not up).</summary>
+        public string PuzzleFooterShown => _modal == _puzzle ? _puzzle.FooterShown : "";
+        /// <summary>The pronunciation cue on the payoff now ("" when hidden), for tests.</summary>
+        public string PronunciationCueShown => _decode.PronunciationCue;
         public int LanguagesLearned => Journal.Entries.Count;
         public Texture UiTexture => Rig.Rt;
 
@@ -216,6 +266,7 @@ namespace Fnmw.UI
         public void Tick(float dt, UiInput input)
         {
             if (_disposed) return;
+            _clock += dt;
             // In a headset the glass is a 16:9 panel in the world, not the window, so it keeps the 640x360 stage.
             if (XrBridge.Active) Rig.Resize(1280, 720);
             else Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
@@ -247,9 +298,17 @@ namespace Fnmw.UI
             if (hud) _hud.Tick(dt, UiInput.None);
 
             modal?.Tick(dt, input);
+            // spoken lines while roaming; on the console they print in its footer instead
+            _subtitles.Tick(modal == null && s != null && !s.IsOver && phase != GamePhase.Title ? SubtitleText : null, SubtitleAge);
             bool tutorial = TutorialAllowed;
             if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
             if (tutorial) _tutorial.Tick(dt, UiInput.None);
+            if (XrBridge.Active)
+            {
+                // what X does on this screen, for the controller labels and wrist card
+                XrBridge.HintOffered = _modal == _puzzle && _puzzle.ShipOffered;
+                XrBridge.SpeakOffered = _modal == _decode && _decode.ReplayOffered;
+            }
             if (XrBridge.Active) XrBridge.LessonStage = _modal != _example ? XrLessonStage.None
                 : _example.Current == WorkedExampleScreen.Step.Build ? XrLessonStage.Building : XrLessonStage.Reading;
             Fx.Tick(dt);

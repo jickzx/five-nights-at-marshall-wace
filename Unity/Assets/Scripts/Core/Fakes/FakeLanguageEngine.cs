@@ -67,8 +67,32 @@ namespace Fnmw.Core.Fakes
         }
 
         public RevealInfo GetReveal(LanguageWorld world, int puzzleId) => puzzleId == 1
-            ? new RevealInfo { AlienText = "tobiraaa akeee", RealText = "扉を開けて (tobira o akete)", Translation = "open the door", Explanation = "Japanese puts the verb last; Kraa-Nihhon stretches every vowel." }
-            : new RevealInfo { AlienText = "funeee hajimeee", RealText = "船を始動 (fune o shidou)", Translation = "start the ship", Explanation = "Object, then verb, exactly like Japanese." };
+            ? new RevealInfo { AlienText = "tobiraaa akeee", RealText = "扉を開けて (tobira o akete)", Translation = "open the door", Explanation = "Japanese puts the verb last; Kraa-Nihhon stretches every vowel.", SpeechText = "扉を開けて", SpeechLang = "ja" }
+            : new RevealInfo { AlienText = "funeee hajimeee", RealText = "船を始動 (fune o shidou)", Translation = "start the ship", Explanation = "Object, then verb, exactly like Japanese.", SpeechText = "船を始動", SpeechLang = "ja" };
+
+        public HintContext GetHintContext(LanguageWorld world, int puzzleId, string missedConcept) =>
+            puzzleId == 1 || puzzleId == 2
+                ? new HintContext
+                {
+                    Concept = "verb-final",
+                    Focus = "where the action word sits",
+                    Facts = new[] { "In this tongue the action word waits until the end of its clause." },
+                    OfflineHints = new[] { "Where does the action word sit in the examples?", "In this tongue the action word waits until the end of its clause. Find it in the examples." },
+                }
+                : null;
+
+        /// <summary>Rejects the language's name and any hint that mentions two of the puzzle's words.</summary>
+        public bool IsHintSafe(LanguageWorld world, int puzzleId, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || text.Length > 160) return false;
+            var lower = text.ToLowerInvariant();
+            if (lower.Contains("japan") || lower.Contains("nihon")) return false;
+            var p = world?.Puzzles?.Find(x => x.Id == puzzleId);
+            if (p == null) return false;
+            var words = new HashSet<string>();
+            foreach (var t in p.Tiles) if (lower.Contains(t.Alien.ToLowerInvariant())) words.Add(t.Alien);
+            return words.Count < 2;
+        }
 
         public QuizQuestion GetQuiz(LanguageWorld world, int puzzleId) => new QuizQuestion
         {

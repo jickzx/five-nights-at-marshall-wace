@@ -11,6 +11,8 @@ namespace Fnmw.UI
         public int Digit;          // 0-based index of a number key pressed this frame, -1 for none
         public bool Enter, Space, Back, Clear, Left, Right, Up, Down, Click;
         public bool Replay;        // T: the title's "replay tutorial"
+        public bool Hint;          // H: ask the ship computer for a hint (console only)
+        public bool Speak;         // P: hear the decoded sentence again (quiz payoff only)
         public bool HasPointer;
         public Vector2 Pointer;    // stage space: origin at the centre of the stage, y up, in virtual pixels
 
@@ -22,6 +24,8 @@ namespace Fnmw.UI
         public static UiInput PressEnter => new UiInput { Digit = -1, Enter = true };
         public static UiInput PressBack => new UiInput { Digit = -1, Back = true };
         public static UiInput PressReplay => new UiInput { Digit = -1, Replay = true };
+        public static UiInput PressHint => new UiInput { Digit = -1, Hint = true };
+        public static UiInput PressSpeak => new UiInput { Digit = -1, Speak = true };
     }
 
     /// <summary>
@@ -250,6 +254,8 @@ namespace Fnmw.UI
                 i.Up = kb.upArrowKey.wasPressedThisFrame;
                 i.Down = kb.downArrowKey.wasPressedThisFrame;
                 i.Replay = kb.tKey.wasPressedThisFrame;
+                i.Hint = kb.hKey.wasPressedThisFrame;
+                i.Speak = kb.pKey.wasPressedThisFrame;
             }
             if (XrBridge.Active)
             {
@@ -258,6 +264,8 @@ namespace Fnmw.UI
                 i.Enter |= XrBridge.Enter; i.Space |= XrBridge.Space; i.Back |= XrBridge.Back; i.Clear |= XrBridge.Clear;
                 i.Left |= XrBridge.Left; i.Right |= XrBridge.Right; i.Up |= XrBridge.Up; i.Down |= XrBridge.Down;
                 i.Replay |= XrBridge.Replay;
+                i.Hint |= XrBridge.Hint;
+                i.Speak |= XrBridge.Speak;
                 if (XrBridge.HasPointer)
                 {
                     i.HasPointer = true;

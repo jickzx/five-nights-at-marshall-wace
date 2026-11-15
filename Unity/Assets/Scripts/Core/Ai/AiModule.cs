@@ -13,7 +13,7 @@ namespace Fnmw.Core.Ai
             {
                 Debug.Log(config.Disabled
                     ? "[Ai] switched off; using stock lines"
-                    : "[Ai] no Gemini key or proxy found (see Docs/ai/README.md); using stock lines");
+                    : (Application.isEditor ? "[Ai] no Gemini key or proxy found" : "[Ai] no AI proxy configured (builds never use a direct key)") + " (see Docs/ai/README.md); using stock lines");
                 return;
             }
             Services.Ai = new GeminiClient(config);

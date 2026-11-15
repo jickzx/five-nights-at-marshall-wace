@@ -23,6 +23,7 @@ namespace Fnmw
             World.WorldModule.Install();
             Monster.MonsterModule.Install();
             Game.GameModule.Install();
+            Voice.VoiceModule.Install();   // optional voices; offline (no network at all) without a backend config
             XR.XrModule.Install();      // no-op on desktop
             Debug.Log("[GameBootstrap] installed all modules");
         }

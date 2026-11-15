@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.Voice",
+    "rootNamespace": "Fnmw.Voice",
+    "references": [ "Fnmw.Core", "Unity.InputSystem" ],
+    "autoReferenced": false
+}

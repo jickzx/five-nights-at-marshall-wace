@@ -35,7 +35,9 @@ namespace Fnmw.Audio
         readonly HashSet<string> _warned = new HashSet<string>();
 
         internal SpatialAudio Spatial { get; private set; }
+        internal VoicePlayer Voice { get; private set; }
         AudioSource _scoreSource;
+        ScoreFilter _scoreFilter;
         MasterLimiter _limiter;
 
         public static AudioDirector Create()
@@ -57,7 +59,8 @@ namespace Fnmw.Audio
             var src = music.AddComponent<AudioSource>();
             src.clip = AudioClip.Create("fnmw_silence", SampleRate, 1, SampleRate, false);
             src.loop = true; src.spatialBlend = 0f; src.priority = 0; src.playOnAwake = false;
-            music.AddComponent<ScoreFilter>().Engine = Engine;
+            _scoreFilter = music.AddComponent<ScoreFilter>();
+            _scoreFilter.Engine = Engine;
             src.Play();
             _scoreSource = src;
             // A device change (headphones unplugged, another app grabbing output) resets Unity audio and stops
@@ -66,6 +69,8 @@ namespace Fnmw.Audio
 
             Spatial = gameObject.AddComponent<SpatialAudio>();
             Spatial.Director = this;
+            Voice = gameObject.AddComponent<VoicePlayer>();
+            Voice.Beast = () => Spatial ? Spatial.Beast : null;
             gameObject.AddComponent<AuditionMode>().Director = this;
             gameObject.AddComponent<AudioTap>();
 
@@ -129,6 +134,18 @@ namespace Fnmw.Audio
             }
         }
 
+        public int PlayVoice(VoiceClip clip, System.Action<VoicePlayback> onEvent)
+        {
+            if (_ended || Voice == null)
+            {
+                onEvent?.Invoke(new VoicePlayback { Channel = clip != null ? clip.Channel : VoiceChannel.Ship, Event = VoicePlaybackEvent.Dropped });
+                return 0;
+            }
+            return Voice.Play(clip, onEvent);
+        }
+
+        public void StopVoice(VoiceChannel channel, float fade = 0.15f) => Voice?.Stop(channel, fade);
+
         // ------------------------------------------------------------ score control
 
         void OnAudioConfigChanged(bool deviceWasChanged)
@@ -141,6 +158,12 @@ namespace Fnmw.Audio
         {
             if (_scoreSource != null && !_scoreSource.isPlaying && _scoreSource.isActiveAndEnabled) OnAudioConfigChanged(false);
             if (!_limiter) _limiter = MasterLimiter.Ensure();
+            if (Voice != null)
+            {
+                bool monster = Voice.IsActive(VoiceChannel.Monster);
+                if (monster && Spatial) Spatial.HoldVocalsUntil = Time.unscaledTime + 1.5f;   // the synthesised vocals yield to a line
+                if (_scoreFilter) _scoreFilter.DuckTarget = VoiceMix.DuckTarget(Voice.IsPlaying(VoiceChannel.Monster), Voice.IsPlaying(VoiceChannel.Ship), Voice.IsPlaying(VoiceChannel.Native));
+            }
             var s = Services.State;
             if (OverrideActive)
             {
@@ -176,6 +199,7 @@ namespace Fnmw.Audio
         {
             if (_ended) return;
             _ended = true;
+            Voice?.StopAll();
             Engine.TriggerDeath();
             Spatial.Silence();
         }
@@ -184,6 +208,7 @@ namespace Fnmw.Audio
         {
             if (_ended) return;
             _ended = true;
+            Voice?.StopAll();
             Engine.TriggerEscape(Sfx.Get("ship_power"));
             Spatial.Silence();
         }
@@ -312,10 +337,29 @@ namespace Fnmw.Audio
         }
     }
 
-    /// <summary>Renders the score on Unity's audio thread.</summary>
+    /// <summary>Renders the score on Unity's audio thread, ducked under speech by a smoothed gain applied here
+    /// (not through AudioSource.volume, so it does not depend on where Unity applies source volume to a filter).</summary>
     public sealed class ScoreFilter : MonoBehaviour
     {
         [System.NonSerialized] public ScoreEngine Engine;
-        void OnAudioFilterRead(float[] data, int channels) => Engine?.Process(data, channels);
+        /// <summary>Written by the main thread, read by the audio thread.</summary>
+        [System.NonSerialized] public volatile float DuckTarget = 1f;
+        float _duck = 1f;
+        int _rate = 48000;
+
+        void Awake() => _rate = AudioSettings.outputSampleRate > 0 ? AudioSettings.outputSampleRate : 48000;
+
+        void OnAudioFilterRead(float[] data, int channels)
+        {
+            Engine?.Process(data, channels);
+            float target = DuckTarget;
+            if (_duck == 1f && target == 1f) return;
+            for (int i = 0; i < data.Length; i += channels)
+            {
+                _duck = VoiceMix.Step(_duck, target, _rate);
+                for (int c = 0; c < channels; c++) data[i + c] *= _duck;
+            }
+            if (target == 1f && _duck > 0.9995f) _duck = 1f;
+        }
     }
 }

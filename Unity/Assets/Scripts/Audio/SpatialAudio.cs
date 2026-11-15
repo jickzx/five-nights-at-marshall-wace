@@ -23,6 +23,11 @@ namespace Fnmw.Audio
 
         sealed class ConsoleSound { public AudioSource Hum, Static; public float Timer; }
 
+        /// <summary>While the beast is speaking a line (and briefly after), its synthesised vocals hold off.</summary>
+        internal float HoldVocalsUntil;
+        /// <summary>The beast (or the audition stand-in), for sources that ride on it.</summary>
+        internal Transform Beast => BeastTransform;
+
         static AudioSource MakeSource(Transform parent, string name, bool spatial, float minDist, float maxDist)
         {
             var go = new GameObject(name);
@@ -81,6 +86,7 @@ namespace Fnmw.Audio
                 int stage = _orbit != null ? Director.OverrideStage : state.BeastStage;
                 float near = float.IsInfinity(state.BeastDistance) ? 0f : Mathf.Clamp01(1f - state.BeastDistance / 40f);
                 _vocalTimer -= Time.deltaTime * (1f + near * 1.5f);
+                if (Time.unscaledTime < HoldVocalsUntil) _vocalTimer = Mathf.Max(_vocalTimer, 1f);
                 if (_vocalTimer <= 0f)
                 {
                     BeastVocal();

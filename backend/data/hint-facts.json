@@ -1,0 +1,264 @@
+{
+  "version": "1",
+  "concepts": {
+    "word-order": {
+      "focus": "the order the words come in",
+      "facts": [
+        "Every row keeps the same order of roles. Copy the order the rows use, not the order English uses."
+      ],
+      "offline1": "Same words, but the rows put them in another order. Compare the rows."
+    },
+    "verb-final": {
+      "focus": "where the action word sits",
+      "facts": [
+        "In these rows the action word can wait until the end of its clause."
+      ],
+      "offline1": "Where does the action word sit in the rows?"
+    },
+    "particles": {
+      "focus": "the small tag words after each thing",
+      "facts": [
+        "Small tag words follow a noun and say what job it does: who acts, and what is acted on."
+      ],
+      "offline1": "Every noun wears a little tag. Which tag marks who does it?"
+    },
+    "compound-meaning": {
+      "focus": "how longer words are built from smaller parts",
+      "facts": [
+        "Some words are built from smaller meaningful parts, joined in a fixed order."
+      ],
+      "offline1": "Build the word from the meanings of its parts, in the order the rows use."
+    },
+    "adjective-order": {
+      "focus": "whether a describing word comes before or after its thing",
+      "facts": [
+        "Most describing words here come after the thing they describe."
+      ],
+      "offline1": "In the rows, which comes first: the thing, or what it is like?"
+    },
+    "gender-agreement": {
+      "focus": "the little words around each thing",
+      "facts": [
+        "Every noun has a grammatical gender, and the little words around it change to match."
+      ],
+      "offline1": "The words around a noun must match its gender."
+    },
+    "plural-agreement": {
+      "focus": "how the rows show that there are many",
+      "facts": [
+        "When there is more than one, the plural shows on more than one word of the phrase."
+      ],
+      "offline1": "When there are many, every word in the phrase shows it."
+    },
+    "verb-ending": {
+      "focus": "the endings of the action words",
+      "facts": [
+        "The ending of the action word shows who is doing it."
+      ],
+      "offline1": "Here the end of the action word says who is acting."
+    },
+    "punctuation": {
+      "focus": "the marks at both ends of the sentences",
+      "facts": [
+        "A question or an exclamation is marked at its start as well as its end."
+      ],
+      "offline1": "The phrase is missing its marks. Look at both ends of the rows."
+    },
+    "suffix-order": {
+      "focus": "the order of the endings stacked on a word",
+      "facts": [
+        "Endings stack onto a word in a fixed order, one meaning per ending."
+      ],
+      "offline1": "Right pieces, wrong train. The endings always couple in the same order."
+    },
+    "vowel-harmony": {
+      "focus": "the vowels inside the endings",
+      "facts": [
+        "The vowel in an ending changes to match the vowels of the word it joins."
+      ],
+      "offline1": "The endings clash. Their vowels must match the vowels of the word they join."
+    },
+    "measure-word": {
+      "focus": "the word between this or that and the thing",
+      "facts": [
+        "A pointed-at or counted thing takes a measure word that fits its kind, just before the thing."
+      ],
+      "offline1": "A counted thing needs the shape-word that fits it."
+    },
+    "consonant-root": {
+      "focus": "the consonants that related words share",
+      "facts": [
+        "Related words share a skeleton of consonants that carries the core meaning."
+      ],
+      "offline1": "The skeleton is wrong. The meaning lives in the shared consonants."
+    },
+    "vowel-pattern": {
+      "focus": "the vowels set around the shared consonants",
+      "facts": [
+        "The pattern of vowels around a consonant skeleton says what role the word plays."
+      ],
+      "offline1": "Right bones, wrong flesh. The vowel pattern says what role the word plays."
+    },
+    "vocabulary": {
+      "focus": "which word goes with which picture",
+      "facts": [
+        "Each word keeps its meaning from row to row. Match words to the meanings they appear with."
+      ],
+      "offline1": "That word means something else here. Check the meanings again."
+    }
+  },
+  "giveaways": [
+    "japan",
+    "japanese",
+    "nihon",
+    "nippon",
+    "tokyo",
+    "kanji",
+    "kana",
+    "hiragana",
+    "katakana",
+    "romaji",
+    "france",
+    "french",
+    "paris",
+    "francais",
+    "spain",
+    "spanish",
+    "espana",
+    "espanol",
+    "castilian",
+    "mexico",
+    "mexican",
+    "germany",
+    "german",
+    "deutsch",
+    "berlin",
+    "turkey",
+    "turkish",
+    "turkiye",
+    "turkce",
+    "istanbul",
+    "ankara",
+    "china",
+    "chinese",
+    "mandarin",
+    "beijing",
+    "pinyin",
+    "hanzi",
+    "putonghua",
+    "zhongwen",
+    "tonal",
+    "arab",
+    "arabic",
+    "arabia",
+    "egypt",
+    "cairo",
+    "quran",
+    "fusha",
+    "levant",
+    "korea",
+    "korean",
+    "vietnam",
+    "vietnamese",
+    "thai",
+    "thailand",
+    "cantonese",
+    "italy",
+    "italian",
+    "portugal",
+    "portuguese",
+    "brazil",
+    "romania",
+    "romanian",
+    "catalan",
+    "dutch",
+    "netherlands",
+    "sweden",
+    "swedish",
+    "denmark",
+    "danish",
+    "norway",
+    "norwegian",
+    "hungary",
+    "hungarian",
+    "finland",
+    "finnish",
+    "mongolia",
+    "mongolian",
+    "hebrew",
+    "israel",
+    "persian",
+    "iran",
+    "farsi",
+    "amharic",
+    "ethiopia",
+    "urdu",
+    "pakistan",
+    "india",
+    "hindi",
+    "europe",
+    "european",
+    "asia",
+    "asian",
+    "africa",
+    "african",
+    "romance",
+    "germanic",
+    "semitic",
+    "turkic",
+    "sinitic",
+    "slavic"
+  ],
+  "answer_phrases": [
+    "answer",
+    "solution",
+    "correct order",
+    "right order",
+    "in this order",
+    "press",
+    "type",
+    "tile",
+    "tiles",
+    "key",
+    "keys",
+    "slot",
+    "slots",
+    "spell",
+    "submit"
+  ],
+  "position_words": [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "last",
+    "final",
+    "before",
+    "after",
+    "then",
+    "next",
+    "start",
+    "begin",
+    "beginning",
+    "end",
+    "front",
+    "back",
+    "left",
+    "right",
+    "middle",
+    "follow",
+    "follows",
+    "precede",
+    "precedes",
+    "earlier",
+    "later"
+  ],
+  "guided": {
+    "level1": "Compare rows {a} and {b}: look at {focus}.",
+    "level2": "{fact} Look at row {a}."
+  }
+}

@@ -49,7 +49,17 @@ Gotchas:
 
 **Meta Quest 2 (VR):** see [Docs/oculus/SETUP.md](Docs/oculus/SETUP.md) for the install list, build steps and Touch controls. The VR code (`Assets/Scripts/XR`, `Fnmw.XR`) only turns on when an OpenXR runtime is running, i.e. in the Android/Quest build; the desktop build has no XR loader and plays unchanged. Other areas read VR input through `Fnmw.Core.XrBridge`, next to their keyboard reads.
 
-Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. In the quiz, the number keys pick an answer.
+Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. H asks the ship for a hint (the legend offers it after a wrong answer). In the quiz, the number keys pick an answer; on the payoff, P plays the decoded sentence again when voice is available. F2 shows the voice status line. In a headset the same two actions are on the X button: X asks the ship on a console and replays the sentence on the payoff (the wrist card and button labels say so only when that action is available).
+
+### Optional voices (monster dialogue, ship hints, pronunciation)
+
+`Assets/Scripts/Voice` (`Fnmw.Voice`) is optional. With no configuration it makes **no network request** and shows authored hints only. To try the whole pipeline without provider keys, run the mock backend (`cd backend && npm install && npm run dev`, see [backend/README.md](../backend/README.md)) and create `Unity/UserSettings/fnmw-voice.json` (git-ignored):
+
+```json
+{ "url": "http://127.0.0.1:8787", "token": "<same value as FNMW_GAME_TOKENS in backend/.env>" }
+```
+
+Mock audio is a beeping tone, not speech; subtitles, the hint line, the payoff cue and F2 all say MOCK. Launch flags: `-voiceUrl`, `-voiceToken`, `-voice off`, `-voiceVolume 0.8`, `-subtitles off`. Provider keys live only in `backend/.env`; nothing under `Unity/` holds a key, a provider host or a voice id.
 
 ## Architecture
 
@@ -61,6 +71,7 @@ GameBootstrap (scene)  ->  Services.ResetToFakes()
                        ->  WorldModule.Install()    spawns level, consoles (Interactable)
                        ->  MonsterModule.Install()  Services.BeastBrain/Difficulty = ..., spawns beast
                        ->  GameModule.Install()     spawns player + GameDirector (phase machine)
+                       ->  VoiceModule.Install()    Services.Voice = ... (optional; offline without config)
 ```
 
 - **`Fnmw.Core`** (`Assets/Scripts/Core`) is the contract: `GameState`, `GameEvents` (static bus), the language data types and `ILanguageEngine`, `IDifficultyDirector`, `IBeastBrain`, `IAudioDirector`, `IGameUI`, `Services` (the locator), `ModelLoader` and `Interactable`.
@@ -79,6 +90,7 @@ GameBootstrap (scene)  ->  Services.ResetToFakes()
 | `Assets/Scripts/Game` | `Fnmw.Game` | Game-loop thread | player controller, `GameDirector` phase machine |
 | `Assets/Scripts/UI` | `Fnmw.UI` | UI thread | register `IGameUI` (puzzle, reveal, quiz, end screens, HUD) |
 | `Assets/Scripts/Audio` | `Fnmw.Audio` | Audio thread | register `IAudioDirector` (intensity, stingers) |
+| `Assets/Scripts/Voice` | `Fnmw.Voice` | Voice (sponsor features) | register `IVoiceDirector` (hints, monster lines, pronunciation via `backend/`) |
 | `Assets/Scripts/XR` | `Fnmw.XR` | VR port | detect a headset, build the VR rig around the player (Quest only; no-op on desktop) |
 | `Assets/Resources/Models` (+`Mock`) | – | Art | drop FBX files by name |
 | `Assets/Tests/EditMode` | `Fnmw.Tests.EditMode` | everyone, add files, don't edit others' | – |

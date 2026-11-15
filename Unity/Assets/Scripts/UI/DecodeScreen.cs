@@ -54,6 +54,15 @@ namespace Fnmw.UI
         int _cursor, _chosen = -1, _correct = -1;
         bool _wasRight;
         Text _stamp;
+        Text _sayCue;                // the pronunciation cue on the payoff
+        bool _askedToSpeak;          // the payoff asks for the sentence once; P asks again
+
+        /// <summary>What the pronunciation cue shows ("" when hidden).</summary>
+        public string PronunciationCue => _sayCue && _sayCue.gameObject.activeInHierarchy ? _sayCue.text : "";
+
+        /// <summary>The payoff is up and the sentence can be played again (P, or X on Touch).</summary>
+        public bool ReplayOffered => _step == Step.Payoff && _reveal != null && _puzzle != null
+                                     && Ui.Pronunciation.PuzzleId == _puzzle.Id && Ui.Pronunciation.State == PronunciationState.Ready;
 
         GameState State => Ui.State ?? Services.State;
 
@@ -65,6 +74,7 @@ namespace Fnmw.UI
             Open();
             _reveal = reveal ?? new RevealInfo();
             _puzzle = puzzle; _fam = fam; _answer = answer; _onContinue = onContinue; _onChoose = null; _quiz = null;
+            _askedToSpeak = false; _sayCue = null;
             _chosen = -1; _correct = -1; _cells.Clear(); _options.Clear(); _pool.Clear(); _locked = -1; _shuffleT = 0;
             _top = Kit.Node("Top", Root, 0, 0, UiRig.StageW, 160);
             _lower = Kit.Node("Lower", Root, 0, 0, UiRig.StageW, UiRig.StageH);
@@ -196,6 +206,7 @@ namespace Fnmw.UI
                 // the quiz arrived on its own (no reveal before it): open with an empty top
                 Open();
                 _reveal = null; _puzzle = puzzle; _fam = fam; _cells.Clear(); _pool.Clear();
+                _askedToSpeak = false; _sayCue = null;
                 _top = Kit.Node("Top", Root, 0, 0, UiRig.StageW, 160);
                 _lower = Kit.Node("Lower", Root, 0, 0, UiRig.StageW, UiRig.StageH);
                 Kit.Label("Decoded", _top, "TRANSMISSION DECODED", 32, Pal.Ivory, TextAnchor.MiddleCenter, 20, 70, 600, 32);
@@ -249,6 +260,7 @@ namespace Fnmw.UI
             catch (Exception e) { Debug.LogException(e); }
             if (_wasRight) Ui.Fx.Kick(burst: 0.05f);
             else Ui.Fx.Kick(shake: 0.3f, red: 0.2f, tear: 0.3f);
+            Services.Voice.NotifyQuizAnswerLocked(id);
             SetStep(Step.Verdict);
         }
 
@@ -294,7 +306,30 @@ namespace Fnmw.UI
                 y += factLines * 17;
             }
             _cue = Widgets.Cue(_lower, Mathf.Clamp(y + 8, 318, 340), "BACK INTO THE DARK", Pal.Amber);
+            // top left, clear of the run timer: what the native voice is doing
+            _sayCue = Kit.Label("Say", _lower, "", 16, Pal.Amber, TextAnchor.MiddleLeft, 20, 2, 440, 16);
             Ui.Fx.Kick(shake: 0.18f);
+        }
+
+        /// <summary>The cue text for a pronunciation state. Mock audio says plainly that it is a tone, not speech.</summary>
+        public static string CueFor(PronunciationView v)
+        {
+            bool mock = v.Source == VoiceSource.Mock;
+            switch (v.State)
+            {
+                case PronunciationState.Loading: return "VOICE: LOADING";
+                case PronunciationState.Preparing: return "VOICE: STARTING";
+                case PronunciationState.Playing: return mock ? "MOCK TONE PLAYING (NOT SPEECH)" : "VOICE: PLAYING";
+                case PronunciationState.Ready: return (XrBridge.Active ? "X" : "P") + (mock ? "  REPLAY MOCK TONE (NOT SPEECH)" : "  HEAR IT AGAIN");
+                case PronunciationState.Unavailable: return "VOICE UNAVAILABLE";
+                default: return "";
+            }
+        }
+
+        void AskToSpeak(bool replay)
+        {
+            if (_reveal == null || _puzzle == null) return;   // no reveal, no sentence to speak
+            try { Services.Voice.RequestPronunciation(_puzzle.Id, replay); } catch (Exception e) { Debug.LogException(e); }
         }
 
         // ---- flow -----------------------------------------------------------------------
@@ -303,7 +338,12 @@ namespace Fnmw.UI
         {
             _step = s; _stepT = 0;
             if (s == Step.Read) BuildPattern();
-            if (s == Step.Payoff) BuildPayoff();
+            if (s == Step.Payoff)
+            {
+                BuildPayoff();
+                // the quiz is answered: only now may the sentence be heard in its own language
+                if (!_askedToSpeak && _reveal != null) { _askedToSpeak = true; AskToSpeak(false); }
+            }
         }
 
         void ShowLocked(int cellIndex)
@@ -343,6 +383,13 @@ namespace Fnmw.UI
                     Kit.Group(_lower).alpha = 1;
                     if (_stamp) { float s = 1f + 0.5f * (1f - Kit.EaseOut(Kit.Ramp(_stepT, 0f, 0.16f))); _stamp.rectTransform.localScale = new Vector3(s, s, 1); }
                     if (_cue) _cue.gameObject.SetActive(_stepT > 0.9f && Kit.Blink(_stepT, 1.4f));
+                    if (_sayCue)
+                    {
+                        var pv = Ui.Pronunciation;
+                        string say = _puzzle != null && pv.PuzzleId == _puzzle.Id ? CueFor(pv) : "";
+                        if (_sayCue.text != say) Kit.SetText(_sayCue, say);
+                    }
+                    if (input.Speak) AskToSpeak(true);
                     if (_stepT > 0.7f && (input.Confirm || input.Click))
                     {
                         var cb = _onChoose; _onChoose = null;
