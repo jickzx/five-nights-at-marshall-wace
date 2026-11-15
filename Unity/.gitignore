@@ -35,3 +35,6 @@ sysinfo.txt
 *.unitypackage
 crashlytics-build.properties
 .DS_Store
+
+# Quest APK output (Fnmw > Quest > Build APK)
+[Bb]uilds/
