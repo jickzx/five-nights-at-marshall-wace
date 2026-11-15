@@ -1,0 +1,308 @@
+{
+  "beast_stage1": {
+    "resource_path": "Models/beast_stage1",
+    "files": {
+      "fbx": "Unity/Assets/Resources/Models/beast_stage1.fbx",
+      "blend": "assets/blender/beast_stage1.blend",
+      "preview": "assets/previews/beast_stage1.png",
+      "views": "assets/previews/beast_stage1_views.png",
+      "video": "assets/previews/beast_stage1.mp4"
+    },
+    "triangles": 668,
+    "bounding_box": {
+      "min": [
+        -0.60255,
+        0.0,
+        -0.55759
+      ],
+      "max": [
+        0.60255,
+        2.34637,
+        0.31
+      ]
+    },
+    "clips": [
+      {
+        "name": "chase",
+        "frame_start": 1,
+        "frame_end": 19,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 18,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 0.75
+      },
+      {
+        "name": "idle",
+        "frame_start": 1,
+        "frame_end": 97,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 96,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 4.0
+      },
+      {
+        "name": "lunge",
+        "frame_start": 1,
+        "frame_end": 37,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 36,
+        "fps": 24,
+        "loop": false,
+        "duration_seconds": 1.5
+      },
+      {
+        "name": "stalk",
+        "frame_start": 1,
+        "frame_end": 73,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 72,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 3.0
+      }
+    ],
+    "rigged": true,
+    "mesh_names": [
+      "beast_stage1_mesh"
+    ],
+    "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+    "preview_segments": [
+      {
+        "clip": "idle",
+        "start_seconds": 0.0,
+        "end_seconds": 4.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "stalk",
+        "start_seconds": 4.0,
+        "end_seconds": 7.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "chase",
+        "start_seconds": 7.0,
+        "end_seconds": 7.75,
+        "playback_speed": 1
+      },
+      {
+        "clip": "lunge",
+        "start_seconds": 7.75,
+        "end_seconds": 9.25,
+        "playback_speed": 1
+      }
+    ],
+    "review_sheets": {
+      "idle": "assets/previews/beast_stage1_idle_review.png",
+      "stalk": "assets/previews/beast_stage1_stalk_review.png",
+      "chase": "assets/previews/beast_stage1_chase_review.png",
+      "lunge": "assets/previews/beast_stage1_lunge_review.png"
+    }
+  },
+  "beast_stage2": {
+    "resource_path": "Models/beast_stage2",
+    "files": {
+      "fbx": "Unity/Assets/Resources/Models/beast_stage2.fbx",
+      "blend": "assets/blender/beast_stage2.blend",
+      "preview": "assets/previews/beast_stage2.png",
+      "views": "assets/previews/beast_stage2_views.png",
+      "video": "assets/previews/beast_stage2.mp4"
+    },
+    "triangles": 936,
+    "bounding_box": {
+      "min": [
+        -1.0743,
+        0.0,
+        -0.61759
+      ],
+      "max": [
+        1.0743,
+        2.90637,
+        0.30954
+      ]
+    },
+    "clips": [
+      {
+        "name": "chase",
+        "frame_start": 1,
+        "frame_end": 19,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 18,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 0.75
+      },
+      {
+        "name": "idle",
+        "frame_start": 1,
+        "frame_end": 97,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 96,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 4.0
+      },
+      {
+        "name": "lunge",
+        "frame_start": 1,
+        "frame_end": 37,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 36,
+        "fps": 24,
+        "loop": false,
+        "duration_seconds": 1.5
+      },
+      {
+        "name": "stalk",
+        "frame_start": 1,
+        "frame_end": 73,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 72,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 3.0
+      }
+    ],
+    "rigged": true,
+    "mesh_names": [
+      "beast_stage2_mesh"
+    ],
+    "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+    "preview_segments": [
+      {
+        "clip": "idle",
+        "start_seconds": 0.0,
+        "end_seconds": 4.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "stalk",
+        "start_seconds": 4.0,
+        "end_seconds": 7.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "chase",
+        "start_seconds": 7.0,
+        "end_seconds": 7.75,
+        "playback_speed": 1
+      },
+      {
+        "clip": "lunge",
+        "start_seconds": 7.75,
+        "end_seconds": 9.25,
+        "playback_speed": 1
+      }
+    ],
+    "review_sheets": {
+      "idle": "assets/previews/beast_stage2_idle_review.png",
+      "stalk": "assets/previews/beast_stage2_stalk_review.png",
+      "chase": "assets/previews/beast_stage2_chase_review.png",
+      "lunge": "assets/previews/beast_stage2_lunge_review.png"
+    }
+  },
+  "beast_stage3": {
+    "resource_path": "Models/beast_stage3",
+    "files": {
+      "fbx": "Unity/Assets/Resources/Models/beast_stage3.fbx",
+      "blend": "assets/blender/beast_stage3.blend",
+      "preview": "assets/previews/beast_stage3.png",
+      "views": "assets/previews/beast_stage3_views.png",
+      "video": "assets/previews/beast_stage3.mp4"
+    },
+    "triangles": 1404,
+    "bounding_box": {
+      "min": [
+        -1.2643,
+        0.0,
+        -0.78447
+      ],
+      "max": [
+        1.2643,
+        3.56637,
+        0.30954
+      ]
+    },
+    "clips": [
+      {
+        "name": "chase",
+        "frame_start": 1,
+        "frame_end": 19,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 18,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 0.75
+      },
+      {
+        "name": "idle",
+        "frame_start": 1,
+        "frame_end": 97,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 96,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 4.0
+      },
+      {
+        "name": "lunge",
+        "frame_start": 1,
+        "frame_end": 37,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 36,
+        "fps": 24,
+        "loop": false,
+        "duration_seconds": 1.5
+      },
+      {
+        "name": "stalk",
+        "frame_start": 1,
+        "frame_end": 73,
+        "fbx_frame_start": 0,
+        "fbx_frame_end": 72,
+        "fps": 24,
+        "loop": true,
+        "duration_seconds": 3.0
+      }
+    ],
+    "rigged": true,
+    "mesh_names": [
+      "beast_stage3_mesh"
+    ],
+    "notes": "Fork-crowned Drowned Witness. Idle twitches; planted stalking feet; asymmetric broken-limbed chase. Lunge includes 0.9 m forward root motion.",
+    "preview_segments": [
+      {
+        "clip": "idle",
+        "start_seconds": 0.0,
+        "end_seconds": 4.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "stalk",
+        "start_seconds": 4.0,
+        "end_seconds": 7.0,
+        "playback_speed": 1
+      },
+      {
+        "clip": "chase",
+        "start_seconds": 7.0,
+        "end_seconds": 7.75,
+        "playback_speed": 1
+      },
+      {
+        "clip": "lunge",
+        "start_seconds": 7.75,
+        "end_seconds": 9.25,
+        "playback_speed": 1
+      }
+    ],
+    "review_sheets": {
+      "idle": "assets/previews/beast_stage3_idle_review.png",
+      "stalk": "assets/previews/beast_stage3_stalk_review.png",
+      "chase": "assets/previews/beast_stage3_chase_review.png",
+      "lunge": "assets/previews/beast_stage3_lunge_review.png"
+    }
+  }
+}
