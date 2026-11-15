@@ -117,6 +117,27 @@ namespace Fnmw.XR.EditorTools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
             PlayerSettings.colorSpace = ColorSpace.Linear;
+            // Meta's store/release-channel validator rejects anything else
+            PlayerSettings.Android.preferredInstallLocation = AndroidPreferredInstallLocation.Auto;
+            PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
+        }
+
+        /// <summary>
+        /// Release signing for store/release-channel uploads (Meta rejects debug-signed APKs). Set FNMW_KEYSTORE,
+        /// FNMW_KEYSTORE_PASS and FNMW_KEY_ALIAS (FNMW_KEY_PASS defaults to the keystore password) before building;
+        /// without them the APK is debug-signed, which is fine for sideloading. FNMW_VERSION_CODE bumps the version code.
+        /// </summary>
+        static void ConfigureSigning()
+        {
+            string ks = Environment.GetEnvironmentVariable("FNMW_KEYSTORE");
+            if (string.IsNullOrEmpty(ks)) { PlayerSettings.Android.useCustomKeystore = false; return; }
+            string pass = Environment.GetEnvironmentVariable("FNMW_KEYSTORE_PASS");
+            PlayerSettings.Android.useCustomKeystore = true;
+            PlayerSettings.Android.keystoreName = ks;
+            PlayerSettings.Android.keystorePass = pass;
+            PlayerSettings.Android.keyaliasName = Environment.GetEnvironmentVariable("FNMW_KEY_ALIAS");
+            PlayerSettings.Android.keyaliasPass = Environment.GetEnvironmentVariable("FNMW_KEY_PASS") ?? pass;
+            if (int.TryParse(Environment.GetEnvironmentVariable("FNMW_VERSION_CODE"), out var code)) PlayerSettings.Android.bundleVersionCode = code;
         }
 
         [MenuItem("Fnmw/Quest/Build APK")]
@@ -134,6 +155,7 @@ namespace Fnmw.XR.EditorTools
                 Directory.CreateDirectory(Path.GetDirectoryName(ApkPath));
                 var scenes = EditorBuildSettings.scenes.Where(x => x.enabled).Select(x => x.path).ToArray();
                 bool dev = Environment.GetCommandLineArgs().Contains("-development");
+                ConfigureSigning();
                 var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
                     scenes = scenes, locationPathName = ApkPath, target = BuildTarget.Android, targetGroup = BuildTargetGroup.Android,
