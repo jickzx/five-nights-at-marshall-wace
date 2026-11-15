@@ -1,0 +1,6 @@
+.venv/
+data/
+export/bin/
+export/obj/
+results/*.pt
+__pycache__/

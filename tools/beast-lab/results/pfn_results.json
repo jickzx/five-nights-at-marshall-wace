@@ -1,0 +1,156 @@
+{
+ "in-distribution (new random world per player)": {
+  "hand-set": {
+   "nll": 2.2663513200994516,
+   "top1": 0.5047553093259465,
+   "ece": 0.16954524469067409
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.8368736078216734,
+   "top1": 0.638550323176362,
+   "ece": 0.025609800880522886
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.7491261959075928,
+   "top1": 0.6130914092063904,
+   "ece": 0.09932629256470546
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.5568346977233887,
+   "top1": 0.6584418416023254,
+   "ece": 0.015712504570792908
+  }
+ },
+ "original sim": {
+  "hand-set": {
+   "nll": 1.587415776258647,
+   "top1": 0.6064210584283275,
+   "ece": 0.06721047414505203
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.2185506903311896,
+   "top1": 0.7314279420672944,
+   "ece": 0.028404465574439174
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.0934215784072876,
+   "top1": 0.7396883368492126,
+   "ece": 0.021201941746036936
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.1095926761627197,
+   "top1": 0.7243806719779968,
+   "ece": 0.04577220902222305
+  }
+ },
+ "fast learners": {
+  "hand-set": {
+   "nll": 1.5126770265926146,
+   "top1": 0.6554506335166149,
+   "ece": 0.0023368395888119526
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.1559302608576507,
+   "top1": 0.7342816160650251,
+   "ece": 0.03092379833277517
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.0575748682022095,
+   "top1": 0.7660171985626221,
+   "ece": 0.06415536236053565
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.0707200765609741,
+   "top1": 0.7610601782798767,
+   "ece": 0.08576184479463395
+  }
+ },
+ "heavy guessers": {
+  "hand-set": {
+   "nll": 3.669941685563763,
+   "top1": 0.4066427289048474,
+   "ece": 0.2743276855176542
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 3.2013538060496987,
+   "top1": 0.4856373429084381,
+   "ece": 0.09271453005319272
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 2.968170642852783,
+   "top1": 0.48624318838119507,
+   "ece": 0.18089085634750995
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 2.7936723232269287,
+   "top1": 0.4576698839664459,
+   "ece": 0.08548551060569783
+  }
+ },
+ "swap slips (new behaviour)": {
+  "hand-set": {
+   "nll": 1.4785225085734814,
+   "top1": 0.6059202910534149,
+   "ece": 0.06330825202579791
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.209205502922503,
+   "top1": 0.7150653216470977,
+   "ece": 0.03385037701181209
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.0964988470077515,
+   "top1": 0.7354611158370972,
+   "ece": 0.023446258592427178
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.1276355981826782,
+   "top1": 0.7198081016540527,
+   "ece": 0.05311029039809602
+  }
+ },
+ "forgetting between runs (new behaviour)": {
+  "hand-set": {
+   "nll": 1.8280447009067156,
+   "top1": 0.5252419316394146,
+   "ece": 0.15637841445392583
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.8400356823051638,
+   "top1": 0.6055203317919626,
+   "ece": 0.07842077032360084
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.61849045753479,
+   "top1": 0.6319302320480347,
+   "ece": 0.10134600818053482
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.6375248432159424,
+   "top1": 0.6256498694419861,
+   "ece": 0.05796236978129811
+  }
+ },
+ "everyone confused": {
+  "hand-set": {
+   "nll": 1.725790044119407,
+   "top1": 0.5414742014742014,
+   "ece": 0.14216953316953332
+  },
+  "Bayesian beast (fit on 50 players of this world)": {
+   "nll": 1.1862150771081947,
+   "top1": 0.78,
+   "ece": 0.01399819315517329
+  },
+  "specialist transformer (20k original-sim players)": {
+   "nll": 1.1137553453445435,
+   "top1": 0.7741031646728516,
+   "ece": 0.05670307041203067
+  },
+  "prior-fitted beast (zero players of this world)": {
+   "nll": 1.136297583580017,
+   "top1": 0.7676679491996765,
+   "ece": 0.06845904367808847
+  }
+ }
+}

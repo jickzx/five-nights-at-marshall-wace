@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Dumps generated puzzles (tiles, accepted answers, rival grammars) as JSON lines by compiling the
+       game's own language engine outside Unity, like docs/answer-key. Read-only: it changes nothing in the game. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>beast-export</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Core/LanguageTypes.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Core/LangConcepts.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Lang/LanguageEngine.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Lang/Feedback.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Lang/Framework/*.cs" />
+    <Compile Include="../../../Unity/Assets/Scripts/Lang/Languages/*.cs" />
+  </ItemGroup>
+</Project>
