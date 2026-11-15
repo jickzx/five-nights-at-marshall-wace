@@ -41,7 +41,7 @@ export function sessionRequest(v: unknown): SessionRequest {
 
 // ------------------------------------------------------------------ monster
 
-export const TRIGGERS = ['first_mistake', 'repeat_concept', 'streak', 'stage_up', 'final_chase'] as const;
+export const TRIGGERS = ['first_mistake', 'mistake', 'repeat_concept', 'streak', 'stage_up', 'final_chase', 'puzzle_start', 'solved', 'stalk'] as const;
 export type Trigger = (typeof TRIGGERS)[number];
 const BUCKET3 = ['low', 'mid', 'high'] as const;
 
@@ -49,10 +49,15 @@ export interface MonsterRequest {
   seq: number; trigger: Trigger; stage: number; concept: Concept | null; concept_misses: number; wrong_streak: number;
   mistakes: number; solved: number; total: number; pace: 'fast' | 'normal' | 'slow'; distance: 'far' | 'mid' | 'near';
   aggression: (typeof BUCKET3)[number];
+  /** Optional: the English meaning of the sentence on the console the player is working on (they can see it). */
+  meaning: string | null;
 }
 
+// Plain English the game shows the player: letters, spaces and light punctuation, no digits.
+const MONSTER_MEANING_RE = /^[A-Za-z ,.'’?!-]{1,100}$/;
+
 export function monsterRequest(v: unknown): MonsterRequest {
-  const o = obj(v, ['seq', 'trigger', 'stage', 'concept', 'concept_misses', 'wrong_streak', 'mistakes', 'solved', 'total', 'pace', 'distance', 'aggression']);
+  const o = obj(v, ['seq', 'trigger', 'stage', 'concept', 'concept_misses', 'wrong_streak', 'mistakes', 'solved', 'total', 'pace', 'distance', 'aggression'], ['meaning']);
   const r: MonsterRequest = {
     seq: int(o.seq, 0, 1_000_000),
     trigger: oneOf(o.trigger, TRIGGERS),
@@ -66,6 +71,7 @@ export function monsterRequest(v: unknown): MonsterRequest {
     pace: oneOf(o.pace, ['fast', 'normal', 'slow'] as const),
     distance: oneOf(o.distance, ['far', 'mid', 'near'] as const),
     aggression: oneOf(o.aggression, BUCKET3),
+    meaning: o.meaning === undefined || o.meaning === null ? null : str(o.meaning, MONSTER_MEANING_RE, 100),
   };
   if (r.solved > r.total) throw new BadRequest('solved > total');
   return r;

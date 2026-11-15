@@ -50,7 +50,7 @@ export const DEFAULT_LIMITS: Limits = {
   sessionsPerIpPerWindow: 3,
   requestsPerIpPerWindow: 120,
   ipWindowS: 600,
-  perSession: { monster: 40, hint: 40, pronounce: 40, speechChars: 8000, speechFetches: 200 },
+  perSession: { monster: 80, hint: 40, pronounce: 40, speechChars: 8000, speechFetches: 200 },
   daily: { geminiCalls: 2000, speechChars: 60000 },
   geminiConcurrency: 4,
   ttsConcurrency: 2,
@@ -194,7 +194,7 @@ export function features(cfg: Config): Features {
   if (cfg.mode === 'mock') return { monster: true, hint: true, hint_speech: true, pronounce: true };
   const g = !!cfg.geminiKey, e = !!cfg.elevenKey;
   return {
-    monster: g && e && !!cfg.voices.monster,
+    monster: e && !!cfg.voices.monster,   // Gemini optional: without it the server writes the line itself
     hint: g,
     hint_speech: g && e && !!cfg.voices.ship,
     pronounce: e && LANGS.every((l) => !!nativeVoice(cfg, l)),

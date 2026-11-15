@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Fnmw.Core;
+using UnityEngine;
 
 namespace Fnmw.Voice
 {
@@ -30,30 +31,55 @@ namespace Fnmw.Voice
         public static string Aggression(float a) => a < 0.34f ? "low" : a < 0.67f ? "mid" : "high";
     }
 
-    /// <summary>Decides when the beast may speak: rare, grounded in a real event, never over the quiz or the tutorial.</summary>
+    /// <summary>
+    /// Decides when the beast may speak: grounded in a real event, never over the quiz or the tutorial.
+    /// Chatty (the game's setting) adds lines when a console opens, when a sentence is solved, after every mistake, and
+    /// while the player is quiet; it also shortens the cooldown. Not chatty, the beast only reacts to mistakes, rarely.
+    /// </summary>
     internal sealed class DialogueBrain
     {
         public const float Cooldown = 25f, MistakeDelay = 1.2f, StageDelay = 2.5f, MaxWait = 7f;
         public const int MaxLines = 8;
+        public const float ChattyCooldown = 9f, PuzzleStartDelay = 1.5f, SolvedDelay = 0.8f, StalkAfter = 30f;
+        public const int ChattyMaxLines = 36;
 
         public struct Pending { public string Trigger; public float EarliestAt, CreatedAt; public int Stage; }
 
         Pending? _pending;
-        float _lastLineAt = float.NegativeInfinity;
+        float _lastLineAt = float.NegativeInfinity, _quietSince = float.NaN;
         bool _firstMistakeDone, _finalChaseDone;
         readonly HashSet<int> _stagesSaid = new HashSet<int>();
         public int Lines { get; private set; }
         public bool InFlight;
+        public bool Chatty = true;
         public Pending? Waiting => _pending;
+        float CooldownNow => Chatty ? ChattyCooldown : Cooldown;
+        int MaxLinesNow => Chatty ? ChattyMaxLines : MaxLines;
+
+        /// <summary>Queues a line unless a weightier one is already waiting.</summary>
+        void Offer(string trigger, float delay, float now)
+        {
+            if (_pending != null) return;
+            _pending = new Pending { Trigger = trigger, EarliestAt = now + delay, CreatedAt = now };
+        }
 
         public void OnAnswer(AnswerEvent e, RunFacts facts, float now)
         {
-            if (e.Correct) return;
+            _quietSince = now;
+            if (e.Correct) { if (Chatty) Offer("solved", SolvedDelay, now); return; }
             string t = null;
             if (facts.LastConcept != null && facts.Misses(facts.LastConcept) >= 2) t = "repeat_concept";
             else if (facts.WrongStreak >= 2) t = "streak";
             else if (!_firstMistakeDone) t = "first_mistake";
+            else if (Chatty) t = "mistake";
             if (t != null) _pending = new Pending { Trigger = t, EarliestAt = now + MistakeDelay, CreatedAt = now };
+        }
+
+        /// <summary>A new console opened: the beast comments on the sentence.</summary>
+        public void OnPuzzleStart(float now)
+        {
+            _quietSince = now;
+            if (Chatty) Offer("puzzle_start", PuzzleStartDelay, now);
         }
 
         public void OnStage(int stage, float now)
@@ -73,10 +99,14 @@ namespace Fnmw.Voice
         /// <summary>The trigger to send now, or null. Marks one-shot triggers and starts the cooldown.</summary>
         public string Take(float now, GamePhase phase, float beastGrace)
         {
+            if (float.IsNaN(_quietSince)) _quietSince = now;
+            if (_pending == null && Chatty && (phase == GamePhase.Explore || phase == GamePhase.Puzzle)
+                && now - Mathf.Max(_quietSince, _lastLineAt) >= StalkAfter)
+                Offer("stalk", 0f, now);
             if (_pending == null) return null;
             var p = _pending.Value;
-            if (now - p.CreatedAt > MaxWait) { _pending = null; return null; }   // a late taunt is worse than none
-            if (now < p.EarliestAt || InFlight || Lines >= MaxLines || now - _lastLineAt < Cooldown) return null;
+            if (now - p.CreatedAt > MaxWait) { _pending = null; if (p.Trigger == "stalk") _quietSince = now; return null; }   // a late taunt is worse than none
+            if (now < p.EarliestAt || InFlight || Lines >= MaxLinesNow || now - _lastLineAt < CooldownNow) return null;
             if (!PhaseAllows(phase) || beastGrace > 0f) return null;
             _pending = null;
             _lastLineAt = now;

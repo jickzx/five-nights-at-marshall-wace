@@ -55,6 +55,8 @@ namespace Fnmw.Voice
         readonly SpeechArbiter _arb = new SpeechArbiter();
         readonly RunFacts _facts = new RunFacts();
         readonly DialogueBrain _brain = new DialogueBrain();
+        /// <summary>When the beast speaks (tests turn Chatty off to pin the mistake-only behaviour).</summary>
+        internal DialogueBrain Brain => _brain;
 
         sealed class Pending { public int Handle; public float Deadline; public Action<VoiceResponse> Done; public bool Finished; public string Feature; }
         readonly List<Pending> _pending = new List<Pending>();
@@ -248,6 +250,7 @@ namespace Fnmw.Voice
                 ClearHint();
                 _hintsGiven = 0; _attempts = 0; _missed = null; _lastHintClip = null; _lastHint = default; _lastHintAt = float.NegativeInfinity;
                 _hintsAvailable = null;
+                if (p != null) _brain.OnPuzzleStart(Now);
             }
             _puzzle = p; _puzzleKey = key;
             // a new console: the previous sentence's voice stops and its state is forgotten
@@ -349,6 +352,7 @@ namespace Fnmw.Voice
                 concept_misses = Mathf.Clamp(_facts.Misses(_facts.LastConcept), 0, 99), wrong_streak = Mathf.Clamp(_facts.WrongStreak, 0, 99),
                 mistakes = Mathf.Clamp(S.Mistakes, 0, 999), total = Mathf.Clamp(S.TotalPuzzles, 0, 12),
                 pace = _facts.Pace, distance = RunFacts.Distance(S.BeastDistance), aggression = RunFacts.Aggression(aggression),
+                meaning = Protocol.MonsterMeaningFor(_puzzle),
             };
             req.solved = Mathf.Clamp(S.PuzzlesSolved, 0, req.total);
             int token = ++_monsterToken;

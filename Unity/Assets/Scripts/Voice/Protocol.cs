@@ -38,7 +38,15 @@ namespace Fnmw.Voice
         {
             public int seq; public string trigger; public int stage; public string concept; public int concept_misses, wrong_streak, mistakes, solved, total;
             public string pace, distance, aggression;
+            /// <summary>English meaning of the sentence on the console (the player sees it), or null.</summary>
+            public string meaning;
         }
+
+        static readonly Regex MonsterMeaning = new Regex(@"^[A-Za-z ,.'’?!\-]{1,100}$");
+
+        /// <summary>The puzzle's English meaning if it is plain enough for the monster route, else null.</summary>
+        public static string MonsterMeaningFor(LangPuzzle p) =>
+            p?.TargetMeaning != null && MonsterMeaning.IsMatch(p.TargetMeaning) ? p.TargetMeaning : null;
 
         [Serializable] public sealed class HintExample { public string meaning; public string[] words; }
         [Serializable] public sealed class HintReq { public int seq; public int level; public string concept; public int attempts; public string target_meaning; public HintExample[] examples; public string[] tiles; }
@@ -50,7 +58,9 @@ namespace Fnmw.Voice
         public static string MonsterJson(MonsterReq r)
         {
             string json = JsonUtility.ToJson(r);
-            return r.concept == null ? json.Replace("\"concept\":\"\"", "\"concept\":null") : json;
+            if (r.concept == null) json = json.Replace("\"concept\":\"\"", "\"concept\":null");
+            if (string.IsNullOrEmpty(r.meaning)) json = json.Replace("\"meaning\":\"\"", "\"meaning\":null");
+            return json;
         }
 
         /// <summary>The visible puzzle only: meanings, words and tiles. No answer, no language, no rule text.</summary>

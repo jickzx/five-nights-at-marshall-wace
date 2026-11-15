@@ -137,14 +137,14 @@ test('Gemini invalid-key HTTP 400 disables all Gemini features without a retry o
       message: 'PROVIDER SECRET TEXT', status: 'INVALID_ARGUMENT',
       details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', domain: 'googleapis.com', reason: 'API_KEY_INVALID' }],
     } }, { status: 400 });
+    // the monster keeps talking: with Gemini disabled the server writes the line itself, and ElevenLabs speaks it
     const r = await h.post('/v1/monster-line', monsterBody(), token);
-    assert.equal(r.status, 503);
-    assert.deepEqual(await r.json(), { error: { code: 'disabled' } });
+    assert.equal(r.status, 200);
     const spent = h.svc.dailyGemini.used;
-    assert.equal((await h.post('/v1/monster-line', monsterBody(), token)).status, 503);
-    assert.equal(h.fake.gemini().length, 1);
+    assert.equal((await h.post('/v1/monster-line', monsterBody({ seq: 2 }), token)).status, 200);
+    assert.equal(h.fake.gemini().length, 1, 'no second Gemini call once the key is known bad');
     assert.equal(h.svc.dailyGemini.used, spent);
-    assert.deepEqual(h.svc.features(), { monster: false, hint: false, hint_speech: false, pronounce: true });
+    assert.deepEqual(h.svc.features(), { monster: true, hint: false, hint_speech: false, pronounce: true });
     assert.ok(!h.logs.join('').includes('PROVIDER SECRET TEXT'));
   } finally { await h.close(); }
 });

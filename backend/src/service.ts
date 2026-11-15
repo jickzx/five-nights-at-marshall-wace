@@ -9,6 +9,7 @@ import { Logger } from './log.ts';
 import { HINT_FACTS, FACTS_VERSION, guidedHint } from './hintfacts.ts';
 import { HINT_SYSTEM, MONSTER_SYSTEM, PROMPT_VERSION, TRIGGER_MEANING } from './prompts.ts';
 import { checkHint, checkMonsterLine } from './textcheck.ts';
+import { writeMonsterLine } from './monster-lines.ts';
 import type { HintRequest, MonsterRequest, PronounceRequest, SessionRequest } from './validate.ts';
 import { ProviderError, type Fetch } from './providers/common.ts';
 import { geminiGenerate } from './providers/gemini.ts';
@@ -155,7 +156,7 @@ export class VoiceService {
   features() {
     const f = features(this.cfg);
     return {
-      monster: f.monster && !this.geminiSwitch.off && !this.elevenSwitch.off,
+      monster: f.monster && !this.elevenSwitch.off,
       hint: f.hint && !this.geminiSwitch.off,
       hint_speech: f.hint_speech && !this.geminiSwitch.off && !this.elevenSwitch.off,
       pronounce: f.pronounce && !this.elevenSwitch.off,
@@ -363,14 +364,29 @@ export class VoiceService {
   async monsterLine(s: Session, req: MonsterRequest, signal: AbortSignal) {
     if (!this.features().monster) throw new ApiError('disabled');
     this.#quota(s, 'monster');
-    const user = { ...req, what_happened: TRIGGER_MEANING[req.trigger] };
-    const schema = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] };
-    const out = await this.#generate('monster', user, schema, signal);
-    if (typeof out !== 'object' || out === null || Array.isArray(out) || Object.keys(out).length !== 1 || typeof (out as { line?: unknown }).line !== 'string')
-      throw new ApiError('invalid_generation');
-    const line = (out as { line: string }).line.trim();
-    const v = checkMonsterLine(line, s.recentLines);
-    if (!v.ok) { this.log.info({ event: 'rejected', feature: 'monster', code: v.reason }); throw new ApiError('invalid_generation'); }
+    let line: string | null = null;
+    if (this.mock || (this.cfg.geminiKey && !this.geminiSwitch.off)) {
+      const user: Record<string, unknown> = { ...req, what_happened: TRIGGER_MEANING[req.trigger] };
+      if (req.meaning === null) delete user.meaning;
+      const schema = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] };
+      try {
+        const out = await this.#generate('monster', user, schema, signal);
+        if (typeof out !== 'object' || out === null || Array.isArray(out) || Object.keys(out).length !== 1 || typeof (out as { line?: unknown }).line !== 'string')
+          throw new ApiError('invalid_generation');
+        line = (out as { line: string }).line.trim();
+        const v = checkMonsterLine(line, s.recentLines);
+        if (!v.ok) { this.log.info({ event: 'rejected', feature: 'monster', code: v.reason }); throw new ApiError('invalid_generation'); }
+      } catch (e) {
+        // Gemini gone (no credits, bad key, daily budget): write the line here instead. Other errors stay errors.
+        if (this.mock || !(e instanceof ApiError) || (e.code !== 'disabled' && e.code !== 'budget_exhausted')) throw e;
+        line = null;
+      }
+    }
+    if (line === null) {
+      line = writeMonsterLine(req, s.recentLines);
+      if (line === null) throw new ApiError('invalid_generation');
+      this.log.info({ event: 'server_line', feature: 'monster' });
+    }
     s.recentLines.push(line);
     if (s.recentLines.length > 5) s.recentLines.shift();
     return { id: randomId(), text: line, source: (this.mock ? 'mock' : 'live') as Source, speech: this.#trySpeech(s, 'monster', 'en', line) };
