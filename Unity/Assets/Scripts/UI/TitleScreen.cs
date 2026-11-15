@@ -14,7 +14,6 @@ namespace Fnmw.UI
     {
         public const string Over = "F I V E   N I G H T S   A T";
         public const string Name = "MARSHALL WACE";
-        public const string Target = "TrES-2b  ·  BEYOND THE WORMHOLE  ·  UNCHARTED";
         public const string Cue = "BEGIN TRANSIT";
         public const string EscapeLine = "The ship tears free of TrES-2b and its blood sea.";
     }
@@ -83,7 +82,6 @@ namespace Fnmw.UI
             Kit.Label("Over", Root, TitleCopy.Over, 16, Pal.RustHot, TextAnchor.MiddleCenter, 20, 106, 600, 16);
             Kit.Label("Name", Root, TitleCopy.Name, 48, Pal.Bone, TextAnchor.MiddleCenter, 20, 122, 600, 48);
             Kit.Box("Rule", Root, Pal.Rust, 164, 176, 312, 1);
-            Kit.Label("Target", Root, TitleCopy.Target, 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 182, 600, 16);
             const int n = 9;
             float gx = (UiRig.StageW - (n * 24 + (n - 1) * 8)) / 2f;
             for (int i = 0; i < n; i++)
