@@ -1,3 +1,4 @@
+using Fnmw.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,6 +16,15 @@ namespace Fnmw.Game
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 900;
+            if (XrBridge.Active && Camera.main)
+            {
+                // VR: the ending's camera is drawn on the theater screen (a render texture), which an overlay
+                // canvas never reaches; hang the fade just in front of that camera instead.
+                var cam = Camera.main;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = Mathf.Max(cam.nearClipPlane * 2f, 0.1f);
+            }
             var img = new GameObject("Overlay").AddComponent<Image>();
             img.transform.SetParent(go.transform, false);
             img.raycastTarget = false;

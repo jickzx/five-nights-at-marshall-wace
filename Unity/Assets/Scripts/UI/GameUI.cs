@@ -210,7 +210,10 @@ namespace Fnmw.UI
         public void Tick(float dt, UiInput input)
         {
             if (_disposed) return;
-            Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
+            // In a headset the glass is a 16:9 panel in the world, not the window, so it keeps the 640x360 stage.
+            if (XrBridge.Active) Rig.Resize(1280, 720);
+            else Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
+            if (XrBridge.Active) Rig.FollowXr(dt, Services.State != null && (Services.State.Phase == GamePhase.Explore || Services.State.Phase == GamePhase.Chase) && _modal == null);
             if (_lock > 0)
             {
                 _lock -= dt;
