@@ -24,6 +24,7 @@ import os
 import pathlib
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
@@ -111,15 +112,27 @@ def run_session(c: Client, qset: dict, seed: int, intensity: float, pace: bool) 
         die(f"consent refused (HTTP {r.status_code})")
     batches = simulate_batches(seed=seed, intensity=intensity)
     print(f"session {sid} · candidate {cand['pseudonym']} · {len(batches)} batches{' at headset pace' if pace else ''}", flush=True)
+    # Like the headset (QsTelemetry.MaxInFlight): up to three requests at once, since one ingest takes several
+    # database round trips; the batch with session_end goes last, after the others have landed.
     t0 = time.monotonic()
-    for i, b in enumerate(batches):
-        if pace:
-            wait = t0 + (b["t_end"] - batches[0]["t_end"]) - time.monotonic()
-            if wait > 0:
-                time.sleep(wait)
-        c.ingest(sid, token, b)
-        if i % 40 == 0:
-            print(f"  t={b['t_end']:6.1f}s  batch {i}/{len(batches)}", flush=True)
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        pending = []
+        for i, b in enumerate(batches):
+            if pace:
+                wait = t0 + (b["t_end"] - batches[0]["t_end"]) - time.monotonic()
+                if wait > 0:
+                    time.sleep(wait)
+            if any(e["type"] == "session_end" for e in b["events"]):
+                for f in pending:
+                    f.result()
+                pending = []
+            pending = [f for f in pending if not f.done() or f.result() is None] + [pool.submit(c.ingest, sid, token, b)]
+            while len(pending) >= 6:          # never more than a couple of seconds behind
+                pending.pop(0).result()
+            if i % 40 == 0:
+                print(f"  t={b['t_end']:6.1f}s  batch {i}/{len(batches)}", flush=True)
+        for f in pending:
+            f.result()
     print(f"session {sid} ended", flush=True)
     return sid
 

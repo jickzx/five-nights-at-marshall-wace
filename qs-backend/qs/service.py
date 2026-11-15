@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Sequence
 
 import numpy as np
@@ -195,10 +198,45 @@ def delete_candidate(user: Db, candidate_id: str) -> dict:
 
 # ---------------------------------------------------------------- ingest --------------------------------
 
+# ---- per-instance ingest cache
+# A headset posts every 0.5 s and each database round trip costs ~140 ms from the function to Supabase, so the
+# token check, session row and consent are cached per warm instance for a few seconds (keyed by the token's hash)
+# and updated whenever ingest itself changes the session. Withdrawing or recording consent drops the entry. The
+# cost: an ended or deleted session can accept data for at most INGEST_CACHE_S more on an instance that has it.
+INGEST_CACHE_S = 5.0
+_ingest_cache: dict[tuple[str, str], tuple[float, dict, dict | None]] = {}
+_cache_lock = threading.Lock()
+_pool = ThreadPoolExecutor(max_workers=4)
+
+
+def _cache_get(session_id: str, token: str) -> tuple[dict, dict | None] | None:
+    with _cache_lock:
+        hit = _ingest_cache.get((session_id, hash_token(token)))
+    if hit and hit[0] > time.monotonic():
+        return dict(hit[1]), hit[2]
+    return None
+
+
+def _cache_put(session_id: str, token: str, session: dict, consent: dict | None) -> None:
+    with _cache_lock:
+        if len(_ingest_cache) > 2000:
+            _ingest_cache.clear()
+        _ingest_cache[(session_id, hash_token(token))] = (time.monotonic() + INGEST_CACHE_S, dict(session), consent)
+
+
+def _cache_drop(session_id: str) -> None:
+    with _cache_lock:
+        for k in [k for k in _ingest_cache if k[0] == session_id]:
+            _ingest_cache.pop(k, None)
+
+
 def authenticate_ingest(server: Db, session_id: str, token: str) -> dict:
     """The session a headset token belongs to, or a 401. Same error for unknown session and wrong token."""
     if not token:
         raise ServiceError(401, "missing ingest token")
+    hit = _cache_get(session_id, token)
+    if hit:
+        return hit[0]
     tokens = server.select("qs_session_tokens", Query(eq={"session_id": session_id}))
     if not tokens or tokens[0].get("revoked_at") or not token_matches(token, tokens[0]["token_hash"]):
         raise ServiceError(401, "invalid ingest token")
@@ -214,6 +252,7 @@ def record_consent(server: Db, session: dict, body: ConsentIn, version: str) -> 
     _, digest = consent_statement(version)
     if body.consent_version != version or body.statement_sha256 != digest:
         raise ServiceError(409, "consent statement does not match the current version; fetch /v1/consent again")
+    _cache_drop(session["id"])
     row = server.insert("qs_consents", [{"session_id": session["id"], "employer_id": session["employer_id"],
                                          "consent_version": version, "statement_sha256": digest,
                                          "client": body.client}])[0]
@@ -221,6 +260,7 @@ def record_consent(server: Db, session: dict, body: ConsentIn, version: str) -> 
 
 
 def withdraw_consent(server: Db, session: dict, broadcaster: Broadcaster) -> dict:
+    _cache_drop(session["id"])
     rows = server.update("qs_consents", {"withdrawn_at": now_iso()},
                          Query(eq={"session_id": session["id"]}, is_null={"withdrawn_at": True}))
     server.update("qs_sessions", {"status": "ended", "ended_at": now_iso()}, Query(eq={"id": session["id"]}))
@@ -264,11 +304,12 @@ def live_window(row: dict) -> dict:
             "states": row.get("states") or []}
 
 
-def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcaster) -> dict:
+def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcaster, token: str | None = None) -> dict:
     sid, emp = session["id"], session["employer_id"]
     if session.get("status") == "ended":
         raise ServiceError(409, "session has ended")
-    consent = _active_consent(server, sid)
+    hit = _cache_get(sid, token) if token else None
+    consent = hit[1] if hit else _active_consent(server, sid)
     if not consent:
         raise ServiceError(403, "no consent recorded for this session; ingest refused")
     # Audio only under a consent statement that named the microphone; older consents never cover it.
@@ -282,6 +323,7 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
 
     # ---- motion window
     window_rows: list[dict] = []
+    record_status = None
     if batch.samples is not None:
         s = batch.samples
         t = np.asarray(s.t, dtype=float)
@@ -296,6 +338,10 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         rel = F.relative_to_baseline(feats, baseline) if baseline else None
         freeze = F.is_freeze(feats, baseline) if baseline else None
         window_states: list[dict] = []
+        if batch.question_key and not batch.events:
+            # fetched alongside the stimuli below (each round trip is ~140 ms); used for the record refresh later
+            record_status = _pool.submit(server.select, "qs_records",
+                                         Query(eq={"session_id": sid, "question_key": batch.question_key}), "status")
         if baseline:
             # the stimuli this window may be reacting to: the batch's own events plus the last few seconds'
             recent = server.select("qs_events", Query(eq={"session_id": sid}, in_={"type": sorted(F.STARTLE_EVENTS)},
@@ -356,7 +402,8 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         # A window alone refreshes its question's record when that question has already closed (a late
         # window) or, while it is open, every RECORD_REFRESH_WINDOWS windows. Checking the record's status
         # is one small read, so window-only batches do not fetch the session's events.
-        rec = server.select("qs_records", Query(eq={"session_id": sid, "question_key": batch.question_key}), columns="status")
+        rec = record_status.result() if record_status is not None else \
+            server.select("qs_records", Query(eq={"session_id": sid, "question_key": batch.question_key}), columns="status")
         if rec and (rec[0]["status"] == "closed" or batch.seq % RECORD_REFRESH_WINDOWS == 0):
             touched.add(batch.question_key)
     if touched:
@@ -370,6 +417,11 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         messages.append({"topic": employer_topic(emp), "event": "session", "payload": {"session_id": sid, "status": "ended"}})
 
     broadcaster.send(messages)
+    if token:
+        if ended:
+            _cache_drop(sid)
+        else:
+            _cache_put(sid, token, session, consent)
     return {"windows_accepted": len(window_rows), "events_accepted": len(new_events),
             "events_duplicate": len(batch.events) - len(new_events), "records_updated": records_updated,
             "audio_accepted": bool(audio_ok and window_rows), "session_ended": ended}

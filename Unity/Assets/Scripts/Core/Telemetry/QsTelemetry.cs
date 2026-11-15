@@ -22,7 +22,10 @@ namespace Fnmw.Core.Telemetry
     /// consent and reduced on the device to breathing features (<see cref="QsBreath"/>); raw audio is never sent.
     ///
     /// The game never waits on this: requests run in a coroutine, one at a time, and a failure only costs data.
-    /// Batches wait in a short queue (MaxQueuedBatches, about 2 s) while a request is in flight; beyond that the
+    /// Up to MaxInFlight requests run at once (each takes several database round trips, longer than the 0.5 s hop;
+    /// the server drops repeated windows and events, so order does not matter), and the batch carrying session_end
+    /// waits for the others so nothing arrives after the end. Batches wait in a short queue (MaxQueuedBatches, about
+    /// 2 s) while all requests are busy; beyond that the
     /// oldest window is dropped, so a bad network never builds a backlog. Events are never dropped by the queue
     /// and are retried on failure (they carry ids, so the server drops duplicates).
     /// </summary>
@@ -55,7 +58,7 @@ namespace Fnmw.Core.Telemetry
         double _nextSend;
         double _calibrationEnd = double.NaN;
         int _seq;
-        bool _inFlight;
+        int _inFlight;
         int _framesSinceSend;
         double _rateWindowStart;
         string _question;
@@ -63,6 +66,8 @@ namespace Fnmw.Core.Telemetry
 
         const int MaxPendingEvents = 500;
         const int MaxQueuedBatches = 4;
+        const int MaxInFlight = 3;
+        const int MaxFramesPerWindow = 480;   // the API takes 600; a desktop running uncapped is decimated to fit
 
         sealed class Batch { public int Seq; public string Question; public double TStart, TEnd; public float Rate; public List<QsFrame> Frames; public List<QsEvent> Events; public string Audio; }
         readonly Queue<Batch> _queue = new Queue<Batch>();
@@ -177,6 +182,9 @@ namespace Fnmw.Core.Telemetry
         void StartRecording()
         {
             Current = State.Recording;
+            // A session must not freeze (and lose its windows) because the window lost focus on a desktop, or the
+            // headset's system menu opened. Only set while a consented session is recording.
+            Application.runInBackground = true;
             _clockOrigin = Time.realtimeSinceStartupAsDouble;
             _buffer.Clear();
             _nextSend = _config.WindowSeconds;
@@ -231,6 +239,13 @@ namespace Fnmw.Core.Telemetry
             _rateWindowStart = now;
 
             var frames = _buffer.Window(tStart, tEnd);
+            if (frames.Count > MaxFramesPerWindow)
+            {
+                var kept = new List<QsFrame>(MaxFramesPerWindow);
+                double step = frames.Count / (double)MaxFramesPerWindow;
+                for (int i = 0; i < MaxFramesPerWindow; i++) kept.Add(frames[(int)(i * step)]);
+                frames = kept;
+            }
             var events = new List<QsEvent>(_pending);
             _pending.Clear();
             if (frames.Count == 0 && events.Count == 0) return;
@@ -249,13 +264,21 @@ namespace Fnmw.Core.Telemetry
                 if (old.Frames.Count > 0) WindowsDropped++;
                 if (_queue.Count > 0) _queue.Peek().Events.InsertRange(0, old.Events); else _pending.InsertRange(0, old.Events);
             }
-            if (!_inFlight) SendNext();
+            SendNext();
         }
 
         void SendNext()
         {
-            if (_inFlight || _queue.Count == 0 || Current != State.Recording) return;
-            var b = _queue.Dequeue();
+            while (_inFlight < MaxInFlight && _queue.Count > 0 && Current == State.Recording)
+            {
+                var next = _queue.Peek();
+                if (_inFlight > 0 && next.Events.Exists(e => e.Type == "session_end")) return;   // the end goes last
+                SendOne(_queue.Dequeue());
+            }
+        }
+
+        void SendOne(Batch b)
+        {
             string body = QsWire.Batch(b.Seq, b.Question, b.TStart, b.TEnd, b.Rate, b.Frames, _source.HasControllers, b.Events, b.Audio);
             bool ending = b.Events.Exists(e => e.Type == "session_end");
             StartCoroutine(Send(body, b.Frames.Count > 0, b.Events, ending));
@@ -263,16 +286,27 @@ namespace Fnmw.Core.Telemetry
 
         IEnumerator Send(string body, bool hasWindow, List<QsEvent> events, bool ending)
         {
-            _inFlight = true;
+            _inFlight++;
             using (var www = Post(_config.IngestUrlFor(_sessionId), body))
             {
                 yield return www.SendWebRequest();
-                _inFlight = false;
+                _inFlight--;
                 long code = www.responseCode;
                 if (code == 202)
                 {
                     if (hasWindow) WindowsSent++;
                     if (ending) { Stop("session ended"); yield break; }
+                    SendNext();
+                    yield break;
+                }
+                if (code == 422)
+                {
+                    // The server could not use this batch (it says why in the body). Retrying it unchanged would fail
+                    // again, so drop its window and carry the events, which are validated separately, forward.
+                    if (hasWindow) WindowsDropped++;
+                    if (_pending.Count + events.Count <= MaxPendingEvents) _pending.InsertRange(0, events);
+                    LastError = "batch rejected (HTTP 422): " + www.downloadHandler.text;
+                    Debug.LogWarning("[QS] " + LastError);
                     SendNext();
                     yield break;
                 }

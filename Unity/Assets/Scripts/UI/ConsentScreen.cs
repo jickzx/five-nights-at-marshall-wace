@@ -91,11 +91,22 @@ namespace Fnmw.UI
             Paint();
         }
 
-        /// <summary>Word-wrap the statement to the text column, keeping its own line breaks.</summary>
+        /// <summary>
+        /// Word-wrap the statement to the text column. The server's text is hard-wrapped for terminals, so its single
+        /// line breaks are joined; blank lines (paragraphs) and "- " list items are kept.
+        /// </summary>
         static List<string> Wrap(string text, float width)
         {
+            var paras = new List<string>();
+            foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
+            {
+                string line = raw.TrimEnd();
+                bool starts = paras.Count == 0 || line.Length == 0 || line.StartsWith("- ") || paras[paras.Count - 1].Length == 0;
+                if (starts) paras.Add(line.Trim().Length == 0 ? "" : line);
+                else paras[paras.Count - 1] += " " + line.Trim();
+            }
             var lines = new List<string>();
-            foreach (var para in (text ?? "").Replace("\r", "").Split('\n'))
+            foreach (var para in paras)
             {
                 if (para.Trim().Length == 0) { lines.Add(""); continue; }
                 string indent = para.StartsWith("- ") ? "  " : "";

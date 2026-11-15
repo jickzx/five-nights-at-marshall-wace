@@ -133,7 +133,7 @@ def create_app(backend: Backend | None = None) -> FastAPI:
             batch = IngestBatch.model_validate_json(raw)
         except ValueError as ex:
             raise HTTPException(422, _short(ex)) from None
-        result = service.ingest(b.server_db(), session, batch, b.broadcaster)
+        result = service.ingest(b.server_db(), session, batch, b.broadcaster, x_qs_ingest_token or "")
         if result.get("session_ended"):
             # Gemini writes the summary after the headset has its 202; failures are stored with their reason.
             background.add_task(service.auto_summary, b.server_db(), session["id"], b.summarizer, b.broadcaster)
