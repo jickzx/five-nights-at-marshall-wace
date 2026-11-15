@@ -74,7 +74,7 @@ namespace Fnmw.UI
             if (_disposed) return;
             _disposed = true;
             GameEvents.BeastStageChanged -= OnBeastStage;
-            _puzzle?.Close(); _escape?.Close();
+            _puzzle?.Close(); _escape?.Close(); _title?.Close();
             Fx?.Dispose();
             Rig?.Dispose();
         }

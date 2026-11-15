@@ -24,6 +24,8 @@ namespace Fnmw.UI
         public static readonly Color Dawn = Hex(0xC9D6E6);
         public static readonly Color Indigo = Hex(0x10152E);
         public static readonly Color Ink = Hex(0x4A423B);
+        public static readonly Color Abyss = Hex(0x06050A);      // the title sky, past the wormhole
+        public static readonly Color Bruise = Hex(0x2E0E1A);     // the title sky at the horizon of TrES-2b
         public static readonly Color Clear = new Color(0, 0, 0, 0);
 
         public static Color Hex(int rgb, float a = 1f) =>
