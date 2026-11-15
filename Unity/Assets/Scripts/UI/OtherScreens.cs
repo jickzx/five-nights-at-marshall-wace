@@ -264,7 +264,11 @@ namespace Fnmw.UI
 
         // the run's account sits in a band above the AGAIN cue, across the full width under the ship's trail
         const float DebriefX = 44, DebriefW = 552, DebriefBottom = 328, DebriefPitch = 17;
-        const int DebriefReserve = 3;      // lines kept free even before the account arrives, so a late one never lands on the list
+        /// <summary>Lines kept free even before the account arrives, so a late one never lands on the list. Four: a
+        /// debrief may be 210 characters, which wraps to four lines at this width.</summary>
+        public const int DebriefReserve = 4;
+        const float TightEntry = 32;       // a tongue's name and one phrase, closed right up
+        float _debriefTop;                 // the top of the band the list was laid out to leave free
 
         static float DebriefTop(string text) =>
             DebriefBottom - Mathf.Max(DebriefReserve, string.IsNullOrEmpty(text) ? 0 : Kit.Lines(text, 16, DebriefW)) * DebriefPitch;
@@ -275,7 +279,8 @@ namespace Fnmw.UI
             _onRestart = onRestart;
             _stars.Clear(); _fadeIn.Clear(); _fadeAt.Clear();
             _debrief = null;
-            float bottom = DebriefTop(debrief) - 6;
+            _debriefTop = DebriefTop(debrief);
+            float bottom = _debriefTop - 4;
 
             // sky across the whole glass, not just the stage
             Kit.Kill(_sky ? _sky.gameObject : null);
@@ -295,9 +300,11 @@ namespace Fnmw.UI
             // a run decodes up to five tongues: with more than two, the list drops to two lines each
             int count = journal != null ? Mathf.Min(journal.Entries.Count, 5) : 0;
             bool roomy = count <= 2;
-            float y = roomy ? 34 : 24;
+            // five tongues, each with a phrase, above a full debrief band: pull the header up so none loses its rows
+            bool compact = !roomy && 24 + 38 + 24 + 25 + count * TightEntry > bottom;
+            float y = roomy ? 34 : compact ? 20 : 24;
             Fade(Kit.Label("Title", Root, "LIFT-OFF", 32, Pal.Ivory, TextAnchor.MiddleLeft, 44, y, 400, 32), 0.6f);
-            y += 38;
+            y += compact ? 34 : 38;
             if (roomy)
             {
                 Fade(Kit.Label("Sub", Root, TitleCopy.EscapeLine, 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
@@ -308,10 +315,10 @@ namespace Fnmw.UI
                 string stats = "CONSOLES " + state.PuzzlesSolved + "/" + state.TotalPuzzles + "  \u00B7  MISFIRES " + state.Mistakes + "  \u00B7  " + Lore.Clock(state.Elapsed);
                 Fade(Kit.Label("Stats", Root, stats, 16, Pal.BoneDim, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.5f);
             }
-            y += roomy ? 30 : 24;
+            y += roomy ? 30 : compact ? 20 : 24;
             Fade(Kit.Label("Tag", Root, count > 0 ? "WHAT YOU CARRY OUT" : "NO TONGUE DECODED THIS TIME", 16, Pal.Amber, TextAnchor.MiddleLeft, 44, y, 420, 16), 2.0f);
             Fade(Kit.Box("Rule", Root, Pal.Amber.A(0.6f), 44, y + 19, 250, 1), 2.0f);
-            y += roomy ? 28 : 25;
+            y += roomy ? 28 : compact ? 22 : 25;
 
             float at = 2.4f;
             // five tongues and the account do not fit at the usual spacing: close the rows up
@@ -351,7 +358,7 @@ namespace Fnmw.UI
                     Fade(t, at + 0.3f);
                     y += lines * 18 + 4;
                 }
-                y += roomy ? 8 : tight ? 1 : 3;
+                y += roomy ? 8 : tight ? 0 : 3;
                 at += roomy ? 0.5f : 0.3f;
             }
             _debriefAt = Mathf.Max(3f, at);
@@ -365,16 +372,18 @@ namespace Fnmw.UI
             if (string.IsNullOrEmpty(text)) { if (_debrief) _debrief.text = ""; return; }
             int lines = Mathf.Max(1, Kit.Lines(text, 16, DebriefW));
             float h = lines * DebriefPitch;
+            // never above the band the list left free: an account longer than the band grows down toward the cue instead
+            float top = Mathf.Max(DebriefBottom - h, _debriefTop);
             if (!_debrief)
             {
-                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Dawn, TextAnchor.UpperLeft, DebriefX, DebriefBottom - h, DebriefW, h, wrap: true);
+                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Dawn, TextAnchor.UpperLeft, DebriefX, top, DebriefW, h, wrap: true);
                 Kit.Pitch(_debrief, DebriefPitch);
             }
             else
             {
                 if (_debrief.text == Rtl.Visual(text)) return;
                 Kit.SetText(_debrief, text);
-                Kit.Place(_debrief.rectTransform, DebriefX, DebriefBottom - h, DebriefW, h);
+                Kit.Place(_debrief.rectTransform, DebriefX, top, DebriefW, h);
             }
             _debriefAt = Mathf.Max(_debriefAt, T);
             _debrief.canvasRenderer.SetAlpha(0);

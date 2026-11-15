@@ -45,6 +45,15 @@ namespace Fnmw.Game
 
         void Awake() => Instance = this;
 
+        /// <summary>Domain reload is off on entering play mode, so statics outlive a play session: drop the last one's
+        /// Restarting subscribers and instance before the first scene loads.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            Restarting = null;
+            Instance = null;
+        }
+
         void Start()
         {
             _player = FindAnyObjectByType<PlayerController>();

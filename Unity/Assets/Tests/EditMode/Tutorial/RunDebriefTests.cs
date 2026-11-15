@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Fnmw.Core;
 using Fnmw.Core.Ai;
 using Fnmw.Core.Fakes;
+using Fnmw.Game;
 using Fnmw.Game.Debrief;
 using Fnmw.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace Fnmw.Tests
@@ -34,6 +37,7 @@ namespace Fnmw.Tests
         DebriefUi _ui;
         ScriptedAiText _ai;
         RunDebriefer _d;
+        bool _demoWas;
 
         static readonly string[] Langs = { "German", "Japanese", "Turkish" };
         static readonly string[] Concepts = { LangConcepts.VerbFinal, LangConcepts.Particles, LangConcepts.SuffixOrder };
@@ -41,6 +45,8 @@ namespace Fnmw.Tests
         [SetUp]
         public void SetUp()
         {
+            _demoWas = DemoMode.On;
+            DemoMode.On = false;
             GameEvents.ClearAll();
             Services.ResetToFakes();
             _ui = new DebriefUi();
@@ -56,6 +62,7 @@ namespace Fnmw.Tests
         public void TearDown()
         {
             _d.Detach();
+            DemoMode.On = _demoWas;
             GameEvents.ClearAll();
             Services.ResetToFakes();
         }
@@ -342,6 +349,235 @@ namespace Fnmw.Tests
             CollectionAssert.DoesNotContain(_ui.Debriefs, "German was clean and Japanese particles cost you. You lifted off at 3:10.");
         }
 
+        // ------------------------------------------------------------------ fair replies the check used to reject
+
+        [Test]
+        public void Check_BeastAgency_OnlyWhenTheBeastOrNoOneChooses()
+        {
+            _ai.Available = false;
+            PlayRun(escape: true);
+            var log = _d.Log;
+            string Why(string text) { DebriefWriter.Check(Json(text), log, Langs, out _, out string why); return why; }
+
+            Assert.IsNull(Why("You picked the wrong word twice on Japanese. You lifted off at 3:10."), "the player choosing is fair");
+            Assert.IsNull(Why("The beast grew to stage 3 while you chose your words. You lifted off at 3:10."));
+            Assert.IsNull(Why("Japanese tripped you, and you picked the particles apart. You lifted off at 3:10."));
+            Assert.IsNull(Why("The beast picked up speed at 2:10. You lifted off at 3:10."), "picked up is not choosing");
+
+            Assert.AreEqual("beast agency", Why("The beast picked Japanese for you. You lifted off at 3:10."));
+            Assert.AreEqual("beast agency", Why("The beast hunted you and chose its moment. You lifted off at 3:10."), "'you' is the object there");
+            Assert.AreEqual("beast agency", Why("Japanese, chosen by the beast, tripped you. You lifted off at 3:10."));
+            Assert.AreEqual("beast agency", Why("Japanese was chosen to break you. You lifted off at 3:10."), "a passive names no chooser: still a claim");
+            Assert.AreEqual("beast agency", Why("It targeted your weak spot. You lifted off at 3:10."));
+            Assert.AreEqual("beast agency", Why("The game was rigged against you. You lifted off at 3:10."));
+        }
+
+        /// <summary>One console, Japanese, two slips; the beast at stage 3 at 2:10; the ship leaves at 5:58.</summary>
+        static RunLog SlowEscape()
+        {
+            var log = new RunLog();
+            log.PuzzleStarted(new LangPuzzle { Id = 1, Concept = LangConcepts.Particles }, 0, "Japanese", 20f);
+            log.Answer(new AnswerEvent { PuzzleId = 1, Correct = false, MissedConcept = LangConcepts.Particles, ResponseTime = 9f });
+            log.Answer(new AnswerEvent { PuzzleId = 1, Correct = false, MissedConcept = LangConcepts.Particles, ResponseTime = 8f });
+            log.Answer(new AnswerEvent { PuzzleId = 1, Correct = true, ResponseTime = 21f });
+            log.BeastStage(2, 70f);
+            log.BeastStage(3, 130f);
+            log.End(true, 358f, 1, 1, false);
+            return log;
+        }
+
+        [Test]
+        public void Check_Numbers_AcceptsHonestRounding_RejectsUnbackedOnes()
+        {
+            var log = SlowEscape();
+            var world = new[] { "Japanese" };
+            string Why(string text) { DebriefWriter.Check(Json(text), log, world, out _, out string why); return why; }
+
+            Assert.IsNull(Why("Japanese particles cost you 2 tries. You lifted off after six minutes."), "5:58 rounds to six minutes");
+            Assert.IsNull(Why("Japanese particles cost you 2 tries. You lifted off after 5 minutes and change."), "and floors to five");
+            Assert.IsNull(Why("The beast reached stage 3 after two minutes. You lifted off at 5:58."), "2:10 is two minutes");
+            Assert.IsNull(Why("Japanese took you about 20 seconds in the end. You lifted off at 5:58."), "21 s to the nearest 5 or 10");
+
+            Assert.AreEqual("number seven", Why("Japanese particles cost you 2 tries. You lifted off after seven minutes."));
+            Assert.AreEqual("number ten", Why("Japanese particles cost you 2 tries. You lifted off after ten minutes."));
+            Assert.AreEqual("number 6", Why("You slipped 6 times on Japanese. You lifted off at 5:58."), "a count is never rounded from a time");
+            Assert.AreEqual("time 6:00", Why("Japanese particles cost you 2 tries. You lifted off at 6:00."), "a clock is quoted exactly");
+            Assert.AreEqual("number 40", Why("Japanese took you 40 seconds. You lifted off at 5:58."));
+        }
+
+        [Test]
+        public void Check_FlawlessClaim_RejectedAfterMistakes_UnlessAboutACleanConsole()
+        {
+            _ai.Available = false;
+            PlayRun(escape: true);   // German and Turkish clean, Japanese two slips
+            var log = _d.Log;
+            string Why(string text) { DebriefWriter.Check(Json(text), log, Langs, out _, out string why); return why; }
+
+            Assert.AreEqual("says flawless", Why("You breezed through it. You lifted off at 3:10."));
+            Assert.AreEqual("says flawless", Why("A flawless run, even on Japanese. You lifted off at 3:10."));
+            Assert.AreEqual("says flawless", Why("You never slipped once. You lifted off at 3:10."));
+            Assert.IsNull(Why("You breezed through German, but Japanese particles tripped you. You lifted off at 3:10."));
+        }
+
+        [Test]
+        public void Check_SlipClaim_RejectedWithNoMistakes_NegationIsFine()
+        {
+            var log = new RunLog();
+            log.PuzzleStarted(new LangPuzzle { Id = 1 }, 0, "French", 5f);
+            log.Answer(new AnswerEvent { PuzzleId = 1, Correct = true, ResponseTime = 8f });
+            log.End(true, 65f, 1, 1, false);
+            var world = new[] { "French" };
+            string Why(string text) { DebriefWriter.Check(Json(text), log, world, out _, out string why); return why; }
+
+            Assert.AreEqual("says slipped", Why("You stumbled on French. You lifted off at 1:05."));
+            Assert.AreEqual("says slipped", Why("French tripped you up. You lifted off at 1:05."));
+            Assert.AreEqual("says slipped", Why("A wrong word slowed you down. You lifted off at 1:05."));
+            Assert.IsNull(Why("Not one slip on French. You lifted off at 1:05."));
+            Assert.IsNull(Why("You read French without a mistake. You lifted off at 1:05."));
+            Assert.IsNull(Why("A flawless run through French. You lifted off at 1:05."), "flawless is true here");
+        }
+
+        // ------------------------------------------------------------------ demo mode
+
+        [Test]
+        public void Demo_DeathNeverNamesAnUndecodedConsole_StockRequestAndReply()
+        {
+            DemoMode.On = true;
+            _ai.Reply(Json("You read German and Japanese, then froze at the Turkish console. The beast caught you at 2:50."));
+            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex(@"\[Debrief\] shown: stock \(reply rejected: names Turkish\)"));
+            PlayRun(escape: false);   // caught with the Turkish console open and undecoded
+
+            Assert.AreEqual("You read German and Japanese. You slipped 2 times, mostly on particles at the Japanese console. " +
+                            "The beast reached stage 3 and caught you at 2:50, 2 of 3 consoles decoded.", _d.Shown);
+            Assert.IsFalse(_d.Live, "a reply naming the undecoded language is rejected");
+            StringAssert.DoesNotContain("Turkish", _ai.Requests[0].Prompt, "the model is never told it");
+            StringAssert.Contains("console 3: undecoded language", _ai.Requests[0].Prompt);
+            CollectionAssert.DoesNotContain(_ui.Debriefs, null);
+            foreach (var shown in _ui.Debriefs) StringAssert.DoesNotContain("Turkish", shown);
+
+            Assert.IsTrue(DebriefWriter.Check(Json("You read German and Japanese. The beast caught you at the third console at 2:50."), _d.Log, Langs, out _, out string why),
+                "a fair demo reply still lands: " + why);
+        }
+
+        [Test]
+        public void Demo_UndecodedLanguageIsHiddenEvenWhenTheWorldListLacksIt()
+        {
+            var log = new RunLog();
+            log.PuzzleStarted(new LangPuzzle { Id = 1, Concept = LangConcepts.Particles }, 0, "Japanese", 5f);
+            log.Answer(new AnswerEvent { PuzzleId = 1, Correct = false, MissedConcept = LangConcepts.Particles, ResponseTime = 4f });
+            log.End(false, 40f, 0, 3, caughtInPuzzle: true);
+            log.HideUndecoded = true;
+
+            string stock = DebriefWriter.Stock(log);
+            Assert.AreEqual("You reached 1 console. You slipped 1 time, on particles. The beast reached stage 1 and caught you at 0:40, 0 of 3 consoles decoded.", stock);
+            Assert.IsTrue(DebriefWriter.Check(Json(stock), log, null, out _, out string why), why);
+            Assert.IsFalse(DebriefWriter.Check(Json("Japanese particles tripped you once. The beast caught you at 0:40."), log, null, out _, out why));
+            Assert.AreEqual("names Japanese", why);
+            CollectionAssert.AreEqual(new[] { "Japanese" }, log.HiddenLanguages);
+
+            log.HideUndecoded = false;   // outside demo mode it is named as before
+            StringAssert.Contains("at the Japanese console", DebriefWriter.Stock(log));
+            Assert.IsTrue(DebriefWriter.Check(Json("Japanese particles tripped you once. The beast caught you at 0:40."), log, null, out _, out why), why);
+        }
+
+        [Test]
+        public void OutsideDemo_DeathStillNamesTheOpenConsole()
+        {
+            _ai.Reply(Json("You read German and Japanese, then froze at the Turkish console. The beast caught you at 2:50."));
+            PlayRun(escape: false);
+            Assert.IsTrue(_d.Live, "outside demo mode the language of the console you died at may be named");
+            StringAssert.Contains("Turkish", _ai.Requests[0].Prompt);
+        }
+
+        // ------------------------------------------------------------------ the component and GameDirector.Restarting
+
+        static FieldInfo RestartingField =>
+            typeof(GameDirector).GetField("Restarting", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException("GameDirector.Restarting is no longer a field-like event; update this test");
+
+        static int RestartingCount() => (RestartingField.GetValue(null) as Action)?.GetInvocationList().Length ?? 0;
+        static void RaiseRestarting() => (RestartingField.GetValue(null) as Action)?.Invoke();   // what GameDirector.Restart does first
+
+        static void Call(object target, string method) =>
+            (target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+             ?? throw new MissingMethodException(target.GetType().Name, method)).Invoke(target, null);
+
+        [Test]
+        public void Component_HooksRestartingOnAwake_AndUnhooksOnDestroy()
+        {
+            _d.Detach();   // only the component listens here
+            var go = new GameObject("GameDirector");
+            var comp = go.AddComponent<RunDebrief>();   // EditMode runs no Awake: call the callbacks as the player would
+            int before = RestartingCount();
+            bool destroyed = false;
+            try
+            {
+                Call(comp, "Awake");
+                Assert.AreEqual(before + 1, RestartingCount(), "Awake subscribes once");
+
+                _ai.Hold = true;
+                _ai.Reply(Json("German was clean and Japanese particles cost you. You lifted off at 3:10."));
+                PlayRun(escape: true);
+                Assert.AreEqual(1, _ui.Debriefs.Count, "the component's debriefer heard the run");
+                RaiseRestarting();
+                _ai.Flush();
+                Assert.IsFalse(comp.Debriefer.Live, "Restarting dropped the pending reply");
+                Assert.AreEqual(1, _ui.Debriefs.Count);
+
+                Call(comp, "OnDestroy");
+                destroyed = true;
+                Assert.AreEqual(before, RestartingCount(), "OnDestroy unsubscribes: a later session's restart cannot reach it");
+
+                NewRunState();
+                PlayRun(escape: false);
+                Assert.AreEqual(1, _ui.Debriefs.Count, "a destroyed component no longer listens to GameEvents");
+                Assert.DoesNotThrow(RaiseRestarting);
+            }
+            finally
+            {
+                if (!destroyed) Call(comp, "OnDestroy");
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void GameDirector_ClearsRestartingBeforeAPlaySession()
+        {
+            Action leak = () => Assert.Fail("a subscriber from the last play session fired");
+            GameDirector.Restarting += leak;
+            try
+            {
+                var reset = typeof(GameDirector).GetMethod("ResetStatics", BindingFlags.Static | BindingFlags.NonPublic);
+                Assert.IsNotNull(reset);
+                Assert.IsNotNull(reset.GetCustomAttribute<RuntimeInitializeOnLoadMethodAttribute>(), "runs on entering play mode");
+                reset.Invoke(null, null);
+                Assert.AreEqual(0, RestartingCount());
+            }
+            finally { GameDirector.Restarting -= leak; }
+        }
+
+        [Test]
+        public void StaleReply_IsDroppedByTheRunCounter_EvenIfItsHandleWasNotCancelled()
+        {
+            // a client that cancels requests itself (a new run boots) may hand back a handle that still delivers
+            var sneaky = new UncancellableAi();
+            Services.Ai = sneaky;
+            PlayRun(escape: true);
+            _d.Cancel();
+            sneaky.Deliver(Json("German was clean and Japanese particles cost you. You lifted off at 3:10."));
+            Assert.IsFalse(_d.Live);
+            Assert.AreEqual(1, _ui.Debriefs.Count);
+        }
+
+        /// <summary>Keeps the callback and calls it whatever happened to the handle.</summary>
+        sealed class UncancellableAi : IAiText
+        {
+            Action<AiResponse> _onDone;
+            public bool Available => true;
+            public AiHandle Request(AiRequest request, Action<AiResponse> onDone) { _onDone = onDone; return new AiHandle(); }
+            public void Deliver(string text) => _onDone?.Invoke(new AiResponse { Status = AiStatus.Ok, Text = text });
+        }
+
         [Test]
         public void Detach_DropsThePendingReply()
         {
@@ -407,6 +643,72 @@ namespace Fnmw.Tests
             Wait(7f);
             _ui.ShowDebrief("Live. Account.");
             Assert.AreEqual("Live. Account.", _ui.DebriefShown);
+        }
+
+        [Test]
+        public void Death_ShowsDebriefSentBeforeTheScreen_AsTheDeathPathDoes()
+        {
+            Services.State.SetPhase(GamePhase.Dead);
+            _ui.ShowDebrief("You read German. The beast caught you at 2:50.");   // the debriefer runs on the phase change
+            _ui.HideAll();                                                     // then OnCaught hides the UI for the cutscene
+            Assert.IsNull(_ui.DebriefShown);
+            _ui.ShowEnd(false, Services.State, () => { });
+            Assert.AreEqual("You read German. The beast caught you at 2:50.", _ui.DebriefShown);
+        }
+
+        [Test]
+        public void Escape_ShowsDebriefArrivingAfterTheScreen()
+        {
+            var s = Services.State;
+            s.TotalPuzzles = 3; s.PuzzlesSolved = 3;
+            s.SetPhase(GamePhase.Escaped);
+            _ui.ShowEnd(true, s, () => { });
+            Assert.IsNull(_ui.DebriefShown);
+            Wait(3f);
+            _ui.ShowDebrief("Late one. Late two.");
+            Assert.AreEqual("Late one. Late two.", _ui.DebriefShown);
+        }
+
+        /// <summary>As long as a reply may be (210 characters), with the longest words a debrief is likely to use.</summary>
+        const string FullDebrief =
+            "You read Mandarin Chinese, Hungarian, Japanese, Arabic and Finnish. You slipped 4 times, mostly on particles at the " +
+            "Hungarian console. The beast reached stage 3 and you lifted off at 12:34, barely.";
+
+        static readonly string[] Five = { "Mandarin Chinese", "Hungarian", "Japanese", "Arabic", "Finnish" };
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Escape_FiveTongues_KeepEveryRow_BesideAFullDebrief(bool debriefFirst)
+        {
+            Assert.That(FullDebrief.Length, Is.LessThanOrEqualTo(DebriefWriter.MaxChars));
+            Assert.That(Kit.Lines(FullDebrief, 16, 552), Is.LessThanOrEqualTo(EscapeScreen.DebriefReserve), "the band holds the longest reply");
+            foreach (var lang in Five)
+                _ui.Journal.Record(lang, new RevealInfo { RealText = "sentence of " + lang.ToLowerInvariant(), Translation = "a meaning" }, "A fact.", true);
+            var s = Services.State;
+            s.TotalPuzzles = 5; s.PuzzlesSolved = 5; s.Mistakes = 4; s.Elapsed = 754f;
+            s.SetPhase(GamePhase.Escaped);
+
+            if (debriefFirst) _ui.ShowDebrief(FullDebrief);
+            _ui.ShowEnd(true, s, () => { });
+            if (!debriefFirst) { Wait(2f); _ui.ShowDebrief(FullDebrief); }
+            Assert.AreEqual(FullDebrief, _ui.DebriefShown);
+
+            var texts = _ui.Front.Root.GetComponentsInChildren<Text>(true);
+            var rows = new List<RectTransform>();
+            int langs = 0, phrases = 0;
+            RectTransform debrief = null;
+            foreach (var t in texts)
+            {
+                if (t.name == "Lang") { langs++; rows.Add(t.rectTransform); }
+                else if (t.name == "Real") { phrases++; rows.Add(t.rectTransform); }
+                else if (t.name == "Debrief") debrief = t.rectTransform;
+            }
+            Assert.AreEqual(5, langs, "every tongue keeps its row");
+            Assert.AreEqual(5, phrases, "and its phrase");
+            Assert.IsNotNull(debrief);
+            float debriefTop = -debrief.anchoredPosition.y;
+            foreach (var r in rows)
+                Assert.That(-r.anchoredPosition.y + r.sizeDelta.y, Is.LessThanOrEqualTo(debriefTop), r.name + " overlaps the debrief");
         }
 
         [Test]

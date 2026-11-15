@@ -41,6 +41,13 @@ namespace Fnmw.Game.Debrief
         /// <summary>Caught while a console was open and unsolved: the index of that console, else -1.</summary>
         public int CaughtAtConsole { get; private set; } = -1;
 
+        /// <summary>
+        /// Demo mode: the seed is fixed, so naming the language of a console the player has not decoded spoils it for
+        /// the next demo run. When set, such a console's language is left out of Languages and Facts, and listed in
+        /// HiddenLanguages instead.
+        /// </summary>
+        public bool HideUndecoded { get; set; }
+
         public bool Ended => Outcome != RunOutcome.None;
         public int Mistakes { get { int n = 0; foreach (var c in Consoles) n += c.Wrong; return n; } }
 
@@ -52,6 +59,7 @@ namespace Fnmw.Game.Debrief
             Outcome = RunOutcome.None;
             Elapsed = 0; Solved = 0; Total = 0;
             CaughtAtConsole = -1;
+            HideUndecoded = false;
         }
 
         public void PuzzleStarted(LangPuzzle puzzle, int index, string language, float at)
@@ -106,14 +114,39 @@ namespace Fnmw.Game.Debrief
                 CaughtAtConsole = Consoles[Consoles.Count - 1].Index;
         }
 
-        /// <summary>Distinct languages of the consoles reached, in the order met.</summary>
+        /// <summary>The console's language when the debrief may name it, else null.</summary>
+        public string NameOf(ConsoleRecord c)
+        {
+            if (c == null || string.IsNullOrWhiteSpace(c.Language)) return null;
+            return HideUndecoded && !c.Solved ? null : c.Language;
+        }
+
+        /// <summary>Distinct languages of the consoles reached that the debrief may name, in the order met.</summary>
         public List<string> Languages
         {
             get
             {
                 var list = new List<string>();
                 foreach (var c in Consoles)
-                    if (!string.IsNullOrWhiteSpace(c.Language) && !list.Exists(l => string.Equals(l, c.Language, StringComparison.OrdinalIgnoreCase)))
+                {
+                    string name = NameOf(c);
+                    if (name != null && !list.Exists(l => string.Equals(l, name, StringComparison.OrdinalIgnoreCase))) list.Add(name);
+                }
+                return list;
+            }
+        }
+
+        /// <summary>Languages of reached consoles that HideUndecoded keeps out of the debrief (empty when it is off).</summary>
+        public List<string> HiddenLanguages
+        {
+            get
+            {
+                var named = Languages;
+                var list = new List<string>();
+                foreach (var c in Consoles)
+                    if (NameOf(c) == null && !string.IsNullOrWhiteSpace(c.Language)
+                        && !named.Exists(l => string.Equals(l, c.Language, StringComparison.OrdinalIgnoreCase))
+                        && !list.Exists(l => string.Equals(l, c.Language, StringComparison.OrdinalIgnoreCase)))
                         list.Add(c.Language);
                 return list;
             }
@@ -171,7 +204,8 @@ namespace Fnmw.Game.Debrief
             sb.Append("wrong answers: ").Append(Mistakes).Append('\n');
             foreach (var c in Consoles)
             {
-                sb.Append("console ").Append(c.Index + 1).Append(": ").Append(c.Language ?? "unknown language");
+                sb.Append("console ").Append(c.Index + 1).Append(": ")
+                  .Append(NameOf(c) ?? (string.IsNullOrWhiteSpace(c.Language) ? "unknown language" : "undecoded language (do not guess its name)"));
                 if (!string.IsNullOrEmpty(c.Concept)) sb.Append(", rule ").Append(Plain(c.Concept));
                 sb.Append(", opened at ").Append(Clock(c.StartedAt));
                 if (c.Wrong > 0)

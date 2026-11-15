@@ -69,6 +69,8 @@ namespace Fnmw.Game.Debrief
             {
                 bool inPuzzle = from == GamePhase.Puzzle;
                 Log.End(to == GamePhase.Escaped, S.Elapsed, S.PuzzlesSolved, S.TotalPuzzles, inPuzzle);
+                // demo runs share one seed: never name a console the player has not decoded, or the next demo run is spoiled
+                Log.HideUndecoded = DemoMode.On;
                 Debrief();
             }
         }
