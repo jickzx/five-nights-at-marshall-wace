@@ -61,12 +61,18 @@ export class LiveSource implements QsSource {
       this.get<SessionSnapshot["windows"]>(`/v1/sessions/${id}/windows?tail=true&limit=1200`),
       this.get<SessionSnapshot["events"]>(`/v1/sessions/${id}/events`),
     ]);
-    let summary: SummaryResult = { status: "idle", summary: null };
-    try {
-      const row = await this.get<{ summary: SummaryResult["summary"]; model: string }>(`/v1/sessions/${id}/summary`);
-      summary = { status: "ok", summary: row.summary, model: row.model };
-    } catch { /* no summary yet */ }
+    const summary = await this.storedSummary(id);
     return { session, windows, events, records: records.map((r) => r.record), baseline: session.baseline ?? null, summary };
+  }
+
+  /** The stored summary (ok, or a failed attempt with its reason), or idle when none has been written yet. */
+  async storedSummary(id: string): Promise<SummaryResult> {
+    try {
+      const row = await this.get<{ status: SummaryResult["status"]; summary: SummaryResult["summary"]; model: string | null; error: string | null }>(`/v1/sessions/${id}/summary`);
+      return { status: row.status, summary: row.summary, model: row.model, reason: row.error };
+    } catch {
+      return { status: "idle", summary: null };
+    }
   }
 
   subscribe(sessionId: string, onMessage: (m: QsMessage) => void): () => void {
@@ -78,7 +84,7 @@ export class LiveSource implements QsSource {
       if (m.event === "window") lastSeq = Math.max(lastSeq, m.payload.seq);
       onMessage(m);
     };
-    for (const event of ["window", "event", "record", "baseline"] as const) {
+    for (const event of ["window", "event", "record", "baseline", "summary"] as const) {
       channel.on("broadcast", { event }, (msg) => forward({ event, payload: msg.payload } as QsMessage));
     }
     // Broadcasts sent while the socket was down are not replayed by Realtime, so after every rejoin
@@ -117,9 +123,9 @@ export class LiveSource implements QsSource {
     return () => channels.forEach((c) => void this.sb.removeChannel(c));
   }
 
-  async requestSummary(sessionId: string): Promise<SummaryResult> {
+  async requestSummary(sessionId: string, refresh = false): Promise<SummaryResult> {
     try {
-      return await this.get<SummaryResult>(`/v1/sessions/${sessionId}/summary`, { method: "POST" });
+      return await this.get<SummaryResult>(`/v1/sessions/${sessionId}/summary${refresh ? "?refresh=true" : ""}`, { method: "POST" });
     } catch (e) {
       return { status: "unavailable", reason: e instanceof Error ? e.message : "request failed", summary: null };
     }

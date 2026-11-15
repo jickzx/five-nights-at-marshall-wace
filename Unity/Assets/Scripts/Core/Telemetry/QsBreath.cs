@@ -150,6 +150,7 @@ namespace Fnmw.Core.Telemetry
                     }
                     double a = ac[best - 1], b = ac[best], c = ac[best + 1], den = a - 2 * b + c;
                     double d = den != 0 ? 0.5 * (a - c) / den : 0;
+                    d = Math.Max(-0.5, Math.Min(0.5, d));   // only a refinement within one sample
                     o.RateBpm = 60.0 * envFs / (best + d);
                     o.Regularity = bestR;
                 }

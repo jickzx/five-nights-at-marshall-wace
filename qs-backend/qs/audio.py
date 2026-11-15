@@ -156,6 +156,7 @@ def breath_features(env: np.ndarray, env_fs: float = ENV_FS, hop_s: float = 0.5)
             # parabolic interpolation of the peak for sub-sample lag
             a, b, c = ac[best - 1], ac[best], ac[best + 1]
             d = 0.5 * (a - c) / (a - 2 * b + c) if (a - 2 * b + c) != 0 else 0.0
+            d = max(-0.5, min(0.5, d))     # only a refinement within one sample; never trust it further
             out["breath_rate_bpm"] = _r(60.0 * env_fs / (best + d))
             out["breath_regularity"] = _r(best_r, 3)
 

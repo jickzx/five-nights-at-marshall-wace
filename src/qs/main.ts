@@ -1,15 +1,14 @@
-// QS Data Pipeline page. Picks a data source (demo replay or live API + Realtime), keeps one
-// SessionView per selected session via store.applyMessage, and paints it.
+// QS employer page. Picks a data source (live API + Realtime, or the demo replay with ?demo), keeps one
+// SessionView per selected session via store.applyMessage, and paints it as plain statements first and numbers
+// second (small print and the expandable question details).
 import "./qs.css";
-import { drawDial, drawTimeline, drawTrace, SERIES } from "./charts";
+import { COLORS, ribbon, sparkline } from "./charts";
 import { DemoSource, type Fixture } from "./demo";
-import { EMPLOYERS, EMPLOYERS_ARE_PLACEHOLDERS } from "./employers";
-import { glyphSvg, pipeline, starfield, tide } from "./graphics";
-import { FEATURES, LIVE_SIGNALS, OUTCOME_LABELS, PRINCIPLES, fmt } from "./labels";
-import { PAL } from "./palette";
+import { FEATURES, OUTCOME_LABELS, fmt } from "./labels";
 import { assertBrowserSafeKey, readConfig, type QsSource } from "./source";
+import { because, chipText, current, FAMILY, headline, questionName, topOf, vsCalm } from "./states";
 import { applyMessage, emptyView, orderedRecords, type SessionView } from "./store";
-import type { Observation, QsMessage, QsRecord, Question, Session, SummaryResult } from "./types";
+import type { LiveWindow, Observation, QsMessage, QsRecord, Question, RecordState, Session, SummaryResult } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -24,68 +23,45 @@ const state = {
   view: null as SessionView | null,
   prompts: {} as Record<string, Question>,
   unsubscribe: (() => {}) as () => void,
-  hidden: new Set<string>(),
-  dirty: { charts: true, records: true, summary: true },
+  open: new Set<string>(),
+  nums: new Set<string>(),          // questions whose "The numbers" panel is open (kept across live re-renders)
+  dirty: { now: true, records: true, summary: true },
   totalSeconds: 140,
+  summaryWait: 0 as number,
 };
 
-// ---------------------------------------------------------------- static parts
-
-function paintStatic() {
-  $("brand-glyph").innerHTML = glyphSvg(3, 18, PAL.blood);
-  $("glyph-row").innerHTML = Array.from({ length: 9 }, (_, i) => glyphSvg(i * 13 + 5, 30, i % 3 === 1 ? PAL.blood : PAL.rustHot)).join("");
-  $("employers-note").textContent = EMPLOYERS_ARE_PLACEHOLDERS
-    ? "Placeholder names. These are invented sample employers, not customers, shown until the team adds its real list."
-    : "";
-  $("employer-list").innerHTML = EMPLOYERS.map((e) => `<li>
-      ${e.logo ? `<img src="${esc(e.logo)}" alt="" width="44" height="44">` : glyphSvg(e.mark, 44, PAL.rustHot)}
-      <span class="name">${esc(e.name)}</span><span class="sector">${esc(e.sector)}</span>
-      ${EMPLOYERS_ARE_PLACEHOLDERS ? `<span class="ph">Sample</span>` : ""}</li>`).join("");
-  $("principle-list").innerHTML = PRINCIPLES.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("");
-  $("legend").innerHTML = SERIES.map((s) => `<button type="button" data-series="${s.key}" aria-pressed="true"><i style="background:${s.color}"></i>${esc(s.label)}</button>`).join("");
-  $("legend").addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest("button");
-    if (!b) return;
-    const k = b.dataset.series!;
-    if (state.hidden.has(k)) state.hidden.delete(k); else state.hidden.add(k);
-    b.setAttribute("aria-pressed", String(!state.hidden.has(k)));
-    state.dirty.charts = true;
-  });
-  const dials = [
-    ["tremorR", LIVE_SIGNALS.tremorR, PAL.blood], ["tremorL", LIVE_SIGNALS.tremorL, PAL.rustHot],
-    ["head", LIVE_SIGNALS.head, PAL.bone], ["scan", LIVE_SIGNALS.scan, PAL.amber],
-  ] as const;
-  $("dials").innerHTML = dials.map(([k, s]) => `<div class="panel dial" data-dial="${k}">
-      <canvas aria-hidden="true"></canvas><div class="v" aria-live="off">—</div><div class="l">${esc(s.label)}</div><div class="n">${esc(s.note)}</div></div>`).join("");
-}
+function show(...ids: string[]) { for (const id of ids) $(id).hidden = false; }
 
 // ---------------------------------------------------------------- sessions
 
-function relTime(iso?: string | null): string {
-  if (!iso) return "not started";
+function ago(iso?: string | null): string {
+  if (!iso) return "";
   const m = Math.max(0, (Date.now() - Date.parse(iso)) / 60000);
-  return m < 1 ? "started just now" : m < 60 ? `started ${Math.round(m)} min ago` : `started ${Math.round(m / 60)} h ago`;
+  return m < 1 ? "just now" : m < 60 ? `${Math.round(m)} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 }
 
 function paintSessions() {
-  const list = $("session-list");
-  if (!state.sessions.length) { list.innerHTML = `<li class="empty">No sessions yet.</li>`; return; }
-  list.innerHTML = state.sessions.map((s) => `<li class="${s.id === state.selected ? "selected" : ""}">
-      <span class="dot ${s.status === "live" ? "live" : ""}" title="${esc(s.status)}"></span>
-      <span class="pseudo">${esc(s.candidate_pseudonym ?? "—")}</span>
-      <span class="meta qset">${s.status === "live" ? "Live now" : s.status === "ended" ? "Finished" : "Waiting for consent"}</span>
-      <span class="meta when">${esc(relTime(s.started_at))}</span>
-      <button type="button" data-session="${esc(s.id)}" aria-pressed="${s.id === state.selected}">${s.id === state.selected ? "Viewing" : "View"}</button>
-    </li>`).join("");
-  $("stat-live").textContent = String(state.sessions.filter((s) => s.status === "live").length);
+  const nav = $("sessions");
+  if (!state.sessions.length) {
+    nav.innerHTML = `<p class="empty">No sessions yet. A session appears here as soon as a candidate agrees to start in the headset.</p>`;
+    return;
+  }
+  nav.innerHTML = `<ul>${state.sessions.map((s) => {
+    const what = s.status === "live" ? "Live now" : s.status === "ended" ? `Finished ${ago(s.ended_at ?? s.started_at)}` : "Waiting for consent";
+    const src = s.device_id ? "Headset" : "";
+    return `<li><button type="button" data-session="${esc(s.id)}" aria-pressed="${s.id === state.selected}" class="${s.status}">
+      <span class="pseudo">${esc(s.candidate_pseudonym ?? "Candidate")}</span>
+      <span class="meta">${s.status === "live" ? `<i class="dot" aria-hidden="true"></i>` : ""}${esc(what)}${src ? `<span class="src">${src}</span>` : ""}</span>
+    </button></li>`;
+  }).join("")}</ul>`;
 }
 
 async function refreshSessions() {
   if (!state.source) return;
-  state.sessions = await state.source.listSessions();
-  if (state.selected) {
+  try { state.sessions = await state.source.listSessions(); } catch { return; }
+  if (state.selected && state.view) {
     const s = state.sessions.find((x) => x.id === state.selected);
-    if (s && state.view) state.view.session = { ...state.view.session, status: s.status };
+    if (s && s.status !== state.view.session.status) { state.view.session = { ...state.view.session, ...s }; markAll(); }
   }
   paintSessions();
 }
@@ -98,6 +74,8 @@ async function select(id: string) {
   const token = ++selectToken;
   state.unsubscribe();
   state.selected = id;
+  state.open.clear();
+  state.nums.clear();
   paintSessions();
   // Subscribe before loading, and hold messages until the snapshot is in, so nothing broadcast while the
   // snapshot loads is lost. The store drops duplicates, so overlap between the two is harmless.
@@ -106,8 +84,10 @@ async function select(id: string) {
   const apply = (m: QsMessage) => {
     if (!view) { held.push(m); return; }
     const changed = applyMessage(view, m);
-    if (changed === "window" || changed === "event") state.dirty.charts = true;
-    if (changed === "record") { state.dirty.records = true; state.dirty.charts = true; }
+    if (changed === "window" || changed === "event" || changed === "baseline") state.dirty.now = true;
+    if (changed === "record") { state.dirty.records = true; state.dirty.now = true; }
+    if (changed === "summary") state.dirty.summary = true;
+    if (changed === "event" && m.event === "event" && m.payload.type === "session_end") onEnded(view);
   };
   const unsubscribe = source.subscribe(id, (m) => { if (token === selectToken) apply(m); }, () => {
     if (token === selectToken && view) { view = emptyView({ ...view.session, status: "live" }); state.view = view; markAll(); }
@@ -117,10 +97,10 @@ async function select(id: string) {
   try {
     snap = await source.load(id);
   } catch (e) {
-    if (token === selectToken) $("live-who").textContent = `— could not load (${esc((e as Error).message)})`;
+    if (token === selectToken) $("who").textContent = `Could not load this session: ${(e as Error).message}`;
     return;
   }
-  if (token !== selectToken) { unsubscribe(); return; }   // another session was picked meanwhile
+  if (token !== selectToken) { unsubscribe(); return; }
   const v = emptyView(snap.session);
   v.baseline = snap.baseline;
   v.summary = snap.summary;
@@ -130,89 +110,175 @@ async function select(id: string) {
   view = v;
   for (const m of held.splice(0)) apply(m);
   state.view = v;
-  $("live-who").textContent = `— ${snap.session.candidate_pseudonym ?? ""}`;
+  if (v.session.status === "ended" && v.summary.status === "idle") onEnded(v);
   markAll();
 }
 
-function markAll() { state.dirty.charts = state.dirty.records = state.dirty.summary = true; }
+/** When a session ends the server writes the summary (Gemini Flash) on its own; wait for it, then ask once. */
+function onEnded(view: SessionView) {
+  const source = state.source;
+  if (!source || source.mode === "demo") return;
+  window.clearTimeout(state.summaryWait);
+  let tries = 0;
+  const poll = async () => {
+    if (state.view !== view || view.summary.status === "ok" || view.summary.status === "unavailable" || view.summary.status === "rejected") return;
+    tries++;
+    const got = await source.storedSummary?.(view.session.id);
+    if (state.view !== view) return;
+    if (got && got.status !== "idle") { view.summary = got; state.dirty.summary = true; return; }
+    if (tries < 6) { state.summaryWait = window.setTimeout(poll, 5000); return; }
+    view.summary = { status: "loading", summary: null }; state.dirty.summary = true;
+    view.summary = await source.requestSummary(view.session.id);
+    if (state.view === view) state.dirty.summary = true;
+  };
+  view.summary = view.summary.status === "idle" ? { status: "loading", summary: null } : view.summary;
+  state.dirty.summary = true;
+  state.summaryWait = window.setTimeout(poll, 3000);
+}
 
-// ---------------------------------------------------------------- live charts
+function markAll() { state.dirty.now = state.dirty.records = state.dirty.summary = true; }
 
-function latestRatio(view: SessionView, key: string): number | null {
-  for (let i = view.windows.length - 1, n = 0; i >= 0 && n < 6; i--, n++) {
-    const v = view.windows[i].rel?.[key];
+// ---------------------------------------------------------------- now
+
+function lastValue(view: SessionView, pick: (w: LiveWindow) => number | null | undefined, n = 6): number | null {
+  for (let i = view.windows.length - 1, k = 0; i >= 0 && k < n; i--, k++) {
+    const v = pick(view.windows[i]);
     if (v != null) return v;
   }
   return null;
 }
 
-function paintCharts() {
+function paintNow() {
   const view = state.view;
   if (!view) return;
-  drawTrace($("trace") as HTMLCanvasElement, view, 60, state.hidden);
-  drawTimeline($("timeline") as HTMLCanvasElement, view, state.totalSeconds);
-  const keys: Record<string, string> = { tremorR: "right_tremor_rms", tremorL: "left_tremor_rms", head: "head_ang_speed_mean", scan: "head_yaw_scan_rate" };
-  const colors: Record<string, string> = { tremorR: PAL.blood, tremorL: PAL.rustHot, head: PAL.bone, scan: PAL.amber };
-  document.querySelectorAll<HTMLElement>("[data-dial]").forEach((el) => {
-    const k = el.dataset.dial!;
-    const v = latestRatio(view, keys[k]);
-    drawDial(el.querySelector("canvas")!, v, colors[k]);
-    el.querySelector(".v")!.textContent = v == null ? (view.baseline || view.windows.length > 60 ? "—" : "calibrating") : fmt(v, "×");
-  });
-  $("stat-windows").textContent = String(view.windows.length ? view.lastSeq + 1 : 0);
-}
+  const s = view.session;
+  const last = view.windows.at(-1);
+  const q = last?.question_key;
+  const minutes = last ? Math.max(1, Math.round(last.t_end / 60)) : 0;
+  $("who").textContent = s.status === "live"
+    ? `${s.candidate_pseudonym ?? "Candidate"}, live for ${minutes} min, ${q ? `on ${questionName(q)}` : "between questions"}`
+    : s.status === "ended" ? `${s.candidate_pseudonym ?? "Candidate"}, finished ${ago(s.ended_at)}` : `${s.candidate_pseudonym ?? "Candidate"}, waiting for consent`;
 
-// ---------------------------------------------------------------- records
-
-const BAR_FEATURES = ["motion.left_tremor_ratio", "motion.right_tremor_ratio", "motion.head_scan_ratio",
-  "motion.restless_ratio", "motion.startle_max_head_ratio"];
-
-function barRow(feature: string, value: number | null): string {
-  const label = FEATURES[feature];
-  // log2 scale: 0.25x at the left, 1x at 40%, 8x at the right.
-  const pos = (v: number) => Math.max(0, Math.min(100, ((Math.log2(Math.max(v, 0.25)) + 2) / 5) * 100));
-  let fill = "";
-  if (value != null) {
-    const a = pos(1), b = pos(value);
-    fill = `<span class="fill ${value >= 1 ? "up" : "down"}" style="left:${Math.min(a, b)}%;width:${Math.max(1, Math.abs(b - a))}%"></span>`;
+  const now = s.status === "live" ? current(view.windows) : null;
+  const h = $("headline"), b = $("because"), also = $("also"), chips = $("chips");
+  h.className = "headline";
+  if (s.status === "ended") {
+    const recs = orderedRecords(view);
+    const tops = recs.map((r) => topOf(r.states)).filter((x): x is RecordState => !!x && x.key !== "calm");
+    h.textContent = "Session finished.";
+    b.textContent = recs.length
+      ? `${recs.length} question${recs.length > 1 ? "s" : ""}, ${recs.filter((r) => r.outcome === "correct").length} answered correctly. ${tops.length ? `Strongest moments: ${tops.slice(0, 3).map((t) => `${chipText(t).toLowerCase()} on ${questionName(t.question_key)}`).join(", ")}.` : "No strong states on any question."}`
+      : "No questions were reached.";
+    also.textContent = "";
+    chips.innerHTML = "";
+  } else if (s.status !== "live" || !view.windows.length) {
+    h.textContent = "Waiting for the candidate.";
+    b.textContent = "Nothing is recorded until they agree to the consent statement in the headset.";
+    also.textContent = ""; chips.innerHTML = "";
+  } else if (!now) {
+    h.textContent = "Calibrating.";
+    b.textContent = "For the first 20 seconds QS learns how this person moves and breathes when settled. Everything after is read against that.";
+    also.textContent = ""; chips.innerHTML = "";
+  } else {
+    h.textContent = headline(now.state);
+    h.classList.add(FAMILY[now.state.key]);
+    b.textContent = because(now.state);
+    also.textContent = now.state.key === "calm" ? "" : `Could also be ${now.state.could_also_be}`;
+    chips.innerHTML = now.all.filter((x) => x.key !== now.state.key)
+      .map((x) => `<li class="chip ${FAMILY[x.key]} ${x.likelihood}" title="${esc(x.evidence.join("; "))}">${esc(chipText(x))}</li>`).join("");
   }
-  return `<li title="${esc(label.long)}"><span>${esc(label.short)}</span><span class="bar"><span class="one"></span>${fill}</span><span class="val">${fmt(value, "×")}</span></li>`;
+
+  // vitals: words first, number small
+  const vitals: [string, (w: LiveWindow) => number | null, (w: LiveWindow) => number | null, string][] = [
+    ["breath", (w) => w.rel?.audio_breath_rate_bpm ?? null, (w) => w.features.audio_breath_rate_bpm ?? null, COLORS.arousal],
+    ["hands", (w) => Math.max(w.rel?.left_tremor_rms ?? 0, w.rel?.right_tremor_rms ?? 0) || null, () => null, COLORS.alarm],
+    ["head", (w) => w.rel?.head_yaw_scan_rate ?? null, (w) => w.features.head_yaw_scan_rate ?? null, COLORS.calm],
+  ];
+  for (const [key, ratio, raw, color] of vitals) {
+    const el = document.querySelector<HTMLElement>(`[data-vital="${key}"]`)!;
+    const r = lastValue(view, ratio), v = lastValue(view, raw);
+    const noun = key === "breath" ? "rate" : key === "hands" ? "steadiness" : "level";
+    let words = vsCalm(r, noun), small = "";
+    if (key === "breath") {
+      const hold = lastValue(view, (w) => w.features.audio_since_last_breath_s ?? null, 2);
+      const any = view.windows.some((w) => w.features.audio_breath_amp != null);
+      if (!any) { words = "No microphone data"; small = "Headset sends motion only"; }
+      else if (hold != null && hold >= 7) { words = `No breath heard for ${Math.round(hold)} s`; small = ""; }
+      else small = v != null ? `${v.toFixed(0)} breaths a minute` : "";
+    } else if (key === "hands") {
+      const cov = lastValue(view, (w) => Math.max(w.features.left_coverage ?? 0, w.features.right_coverage ?? 0), 2);
+      if (!cov) { words = "Controllers not tracked"; small = "Head only on this device"; }
+      else { words = r == null ? "measuring" : r >= 2 ? `Shaking, ${r.toFixed(1)}× their calm level` : r <= 1.25 ? "Steady" : `A little shakier than calm`; small = "4–12 Hz hand motion"; }
+    } else {
+      small = v != null ? `${v.toFixed(0)}° per second of turning` : "";
+      words = r == null ? "measuring" : vsCalm(r, "level");
+    }
+    el.querySelector(".v")!.textContent = words;
+    el.querySelector(".n")!.textContent = small;
+    sparkline(el.querySelector("canvas")!, view.windows, ratio, color);
+  }
+  const lastT = view.windows.at(-1)?.t_end ?? 0;
+  if (lastT > state.totalSeconds) state.totalSeconds = Math.ceil(lastT / 30) * 30;
+  ribbon($("ribbon") as HTMLCanvasElement, view, state.totalSeconds);
 }
 
-function recordCard(r: QsRecord): string {
-  const b = r.behaviour, m = r.motion as Record<string, number | null>;
+// ---------------------------------------------------------------- questions
+
+const DETAIL_FIELDS = ["behaviour.time_to_first_action_s", "behaviour.response_latency_s", "behaviour.hesitations",
+  "behaviour.answer_changes", "behaviour.hints_used", "motion.right_tremor_ratio", "motion.left_tremor_ratio",
+  "motion.head_scan_ratio", "motion.restless_ratio", "motion.longest_freeze_s", "motion.startle_max_head_ratio",
+  "audio.breath_rate_bpm", "audio.breath_rate_ratio_p90", "audio.deep_breaths", "audio.longest_breath_hold_s",
+  "quality.head_coverage", "quality.hand_coverage"];
+
+function valueOf(r: QsRecord, f: string): unknown {
+  const [g, k] = f.split(".");
+  return ((r as unknown as Record<string, Record<string, unknown> | null>)[g] ?? {})[k];
+}
+
+const sentence = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+
+function stateLine(s: RecordState): string {
+  const near = s.near_event ? ` After ${esc(s.near_event.text)}.` : "";
+  return `<li><span class="chip ${FAMILY[s.key]} ${s.likelihood}">${esc(chipText(s))}</span>
+    <span>${esc(sentence(s.evidence.map((e) => e.text).join("; ")))}.${near} <span class="could">Could also be ${esc(s.could_also_be)}</span></span></li>`;
+}
+
+function questionRow(r: QsRecord): string {
   const prompt = state.prompts[r.question_key]?.prompt;
-  const cell = (f: string) => `<div title="${esc(FEATURES[f].long)}"><dt>${esc(FEATURES[f].short)}</dt><dd>${fmt(b[f.split(".")[1]], FEATURES[f].unit)}</dd></div>`;
-  return `<article class="panel record">
-    <header><h3>${esc(r.question_key.toUpperCase())}${prompt ? `<span class="prompt">${esc(prompt)}</span>` : ""}</h3>
-      <span class="tag ${r.status === "open" ? "open" : ""}">${esc(OUTCOME_LABELS[r.outcome] ?? r.outcome)}</span></header>
-    <dl class="behaviour">
-      ${cell("behaviour.time_to_first_action_s")}${cell("behaviour.response_latency_s")}${cell("behaviour.hesitations")}
-      ${cell("behaviour.answer_changes")}${cell("behaviour.incorrect_submissions")}${cell("behaviour.hints_used")}
-    </dl>
-    <ul class="bars">${BAR_FEATURES.map((f) => barRow(f, m[f.split(".")[1]] ?? null)).join("")}
-      <li title="${esc(FEATURES["motion.freeze_s"].long)}"><span>${esc(FEATURES["motion.freeze_s"].short)}</span><span class="bar"><span class="fill down" style="left:0;width:${Math.min(100, ((m.freeze_s ?? 0) / Math.max(1, b.duration_s ?? 1)) * 100)}%"></span></span><span class="val">${fmt(m.freeze_s, "s")}</span></li>
-    </ul>
-    <p class="quality">Baseline ${esc(r.quality.baseline_status)} · head tracked ${fmt(r.quality.head_coverage)} · hands tracked ${fmt(r.quality.hand_coverage)} · ${esc(r.qs_version)}</p>
-  </article>`;
+  const states = r.states ?? [];
+  const open = state.open.has(r.question_key);
+  const dur = r.behaviour.duration_s;
+  const top = topOf(states);
+  const nums = DETAIL_FIELDS.map((f) => [f, valueOf(r, f)] as const).filter(([, v]) => v != null)
+    .map(([f, v]) => `<div><dt>${esc(FEATURES[f]?.long ?? f)}</dt><dd>${esc(fmt(v, FEATURES[f]?.unit ?? ""))}</dd></div>`).join("");
+  return `<li class="q ${r.status}">
+    <button type="button" class="qhead" data-q="${esc(r.question_key)}" aria-expanded="${open}">
+      <span class="qname">${esc(questionName(r.question_key))}</span>
+      <span class="qout">${esc(OUTCOME_LABELS[r.outcome] ?? r.outcome)}${dur != null ? `, ${Math.round(dur)} s` : ""}</span>
+      <span class="qtop">${top ? `<span class="chip ${FAMILY[top.key]} ${top.likelihood}">${esc(chipText(top))}</span>` : `<span class="muted">No reading yet</span>`}${states.length > 1 ? `<span class="more">+${states.length - 1}</span>` : ""}</span>
+    </button>
+    <div class="qbody" ${open ? "" : "hidden"}>
+      ${prompt ? `<p class="prompt">${esc(prompt)}</p>` : ""}
+      ${states.length ? `<ul class="slist">${states.map(stateLine).join("")}</ul>` : `<p class="muted">No possible states: not enough data yet, or no baseline.</p>`}
+      <details data-nums="${esc(r.question_key)}" ${state.nums.has(r.question_key) ? "open" : ""}><summary>The numbers</summary><dl class="nums">${nums}</dl>
+        <p class="fine">Ratios compare with this person's own calm start: 1× is as calm as then.</p></details>
+    </div>
+  </li>`;
 }
 
 function paintRecords() {
-  const view = state.view;
-  const grid = $("record-grid");
-  const recs = view ? orderedRecords(view) : [];
-  grid.innerHTML = recs.length ? recs.map(recordCard).join("")
-    : `<p class="empty">No QS records yet. A record appears when the first question is shown and is updated as it is answered.</p>`;
-  $("stat-records").textContent = String(recs.length);
+  const recs = state.view ? orderedRecords(state.view) : [];
+  $("question-list").innerHTML = recs.length ? recs.map(questionRow).join("")
+    : `<li class="empty">Questions appear here as the candidate reaches each console.</li>`;
 }
 
 // ---------------------------------------------------------------- summary
 
 function observation(o: Observation): string {
-  const chips = o.evidence.length
-    ? o.evidence.map((e) => `<span class="chip">${esc(e.question_key.toUpperCase())} · ${esc(FEATURES[e.feature]?.short ?? e.feature)} <b>${esc(fmt(e.value, FEATURES[e.feature]?.unit ?? ""))}</b></span>`).join("")
-    : o.features.map((f) => `<span class="chip">${esc(o.question_keys.join(", ").toUpperCase())} · ${esc(FEATURES[f]?.short ?? f)}</span>`).join("");
-  return `<li><div class="s">${esc(o.statement)}</div><div class="chips">${chips}</div></li>`;
+  const chips = (o.states ?? []).map((s) => `<span class="chip ${FAMILY[s.key]} ${s.likelihood}">${esc(chipText(s))}</span>`).join("");
+  const ev = o.evidence.filter((e) => e.value != null)
+    .map((e) => `${esc(questionName(e.question_key))}: ${esc(FEATURES[e.feature]?.long ?? e.feature)} ${esc(fmt(e.value, FEATURES[e.feature]?.unit ?? ""))}`).join("; ");
+  return `<li><p>${esc(o.statement)}</p>${chips ? `<p class="ochips">${chips}</p>` : ""}${ev ? `<p class="fine">${ev}</p>` : ""}</li>`;
 }
 
 function paintSummary() {
@@ -220,28 +286,29 @@ function paintSummary() {
   const body = $("summary-body");
   if (!view) { body.innerHTML = ""; return; }
   const s: SummaryResult = view.summary;
-  const closed = orderedRecords(view).filter((r) => r.status === "closed").length;
+  const ended = view.session.status === "ended";
   const demo = state.source?.mode === "demo";
-  const button = `<button type="button" id="make-summary" ${closed ? "" : "disabled"}>${demo ? "Show demo summary" : "Write summary with Gemini"}</button>`;
-  const intro = `<p class="lede">Gemini turns the QS records into observations an employer can read. Every statement must cite the questions and measurements it rests on; the values shown beside it come from the records, not from the model. It gives no score and no recommendation.</p>`;
-  if (s.status === "idle" || s.status === "loading") {
-    body.innerHTML = `${intro}<div class="head">${button}<span class="meta">${s.status === "loading" ? "Working…" : closed ? `${closed} closed question${closed > 1 ? "s" : ""} ready.` : "Waiting for the first closed question."}</span></div>`;
-  } else if (!s.summary) {
-    body.innerHTML = `${intro}<div class="head">${button}</div><p class="empty">Summary unavailable: ${esc(s.reason ?? s.status)} The QS records above are unaffected.</p>`;
-  } else {
-    body.innerHTML = `${intro}<div class="head">
-        <span class="badge">${s.status === "demo" ? "Demo summary · not generated by Gemini" : `Gemini · ${esc(s.model ?? "")}`}</span>${button}</div>
-      ${s.status === "demo" ? `<p class="fine">${esc(s.reason ?? "")}</p>` : ""}
-      <h4>Observations</h4><ul class="obs">${s.summary.observations.map(observation).join("")}</ul>
-      ${s.summary.data_quality.length ? `<h4>Data quality</h4><ul class="obs">${s.summary.data_quality.map(observation).join("")}</ul>` : ""}
+  const closed = orderedRecords(view).filter((r) => r.status === "closed").length;
+  const button = `<button type="button" id="make-summary" class="quiet" ${closed ? "" : "disabled"}>${demo ? "Show the demo summary" : s.summary ? "Write it again" : "Write the summary now"}</button>`;
+  let html: string;
+  if (s.status === "loading") html = `<p class="lede">Gemini Flash is writing the summary from the question records and their states.</p>`;
+  else if (s.summary) {
+    html = `<p class="byline">${s.status === "demo" ? "Written for the demo and checked like a real summary; not generated by Gemini." : `Written by ${esc(s.model ?? "Gemini")} from the records below. Every statement cites them; numbers come from the records, not the model.`}</p>
+      <ul class="obs">${s.summary.observations.map(observation).join("")}</ul>
+      ${s.summary.data_quality.length ? `<h3>What limits this reading</h3><ul class="obs">${s.summary.data_quality.map(observation).join("")}</ul>` : ""}
       <ul class="limits">${s.summary.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
-  }
+  } else if (s.status === "unavailable" || s.status === "rejected") {
+    html = `<p class="notice"><b>Summary unavailable.</b> ${esc(s.reason ?? s.status)}</p><p class="fine">The states and question records above do not depend on it.</p>`;
+  } else html = `<p class="lede">${ended ? "Waiting for the summary." : "When the session ends, Gemini Flash writes a short summary from the question records, their states and evidence."}</p>`;
+  body.innerHTML = `${html}<p class="actions">${button}</p>`;
   $("make-summary")?.addEventListener("click", async () => {
     if (!state.view || !state.source) return;
     const v = state.view;
+    const had = v.summary;
     v.summary = { status: "loading", summary: null };
     paintSummary();
-    v.summary = await state.source.requestSummary(v.session.id);
+    const got = await state.source.requestSummary(v.session.id, !!had.summary);
+    v.summary = got.status !== "ok" && had.status === "ok" ? had : got;
     if (state.view === v) paintSummary();
   });
 }
@@ -249,18 +316,22 @@ function paintSummary() {
 // ---------------------------------------------------------------- sign in (live mode only)
 
 function showSignIn(source: import("./live").LiveSource) {
+  show("intro");
   const el = $("signin");
-  el.hidden = false;
-  el.innerHTML = `<p>Sign in with your employer account to see your candidates' sessions.</p>
-    <form><input name="email" type="email" autocomplete="username" placeholder="Email" required aria-label="Email">
-    <input name="password" type="password" autocomplete="current-password" placeholder="Password" required aria-label="Password">
-    <button type="submit">Sign in</button></form><p class="fine" role="alert"></p>`;
+  el.innerHTML = `<form>
+      <label>Work email<input name="email" type="email" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Sign in</button>
+      <p class="fine" role="alert"></p>
+    </form>`;
   el.querySelector("form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = new FormData(e.target as HTMLFormElement);
+    const alert = el.querySelector("[role=alert]")!;
+    alert.textContent = "Signing in…";
     const err = await source.signIn(String(f.get("email")), String(f.get("password")));
-    if (err) { el.querySelector("[role=alert]")!.textContent = err; return; }
-    el.hidden = true;
+    if (err) { alert.textContent = `Sign-in failed: ${err}. Check the email and password.`; return; }
+    $("intro").hidden = true;
     await start(source);
   });
 }
@@ -269,39 +340,55 @@ function showSignIn(source: import("./live").LiveSource) {
 
 async function start(source: QsSource) {
   state.source = source;
+  show("sessions", "now", "vitals", "timeline", "questions", "summary");
+  if (source.mode === "live") {
+    const out = $("signout");
+    out.hidden = false;
+    out.onclick = async () => { await (source as import("./live").LiveSource).signOut(); location.reload(); };
+  }
   state.prompts = await source.questionPrompts().catch(() => ({}));
   await refreshSessions();
   source.watchSessions(() => void refreshSessions());
   const first = state.sessions.find((s) => s.status === "live") ?? state.sessions[0];
-  if (first) await select(first.id);
-  $("session-list").addEventListener("click", (e) => {
+  if (first) await select(first.id); else { $("headline").textContent = "No sessions yet."; $("because").textContent = "Start the game in an enrolled headset, or run the simulated feed."; }
+  $("sessions").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-session]");
     if (b) void select(b.dataset.session!);
   });
-  setInterval(() => void refreshSessions(), source.mode === "demo" ? 5000 : 30000);
+  $("question-list").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-q]");
+    if (!b) return;
+    const k = b.dataset.q!;
+    if (state.open.has(k)) state.open.delete(k); else state.open.add(k);
+    state.dirty.records = true;
+  });
+  $("question-list").addEventListener("toggle", (e) => {
+    const d = e.target as HTMLDetailsElement;
+    const k = d.dataset?.nums;
+    if (!k) return;
+    if (d.open) state.nums.add(k); else state.nums.delete(k);
+  }, true);
+  setInterval(() => void refreshSessions(), source.mode === "demo" ? 5000 : 20000);
 }
 
-function frame() {
-  if (state.dirty.charts) { state.dirty.charts = false; paintCharts(); }
-  if (state.dirty.records) { state.dirty.records = false; paintRecords(); state.dirty.summary = true; }
+let lastNow = 0;
+function frame(t: number) {
+  // the live sentence repaints at most four times a second so it can be read
+  if (state.dirty.now && t - lastNow > 250) { state.dirty.now = false; lastNow = t; paintNow(); }
+  if (state.dirty.records) { state.dirty.records = false; paintRecords(); }
   if (state.dirty.summary) { state.dirty.summary = false; paintSummary(); }
   requestAnimationFrame(frame);
 }
 
 async function boot() {
-  starfield($("sky") as HTMLCanvasElement);
-  tide($("tide") as HTMLCanvasElement, () => 0.45);
-  paintStatic();
   const cfg = readConfig(import.meta.env as Record<string, string | undefined>, location.search);
   const mode = $("mode");
-  pipeline($("pipe") as HTMLCanvasElement, ["HEADSET", "INGEST", "QS FEATURES", "POSTGRES", "REALTIME", "YOU"],
-    () => (state.view?.session.status === "live" ? 1 : 0.25));
-  addEventListener("resize", () => { state.dirty.charts = true; });
+  addEventListener("resize", () => { state.dirty.now = true; });
   requestAnimationFrame(frame);
 
   if (cfg.demo) {
     mode.className = "mode demo";
-    mode.innerHTML = `Demo data<span class="long"> · synthetic session</span>`;
+    mode.textContent = "Demo: a simulated session";
     const fixture = (await import("./demo/fixture.json")).default as unknown as Fixture;
     const last = fixture.sessions.find((s) => s.stream)?.stream?.at(-1)?.at;
     if (last) state.totalSeconds = last;
@@ -314,7 +401,8 @@ async function boot() {
     assertBrowserSafeKey(cfg.publishableKey);
   } catch (e) {
     mode.textContent = "Misconfigured";
-    $("session-list").innerHTML = `<li class="empty">${esc((e as Error).message)}</li>`;
+    show("intro");
+    $("signin").innerHTML = `<p class="notice">${esc((e as Error).message)}</p>`;
     return;
   }
   const { LiveSource } = await import("./live");

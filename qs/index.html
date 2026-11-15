@@ -3,100 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <title>QS Data Pipeline · Five Nights at Marshall Wace</title>
-    <meta name="description" content="How a candidate moved, question by question, measured against themselves. The QS pipeline for employers." />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' fill='%23070506'/%3E%3Cpath d='M5 9h20M15 9v14M8 23h14' stroke='%23d0112b' stroke-width='3' fill='none'/%3E%3C/svg%3E" />
+    <meta name="color-scheme" content="light" />
+    <title>QS · Five Nights at Marshall Wace</title>
+    <meta name="description" content="Watch a candidate's VR assessment live: what their movement and breathing probably mean, moment by moment and question by question." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' fill='%23EBF0F5'/%3E%3Cpath d='M5 9h20M15 9v14M8 23h14' stroke='%23D0112B' stroke-width='3' fill='none'/%3E%3C/svg%3E" />
     <link rel="preload" href="/qs/fonts/DotGothic16-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <canvas id="sky" aria-hidden="true"></canvas>
-    <div class="crt" aria-hidden="true"></div>
-
-    <header class="topbar">
-      <a class="brand" href="/qs/"><span class="brand-glyph" id="brand-glyph"></span>FNMW <b>QS</b></a>
-      <nav aria-label="Sections">
-        <a href="#pipeline">Pipeline</a><a href="#sessions">Sessions</a><a href="#live">Live</a><a href="#records">Records</a><a href="#summary">Summary</a>
-      </nav>
+    <header class="bar">
+      <a class="brand" href="/qs/">QS</a>
+      <span class="brand-note">Five Nights at Marshall Wace</span>
       <span id="mode" class="mode" role="status"></span>
+      <button id="signout" type="button" class="quiet" hidden>Sign out</button>
     </header>
 
     <main>
-      <section class="hero">
-        <p class="kicker">Five nights at</p>
-        <h1 class="title" data-text="QS DATA PIPELINE">QS DATA PIPELINE</h1>
-        <div class="rule" aria-hidden="true"></div>
-        <div class="glyph-row" id="glyph-row" aria-hidden="true"></div>
-        <p class="tagline">How a candidate moved, question by question. Measured against themselves.</p>
-        <dl class="hero-stats">
-          <div><dt>Sessions live</dt><dd id="stat-live">0</dd></div>
-          <div><dt>Motion windows</dt><dd id="stat-windows">0</dd></div>
-          <div><dt>QS records</dt><dd id="stat-records">0</dd></div>
-        </dl>
-        <canvas id="tide" class="tide" aria-hidden="true"></canvas>
+      <section id="intro" class="intro" hidden>
+        <h1 class="display">See how a candidate is doing, question by question.</h1>
+        <p class="lede">While a candidate plays the assessment in a Meta Quest headset, QS reads their movement and breathing against their own calm start, and tells you in plain words what it probably means.</p>
+        <div id="signin" class="signin"></div>
       </section>
 
-      <section id="pipeline" class="band">
-        <h2><span class="num">01</span>The pipeline</h2>
-        <p class="lede">The headset samples head and hands at 72–90 Hz. Every half second it sends one second of motion and any game events. The API turns each window into measurements and discards the raw samples, then pushes the result to your dashboard over Supabase Realtime.</p>
-        <div class="panel pipe-panel">
-          <canvas id="pipe" class="pipe" role="img" aria-label="Headset, ingest, QS features, database, realtime, employer"></canvas>
+      <nav id="sessions" class="sessions" aria-label="Sessions" hidden></nav>
+
+      <section id="now" class="now" aria-labelledby="headline" hidden>
+        <p id="who" class="who"></p>
+        <h1 id="headline" class="headline" aria-live="polite"></h1>
+        <p id="because" class="because"></p>
+        <p id="also" class="also"></p>
+        <ul id="chips" class="chips" aria-label="Other possible states in the last few seconds"></ul>
+      </section>
+
+      <section id="vitals" class="vitals" aria-label="Breathing and movement against their calm start" hidden>
+        <div class="vital" data-vital="breath">
+          <h2>Breathing</h2><p class="v"></p><p class="n"></p><canvas aria-hidden="true"></canvas>
         </div>
-        <ol class="stages">
-          <li><b>Headset</b>Head + both controllers, pose per frame, plus game events.</li>
-          <li><b>Ingest</b>Per-session token. Refused until the candidate consents.</li>
-          <li><b>QS features</b>4–12 Hz band energy, head scanning, low motion, startle, timing.</li>
-          <li><b>Postgres</b>One row per window. Row-level security per employer.</li>
-          <li><b>Realtime</b>Private broadcast channel per session.</li>
-          <li><b>You</b>This page. Pseudonymous ids only.</li>
-        </ol>
-      </section>
-
-      <section id="sessions" class="band">
-        <h2><span class="num">02</span>Sessions</h2>
-        <div id="signin" class="panel signin" hidden></div>
-        <div class="panel"><ul id="session-list" class="session-list" aria-live="polite"></ul></div>
-      </section>
-
-      <section id="live" class="band">
-        <h2><span class="num">03</span>Live signals <span id="live-who" class="who"></span></h2>
-        <p class="lede">Every value is a ratio to this person's own calm calibration at the start of the session: <b>×1</b> means the same as when they were settled. Values describe movement only.</p>
-        <div class="dials" id="dials"></div>
-        <div class="panel trace-panel">
-          <div class="legend" id="legend"></div>
-          <canvas id="trace" class="trace" role="img" aria-label="Live trace of hand and head motion relative to calibration"></canvas>
-          <canvas id="timeline" class="timeline" role="img" aria-label="Session timeline with questions and game events"></canvas>
-          <p class="fine"><span class="key k-q"></span>question <span class="key k-stim"></span>sudden game event <span class="key k-freeze"></span>low-motion stretch <span class="key k-now"></span>now</p>
+        <div class="vital" data-vital="hands">
+          <h2>Hands</h2><p class="v"></p><p class="n"></p><canvas aria-hidden="true"></canvas>
+        </div>
+        <div class="vital" data-vital="head">
+          <h2>Looking around</h2><p class="v"></p><p class="n"></p><canvas aria-hidden="true"></canvas>
         </div>
       </section>
 
-      <section id="records" class="band">
-        <h2><span class="num">04</span>QS records per question</h2>
-        <p class="lede">One record per question: what the person did in the game, and how they moved while doing it.</p>
-        <div id="record-grid" class="record-grid"></div>
+      <section id="timeline" class="timeline" hidden>
+        <h2 class="title">The session so far</h2>
+        <canvas id="ribbon" class="ribbon" role="img" aria-label="Session timeline: possible states over time, questions and game events"></canvas>
+        <ul class="legend">
+          <li><i class="sw alarm"></i>Startle, freezing, held breath</li>
+          <li><i class="sw arousal"></i>Stress, shaking, restless, fast breathing</li>
+          <li><i class="sw calm"></i>Calm</li>
+          <li><i class="sw q"></i>A question on screen</li>
+          <li><i class="sw stim"></i>Monster or wrong-answer scare</li>
+        </ul>
       </section>
 
-      <section id="summary" class="band">
-        <h2><span class="num">05</span>Gemini summary</h2>
-        <div id="summary-body" class="panel summary"></div>
+      <section id="questions" class="questions" hidden>
+        <h2 class="title">Question by question</h2>
+        <ol id="question-list" class="qlist"></ol>
       </section>
 
-      <section id="employers" class="band">
-        <h2>Employers on the platform</h2>
-        <p id="employers-note" class="placeholder-note"></p>
-        <ul id="employer-list" class="employers"></ul>
-      </section>
-
-      <section id="principles" class="band">
-        <h2>How QS treats people</h2>
-        <ul id="principle-list" class="principles"></ul>
+      <section id="summary" class="summary" hidden>
+        <h2 class="title">Summary</h2>
+        <div id="summary-body"></div>
       </section>
     </main>
 
-    <footer class="foot">
-      <p>QS is a measurement of movement during a game. It is not a diagnosis and not a hiring decision.</p>
+    <footer class="foot"><div class="foot-in">
+      <p class="caveat">States are inferred from motion and breathing by fixed rules. They are probabilities about moments, not diagnoses, and the hiring judgement stays with you.</p>
+      <p>Nothing is recorded until the candidate agrees in the headset. Raw audio never leaves the headset; raw motion is reduced to per-second measurements and discarded. Candidates appear under pseudonyms and can ask for their data to be deleted.</p>
       <p><a href="/">Play the game</a></p>
-    </footer>
+    </div></footer>
 
     <script type="module" src="/src/qs/main.ts"></script>
   </body>

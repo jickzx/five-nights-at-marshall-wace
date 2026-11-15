@@ -8,12 +8,35 @@ export interface Session {
   candidate_id: string;
   candidate_pseudonym: string | null;
   question_set_id?: string | null;
+  device_id?: string | null;
   created_at?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
 }
 
 export type Num = number | null;
+
+export type Likelihood = "possible" | "likely";
+export type StateKey = "startle" | "stress" | "restless" | "freeze" | "tremor" | "fast_breathing" | "deep_breath" | "breath_hold" | "calm";
+
+export interface NearEvent { type: string; t: number; dt: number | null; text: string }
+
+/** A possible state as broadcast with each window (qs/states.py compact form): evidence is already in words. */
+export interface LiveState {
+  key: StateKey;
+  label: string;
+  likelihood: Likelihood;
+  evidence: string[];
+  near_event: NearEvent | null;
+  could_also_be: string;
+  question_key: string | null;
+  t: number | null;
+}
+
+/** A possible state in a QS record: evidence carries the feature, value and ratio behind each sentence. */
+export interface RecordState extends Omit<LiveState, "evidence"> {
+  evidence: { feature: string; value: unknown; unit: string; ratio: number | null; text: string }[];
+}
 
 /** A motion window as broadcast on qs:session:<id> (event "window") and returned by /windows. */
 export interface LiveWindow {
@@ -24,6 +47,7 @@ export interface LiveWindow {
   features: Record<string, Num>;
   rel: Record<string, Num> | null;
   freeze: boolean | null;
+  states?: LiveState[];
 }
 
 export interface QsEvent {
@@ -52,6 +76,8 @@ export interface QsRecord {
   t_end: Num;
   behaviour: Record<string, Num>;
   motion: Record<string, Num | Startle[]> & { startles?: Startle[] };
+  audio?: Record<string, Num> | null;
+  states?: RecordState[];
   quality: { baseline_status: string; head_coverage: Num; hand_coverage: Num };
 }
 
@@ -60,6 +86,7 @@ export interface Observation {
   statement: string;
   question_keys: string[];
   features: string[];
+  states?: { key: StateKey; label: string; likelihood: Likelihood }[];
   direction: string;
   evidence: Evidence[];
 }
@@ -82,6 +109,7 @@ export type QsMessage =
   | { event: "window"; payload: LiveWindow }
   | { event: "event"; payload: QsEvent }
   | { event: "record"; payload: QsRecord }
-  | { event: "baseline"; payload: Baseline };
+  | { event: "baseline"; payload: Baseline }
+  | { event: "summary"; payload: SummaryResult };
 
 export interface Question { key: string; prompt: string | null }

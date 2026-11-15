@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import fixtureJson from "./demo/fixture.json";
 import { DemoSource, type Clock, type Fixture } from "./demo";
-import { EMPLOYERS, EMPLOYERS_ARE_PLACEHOLDERS } from "./employers";
-import { EVENT_LABELS, FEATURES, LIVE_SIGNALS, OUTCOME_LABELS, PRINCIPLES, fmt } from "./labels";
+import { EVENT_LABELS, FEATURES, OUTCOME_LABELS, fmt } from "./labels";
+import { because, CHIP, chipText, current, headline, PHRASE, questionName, topOf, vsCalm } from "./states";
 import { assertBrowserSafeKey, readConfig } from "./source";
 import { applyMessage, emptyView, orderedRecords, questionBands } from "./store";
 import { smooth, yOf } from "./charts";
-import type { QsMessage, Session } from "./types";
+import type { LiveState, LiveWindow, QsMessage, RecordState, Session } from "./types";
 
 const fixture = fixtureJson as unknown as Fixture;
 const session: Session = { id: "s1", status: "created", candidate_id: "c1", candidate_pseudonym: "C-000001" };
@@ -76,14 +76,14 @@ describe("demo source replays the pipeline output through the store", () => {
   });
 });
 
-// Words that would turn a measurement into a verdict, a guess at a mental state, or a diagnosis.
-const VERDICT = /\b(hire|hiring decision|reject|suitab|unsuitab|recommend|nervous|anxious|anxiety|stress|panic|fear|scared|confiden|liar|lying|honest|competen|intelligen|personality|disorder|parkinson|diagnos(?!is)|score|rating|rank|pass|fail)\w*/i;
+// Words that would turn a reading into a verdict about the person, or a diagnosis. States may say "possibly
+// stressed"; nothing may say "do not hire", give a score, or name a condition.
+const VERDICT = /\b(hire|hiring decision|reject|suitab|unsuitab|recommend|liar|lying|honest|competen|intelligen|personality|disorder|parkinson|diagnos(?!is)|score|rating|rank|pass|fail)\w*/i;
 
-describe("copy describes measurements, not verdicts", () => {
+describe("copy describes moments, never verdicts", () => {
   const strings = [
     ...Object.values(FEATURES).flatMap((f) => [f.short, f.long]),
-    ...Object.values(LIVE_SIGNALS).flatMap((s) => [s.label, s.note]),
-    ...Object.values(EVENT_LABELS), ...Object.values(OUTCOME_LABELS),
+    ...Object.values(EVENT_LABELS), ...Object.values(OUTCOME_LABELS), ...Object.values(PHRASE), ...Object.values(CHIP),
   ];
   it.each(strings)("%s", (s) => { expect(s).not.toMatch(VERDICT); });
 
@@ -91,17 +91,53 @@ describe("copy describes measurements, not verdicts", () => {
     const sum = fixture.sessions.find((s) => s.summary)!.summary!.summary!;
     for (const o of [...sum.observations, ...sum.data_quality]) expect(o.statement).not.toMatch(VERDICT);
   });
-
-  it("principles say there is no score or hire/reject call", () => {
-    expect(PRINCIPLES.map((p) => p[1]).join(" ")).toMatch(/no score/i);
-  });
 });
 
-describe("employers band", () => {
-  it("is driven by one list, flagged as placeholders", () => {
-    expect(EMPLOYERS_ARE_PLACEHOLDERS).toBe(true);
-    expect(EMPLOYERS.length).toBeGreaterThan(3);
-    for (const e of EMPLOYERS) expect(e.logo).toBeUndefined();
+const st = (key: LiveState["key"], likelihood: LiveState["likelihood"] = "possible", extra: Partial<LiveState> = {}): LiveState =>
+  ({ key, likelihood, label: key, evidence: ["head turned 9.1× faster than their calm level"], near_event: null,
+     could_also_be: "a real-world noise.", question_key: "p3", t: 1, ...extra });
+const win = (seq: number, states: LiveState[]): LiveWindow =>
+  ({ seq, t_start: seq / 2, t_end: seq / 2 + 1, question_key: "p3", features: {}, rel: {}, freeze: null, states });
+
+describe("possible states in plain words", () => {
+  it("says the likelihood and never more", () => {
+    expect(headline(st("startle", "likely"))).toBe("Likely startled or frightened");
+    expect(headline(st("stress"))).toBe("Possibly showing signs of stress");
+    expect(chipText(st("tremor", "likely"))).toBe("Likely shaking");
+  });
+
+  it("explains with the evidence, the game event and the question", () => {
+    const s = st("startle", "likely", { near_event: { type: "monster_appeared", t: 84, dt: 0.4, text: "the monster appeared" } });
+    expect(because(s)).toBe("Head turned 9.1× faster than their calm level, after the monster appeared on console 3.");
+    expect(questionName("p2-quiz")).toBe("console 2 quiz");
+  });
+
+  it("reports the strongest recent state, so one quiet second does not erase a startle", () => {
+    const windows = [win(1, [st("calm")]), win(2, [st("startle", "likely")]), win(3, [st("calm", "likely")]), win(4, [st("restless")])];
+    const now = current(windows)!;
+    expect(now.state.key).toBe("startle");
+    expect(now.all.map((s) => s.key)).toEqual(["startle", "restless", "calm"]);
+    expect(current([win(1, [])])).toBeNull();
+  });
+
+  it("orders a question's states with likely before possible", () => {
+    const rs = (key: LiveState["key"], l: LiveState["likelihood"]) => ({ ...st(key, l), evidence: [] }) as unknown as RecordState;
+    expect(topOf([rs("restless", "likely"), rs("tremor", "possible"), rs("tremor", "likely")])!.likelihood).toBe("likely");
+    expect(topOf([])).toBeNull();
+  });
+
+  it("describes vitals against the calm start", () => {
+    expect(vsCalm(2.14, "rate")).toBe("2.1× their calm rate");
+    expect(vsCalm(1.1, "rate")).toBe("about their calm rate");
+    expect(vsCalm(null, "rate")).toBe("measuring");
+  });
+
+  it("the demo fixture carries states live and per question", () => {
+    const live = fixture.sessions.find((s) => s.stream)!;
+    const keys = new Set(live.stream!.filter((m) => m.event === "window").flatMap((m) => ((m.payload as LiveWindow).states ?? []).map((s) => s.key)));
+    for (const k of ["startle", "calm", "fast_breathing", "freeze"]) expect(keys.has(k as LiveState["key"])).toBe(true);
+    const p3 = live.records.find((r) => r.question_key === "p3")!;
+    expect(p3.states!.some((s) => s.key === "startle" && s.near_event?.type === "monster_appeared")).toBe(true);
   });
 });
 
