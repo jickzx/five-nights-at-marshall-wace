@@ -25,6 +25,7 @@ namespace Fnmw.Core.Telemetry
         float[] _buf = new float[4096];
 #pragma warning disable CS0414   // read only in Android builds
         bool _permissionAsked;
+        float _nextAttempt;   // Time.unscaledTime before which TryStart does not re-query the device list
 #pragma warning restore CS0414
         public QsBreath Breath { get; private set; } = new QsBreath(SampleRate);
 
@@ -48,6 +49,8 @@ namespace Fnmw.Core.Telemetry
             }
 #endif
             _permissionAsked = true;
+            if (Time.unscaledTime < _nextAttempt) return;
+            _nextAttempt = Time.unscaledTime + 1f;
             if (Microphone.devices == null || Microphone.devices.Length == 0) { Status = "no microphone"; return; }
             _device = Microphone.devices[0];
             Microphone.GetDeviceCaps(_device, out int minF, out int maxF);

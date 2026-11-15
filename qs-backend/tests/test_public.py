@@ -51,3 +51,25 @@ def test_public_read_writes_a_missing_summary_once(world):
     assert c.get(f"/v1/public/sessions/{s['id']}/summary").json()["status"] == "ok"
     assert c.get(f"/v1/public/sessions/{s['id']}/summary").json()["status"] == "ok"
     assert len(calls) == 1
+
+
+def test_no_summary_is_generated_after_consent_withdrawn(world):
+    calls = []
+    _, s, t = world.new_session("a")
+    world.consent(s["id"], t)
+    for b in simulate_batches():
+        world.post(s["id"], t, b)
+    world.store.tables["qs_summaries"].clear()
+    for row in world.store.tables["qs_consents"]:
+        row["withdrawn_at"] = "2026-01-01T00:00:00+00:00"
+    world.store.tables["qs_sessions"][0]["status"] = "ended"
+    summarizer = lambda f, r: calls.append(1) or {"status": "ok", "model": "m", "summary": {}}
+    world.backend.summarizer = summarizer
+    r = world.client.post(f"/v1/sessions/{s['id']}/summary", headers=world.h())
+    assert r.status_code == 409 and "consent" in r.json()["detail"]
+    settings = dataclasses.replace(world.settings, public_employer_id=world.users["a"]["employer"])
+    backend = backend_from_settings(settings, world.store)
+    backend.summarizer = summarizer
+    c = TestClient(create_app(backend))
+    assert c.get(f"/v1/public/sessions/{s['id']}/summary").status_code == 404
+    assert calls == []
