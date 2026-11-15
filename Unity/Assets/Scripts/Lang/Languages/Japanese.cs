@@ -6,7 +6,8 @@ namespace Fnmw.Lang.Languages
 {
     /// <summary>
     /// Japanese, in Hepburn romaji: the verb comes last, a particle after each noun marks its role (を o, が ga),
-    /// and words are built from kanji that each carry a meaning.
+    /// and words are built from kanji that each carry a meaning. Every puzzle is a sentence put together from
+    /// three hint sentences that each share some of its pieces.
     /// </summary>
     public sealed class Japanese : SourceLanguage
     {
@@ -18,29 +19,30 @@ namespace Fnmw.Lang.Languages
         public override string[] QuizDistractors => new[] { "Korean", "Mandarin Chinese", "Vietnamese", "Thai" };
 
         sealed class Noun { public string Key, Kanji, Romaji, En; }
-        sealed class Verb { public string Key, Kanji, Romaji, En; public string[] Objects; }
+        // a verb in one form; En = imperative ("Open"), Please = after "please" ("open"), Objects = nouns it fits
+        sealed class Verb { public string Key, Kanji, Romaji, En, Please, En3, En1, Intr; public string[] Objects; }
 
-        // te-form requests, for "Open the door!"
+        // ---- polite requests: "Please open the box."
         static readonly Noun[] Things =
         {
             new Noun { Key = "door", Kanji = "扉", Romaji = "tobira", En = "the door" },
-            new Noun { Key = "eye", Kanji = "目", Romaji = "me", En = "your eyes" },
             new Noun { Key = "box", Kanji = "箱", Romaji = "hako", En = "the box" },
             new Noun { Key = "ship", Kanji = "船", Romaji = "fune", En = "the ship" },
             new Noun { Key = "star", Kanji = "星", Romaji = "hoshi", En = "the star" },
             new Noun { Key = "key", Kanji = "鍵", Romaji = "kagi", En = "the key" },
             new Noun { Key = "light", Kanji = "光", Romaji = "hikari", En = "the light" },
+            new Noun { Key = "water", Kanji = "水", Romaji = "mizu", En = "the water" },
         };
         static readonly Verb[] Requests =
         {
-            new Verb { Key = "open", Kanji = "開けて", Romaji = "akete", En = "Open", Objects = new[] { "door", "eye", "box" } },
-            new Verb { Key = "close", Kanji = "閉めて", Romaji = "shimete", En = "Close", Objects = new[] { "door", "box" } },
-            new Verb { Key = "look", Kanji = "見て", Romaji = "mite", En = "Look at", Objects = new[] { "star", "ship", "light", "door" } },
-            new Verb { Key = "break", Kanji = "壊して", Romaji = "kowashite", En = "Break", Objects = new[] { "door", "key", "box" } },
-            new Verb { Key = "search", Kanji = "探して", Romaji = "sagashite", En = "Search for", Objects = new[] { "key", "ship", "door", "light" } },
+            new Verb { Key = "open", Kanji = "開けて", Romaji = "akete", En = "Open", Please = "open", Objects = new[] { "door", "box" } },
+            new Verb { Key = "close", Kanji = "閉めて", Romaji = "shimete", En = "Close", Please = "close", Objects = new[] { "door", "box" } },
+            new Verb { Key = "look", Kanji = "見て", Romaji = "mite", En = "Look at", Please = "look at", Objects = new[] { "star", "ship", "light", "door", "box" } },
+            new Verb { Key = "search", Kanji = "探して", Romaji = "sagashite", En = "Look for", Please = "look for", Objects = new[] { "key", "ship", "door", "box", "light" } },
+            new Verb { Key = "drink", Kanji = "飲んで", Romaji = "nonde", En = "Drink", Please = "drink", Objects = new[] { "water" } },
         };
 
-        // plain present statements, for "The beast drinks the blood."
+        // ---- plain statements: "The cat drinks the water."
         static readonly Noun[] Actors =
         {
             new Noun { Key = "beast", Kanji = "獣", Romaji = "kemono", En = "beast" },
@@ -58,197 +60,279 @@ namespace Fnmw.Lang.Languages
         };
         static readonly Verb[] Statements =
         {
-            new Verb { Key = "sees", Kanji = "見る", Romaji = "miru", En = "sees", Objects = new[] { "ship", "door", "key", "star" } },
-            new Verb { Key = "seeks", Kanji = "探す", Romaji = "sagasu", En = "looks for", Objects = new[] { "ship", "door", "key" } },
-            new Verb { Key = "breaks", Kanji = "壊す", Romaji = "kowasu", En = "breaks", Objects = new[] { "door", "key", "ship" } },
-            new Verb { Key = "drinks", Kanji = "飲む", Romaji = "nomu", En = "drinks", Objects = new[] { "blood", "water" } },
+            new Verb { Key = "sees", Kanji = "見る", Romaji = "miru", En3 = "sees", En1 = "see", Intr = "watches", Objects = new[] { "ship", "door", "key", "star" } },
+            new Verb { Key = "seeks", Kanji = "探す", Romaji = "sagasu", En3 = "looks for", En1 = "look for", Intr = "searches", Objects = new[] { "ship", "door", "key" } },
+            new Verb { Key = "breaks", Kanji = "壊す", Romaji = "kowasu", En3 = "breaks", En1 = "break", Objects = new[] { "door", "key", "ship" } },
+            new Verb { Key = "drinks", Kanji = "飲む", Romaji = "nomu", En3 = "drinks", En1 = "drink", Intr = "drinks", Objects = new[] { "blood", "water" } },
         };
 
-        // the romaji reading each kanji has inside the words below; one kanji can have several (入: iri, hai)
+        // ---- nouns written as kanji, each kanji a tile with its own meaning (and the reading it has in the word)
+        sealed class KNoun { public string Key, Kanji, En, Lit; public string[] Glyphs; public string[] Verbs; public bool Compound => Glyphs.Length == 2; }
         static readonly (string key, string form, string gloss)[] Kanji =
         {
-            ("de", "de", "go out (出)"), ("iri", "iri", "enter (入)"), ("hai", "hai", "enter (入)"), ("guchi", "guchi", "mouth, opening (口)"),
-            ("hana", "hana", "flower (花)"), ("bi", "bi", "fire (火)"), ("niku", "niku", "meat (肉)"), ("ya", "ya", "shop (屋)"),
-            ("den", "den", "electric (電)"), ("sha", "sha", "vehicle (車)"), ("kai", "kai", "meet (会)"), ("wa", "wa", "talk (話)"),
+            ("den", "den", "electric (電)"), ("sha", "sha", "vehicle (車)"), ("wa", "wa", "talk (話)"), ("kai", "kai", "meet (会)"),
+            ("hana", "hana", "flower (花)"), ("niku", "niku", "meat (肉)"), ("sakana", "sakana", "fish (魚)"), ("ya", "ya", "shop (屋)"),
+            ("bi", "bi", "fire (火)"), ("kagi", "kagi", "key (鍵)"),
+        };
+        static readonly KNoun[] KNouns =
+        {
+            new KNoun { Key = "densha", Kanji = "電車", Glyphs = new[] { "den", "sha" }, En = "the train", Lit = "electric vehicle", Verbs = new[] { "search", "look" } },
+            new KNoun { Key = "denwa", Kanji = "電話", Glyphs = new[] { "den", "wa" }, En = "the phone", Lit = "electric talk", Verbs = new[] { "search", "look" } },
+            new KNoun { Key = "kaiwa", Kanji = "会話", Glyphs = new[] { "kai", "wa" }, En = "the conversation", Lit = "meet talk", Verbs = new[] { "listen" } },
+            new KNoun { Key = "hanaya", Kanji = "花屋", Glyphs = new[] { "hana", "ya" }, En = "the florist", Lit = "flower shop", Verbs = new[] { "search" } },
+            new KNoun { Key = "nikuya", Kanji = "肉屋", Glyphs = new[] { "niku", "ya" }, En = "the butcher's", Lit = "meat shop", Verbs = new[] { "search" } },
+            new KNoun { Key = "sakanaya", Kanji = "魚屋", Glyphs = new[] { "sakana", "ya" }, En = "the fish shop", Lit = "fish shop", Verbs = new[] { "search" } },
+            new KNoun { Key = "hanabi", Kanji = "花火", Glyphs = new[] { "hana", "bi" }, En = "the fireworks", Lit = "flower fire", Verbs = new[] { "look" } },
+            new KNoun { Key = "hana", Kanji = "花", Glyphs = new[] { "hana" }, En = "the flowers", Verbs = new[] { "look", "search" } },
+            new KNoun { Key = "niku", Kanji = "肉", Glyphs = new[] { "niku" }, En = "the meat", Verbs = new[] { "eat", "search" } },
+            new KNoun { Key = "sakana", Kanji = "魚", Glyphs = new[] { "sakana" }, En = "the fish", Verbs = new[] { "eat", "look" } },
+            new KNoun { Key = "kagi", Kanji = "鍵", Glyphs = new[] { "kagi" }, En = "the key", Verbs = new[] { "search", "look" } },
+        };
+        static readonly Verb[] KVerbs =
+        {
+            new Verb { Key = "search", Kanji = "探して", Romaji = "sagashite", En = "Look for", Please = "look for" },
+            new Verb { Key = "look", Kanji = "見て", Romaji = "mite", En = "Look at", Please = "look at" },
+            new Verb { Key = "eat", Kanji = "食べて", Romaji = "tabete", En = "Eat", Please = "eat" },
+            new Verb { Key = "listen", Kanji = "聞いて", Romaji = "kiite", En = "Listen to", Please = "listen to" },
         };
 
         public Japanese()
         {
             Add("o", MorphKind.Particle, "o", "OBJ", LangConcepts.Particles);
             Add("ga", MorphKind.Particle, "ga", "SUBJ", LangConcepts.Particles);
+            Add("kudasai", MorphKind.Root, "kudasai", "please");
             foreach (var n in Things.Concat(Objects).Concat(Actors).GroupBy(n => n.Key).Select(g => g.First()))
                 Add("n." + n.Key, MorphKind.Root, n.Romaji, n.Key);
-            foreach (var v in Requests) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.Key.ToLowerInvariant(), LangConcepts.VerbFinal);
-            foreach (var v in Statements) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.En, LangConcepts.VerbFinal);
+            foreach (var v in Requests) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.Please, LangConcepts.VerbFinal);
+            foreach (var v in KVerbs.Where(v => !Has("v." + v.Key))) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.Please, LangConcepts.VerbFinal);
+            foreach (var v in Statements) Add("v." + v.Key, MorphKind.Root, v.Romaji, v.En3, LangConcepts.VerbFinal);
             foreach (var (k, form, gloss) in Kanji) Add("k." + k, MorphKind.Glyph, form, gloss, LangConcepts.CompoundMeaning);
-            // kana endings that turn a kanji into a verb: 出る deru, 出て dete, 入って haitte
-            foreach (var k in new[] { "ru", "te", "tte" }) Add("k." + k, MorphKind.Glyph, k, "(kana ending)");
-
 
             Kind("verb-last", 0, VerbLast);
-            Kind("kanji-compound", 1, Compound);
+            Kind("kanji-compound", 1, CompoundRequest);
             Kind("particles", 2, ParticlesKind);
-            Kind("compound-sentence", 3, CompoundSentence);
+            // no tier-3 kind: KindFor gives tier 3 the particles kind. A longer Japanese sentence (subject + compound
+            // object + verb, 6+ tiles) cannot be pinned down from 3 hints: every piece would need its own pattern of hints.
         }
 
-        // ---------------------------------------------------------------- tier 0: verb last
-        static List<Word> Sov(int h, string obj, string verb)
+        // ---------------------------------------------------------------- tier 0: please + verb last
+        // rival bit 0: verb (and kudasai) before the object, as in English; bit 1: particle before its noun
+        static List<Word> Request(int h, Word obj, string verb, bool please, int verbBit = 0, int particleBit = 1)
         {
-            var np = Hyps.On(h, 1) ? P(W("o"), W(obj)) : P(W(obj), W("o"));
-            return Hyps.On(h, 0) ? Cat(P(W(verb)), np) : Cat(np, P(W(verb)));
+            var np = Hyps.On(h, particleBit) ? P(W("o"), obj) : P(obj, W("o"));
+            var vp = please ? P(W("v." + verb), W("kudasai")) : P(W("v." + verb));
+            return Hyps.On(h, verbBit) ? Cat(vp, np) : Cat(np, vp);
         }
 
         Draft VerbLast(Rng rng, int tier)
         {
-            while (true)
+            Draft d = null;
+            for (int tries = 0; tries < 30; tries++)
             {
                 var v = rng.Pick(Requests);
                 var nk = rng.Pick(v.Objects);
                 var n = Things.First(t => t.Key == nk);
-                var v2s = Requests.Where(x => x != v && x.Objects.Contains(n.Key)).ToList();
-                var n2s = v.Objects.Where(k => k != n.Key).ToList();
-                if (v2s.Count == 0 || n2s.Count == 0) continue;
-                var v2 = rng.Pick(v2s);
-                var n2k = rng.Pick(n2s);
-                var n2 = Things.First(t => t.Key == n2k);
-                string real = $"{n.Kanji}を{v.Kanji} ({n.Romaji} o {v.Romaji})";
-                return new Draft
+                string real = $"{n.Kanji}を{v.Kanji}ください ({n.Romaji} o {v.Romaji} kudasai)";
+                d = new Draft
                 {
                     Concept = LangConcepts.VerbFinal,
                     Concepts = new[] { LangConcepts.Particles },
                     OrderConcept = LangConcepts.VerbFinal,
                     HypConcepts = Hyps.Bits(LangConcepts.VerbFinal, LangConcepts.Particles),
-                    TargetMeaning = $"{v.En} {n.En}!",
-                    Target = h => Sov(h, "n." + n.Key, "v." + v.Key),
+                    TargetMeaning = $"Please {v.Please} {n.En}.",
+                    Target = h => Request(h, W("n." + n.Key), v.Key, true),
                     RealText = real,
-                    Translation = $"{v.En} {n.En}!",
-                    Feature = $"Japanese puts the verb at the end, and the particle を (o) follows the thing being acted on: {real} is literally '{n.Key} (o) {v.Key.ToLowerInvariant()}'.",
+                    Translation = $"Please {v.Please} {n.En}.",
+                    Feature = $"Japanese puts the verb at the very end, and ください (kudasai), 'please', comes after even the verb: {real} is literally '{n.Key} (o) {v.Please} please'.",
                     NowYouKnow = "'Eat sushi' in Japanese is 寿司を食べる (sushi o taberu), literally 'sushi (o) eat': the verb waits until the very end.",
-                }
-                .Example($"{v2.En} {n.En}!", h => Sov(h, "n." + n.Key, "v." + v2.Key))
-                .Example($"{v.En} {n2.En}!", h => Sov(h, "n." + n2.Key, "v." + v.Key));
+                };
+                var pool = new List<Hint>();
+                foreach (var v2 in Requests)
+                    foreach (var k in v2.Objects)
+                    {
+                        var n2 = Things.First(t => t.Key == k);
+                        pool.Add(new Hint($"{v2.En} {n2.En}!", h => Request(h, W("n." + n2.Key), v2.Key, false)));
+                        pool.Add(new Hint($"Please {v2.Please} {n2.En}.", h => Request(h, W("n." + n2.Key), v2.Key, true)));
+                    }
+                if (PickHints(this, d, pool, rng)) return d;
             }
+            return d;
         }
 
         // ---------------------------------------------------------------- tier 2: ga / o particles
         static List<Word> Svo(int h, string s, string o, string v, string sp = "ga", string op = "o")
         {
             List<Word> Np(string n, string p) => Hyps.On(h, 1) ? P(W(p), W(n)) : P(W(n), W(p));
+            if (s == null) return Hyps.On(h, 0) ? Cat(P(W(v)), Np(o, op)) : Cat(Np(o, op), P(W(v)));
+            if (o == null) return Cat(Np(s, sp), P(W(v)));
             return Hyps.On(h, 0) ? Cat(Np(s, sp), P(W(v)), Np(o, op)) : Cat(Np(s, sp), Np(o, op), P(W(v)));
         }
 
         Draft ParticlesKind(Rng rng, int tier)
         {
-            while (true)
+            Draft d = null;
+            for (int tries = 0; tries < 30; tries++)
             {
                 var v = rng.Pick(Statements);
                 var ok = rng.Pick(v.Objects);
                 var o = Objects.First(x => x.Key == ok);
                 var s = rng.Pick(Actors);
-                var s2 = rng.Pick(Actors.Where(x => x != s).ToList());
-                var v2s = Statements.Where(x => x != v && x.Objects.Any(k => k != o.Key)).ToList();
-                if (v2s.Count == 0) continue;
-                var v2 = rng.Pick(v2s);
-                var o2k = rng.Pick(v2.Objects.Where(k => k != o.Key).ToList());
-                var o2 = Objects.First(x => x.Key == o2k);
                 string S = "n." + s.Key, O = "n." + o.Key, V = "v." + v.Key;
                 string real = $"{s.Kanji}が{o.Kanji}を{v.Kanji} ({s.Romaji} ga {o.Romaji} o {v.Romaji})";
-                return new Draft
+                d = new Draft
                 {
                     Concept = LangConcepts.Particles,
                     Concepts = new[] { LangConcepts.VerbFinal },
                     OrderConcept = LangConcepts.VerbFinal,
                     HypConcepts = Hyps.Bits(LangConcepts.VerbFinal, LangConcepts.Particles),
-                    TargetMeaning = $"The {s.En} {v.En} the {o.En}.",
+                    TargetMeaning = $"The {s.En} {v.En3} the {o.En}.",
                     Target = h => Svo(h, S, O, V),
                     RealText = real,
-                    Translation = $"The {s.En} {v.En} the {o.En}.",
-                    Feature = $"Japanese marks a noun's role with a particle after it: が (ga) marks who does it, を (o) marks what it is done to, and the verb comes last: {real}.",
-                    NowYouKnow = $"Because the particles carry the roles, Japanese can move the object to the front: {o.Kanji}を{s.Kanji}が{v.Kanji} ({o.Romaji} o {s.Romaji} ga {v.Romaji}) still means 'the {s.En} {v.En} the {o.En}', and the console accepts it too.",
+                    Translation = $"The {s.En} {v.En3} the {o.En}.",
+                    Feature = $"Japanese marks a noun's role with a particle after it: が (ga) marks who does it, を (o) marks what it is done to, and the verb comes last: {real}. 'I' is usually left out when it is obvious.",
+                    NowYouKnow = $"Because the particles carry the roles, Japanese can move the object to the front: {o.Kanji}を{s.Kanji}が{v.Kanji} ({o.Romaji} o {s.Romaji} ga {v.Romaji}) still means 'the {s.En} {v.En3} the {o.En}', and the console accepts it too.",
                 }
-                .Example($"The {s.En} {v2.En} the {o2.En}.", h => Svo(h, S, "n." + o2.Key, "v." + v2.Key))
-                .Example($"The {s2.En} {v.En} the {o.En}.", h => Svo(h, "n." + s2.Key, O, V))
                 .Also(Svo(0, O, S, V, "o", "ga"))                         // object first: real, if less usual
                 .Mistake(Svo(0, O, S, V), LangConcepts.Particles)        // roles swapped
                 .Mistake(Svo(0, S, O, V, "o", "ga"), LangConcepts.Particles); // particles swapped
-            }
-        }
-
-        // ---------------------------------------------------------------- tier 1: kanji compounds
-        static Word Cmp(int h, string a, string b) => Hyps.On(h, 0) ? W("k." + b, "k." + a) : W("k." + a, "k." + b);
-        static Word Kana(string glyph, string ending) => W("k." + glyph, "k." + ending);
-
-        Draft Compound(Rng rng, int tier)
-        {
-            var d = new Draft
-            {
-                Concept = LangConcepts.CompoundMeaning,
-                OrderConcept = LangConcepts.CompoundMeaning,
-                MorphTiles = true,
-                HypConcepts = Hyps.Bits(LangConcepts.CompoundMeaning),
-            };
-            switch (rng.Range(0, 3))
-            {
-                case 0:
-                    d.TargetMeaning = "exit";
-                    d.Target = h => P(Cmp(h, "de", "guchi"));
-                    d.Example("entrance", h => P(Cmp(h, "iri", "guchi")))
-                     .Example("to enter", h => P(Kana("hai", "ru")))
-                     .Example("to go out", h => P(Kana("de", "ru")));
-                    d.RealText = "出口 (deguchi)";
-                    d.Translation = "exit (literally 'go out' + 'mouth')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by joining them: 入口 (iriguchi), 'entrance', is 入 'enter' + 口 'mouth, opening'. One kanji can be read more than one way: 入 is iri in iriguchi but hai in 入る (hairu) 'to enter'.";
-                    d.NowYouKnow = "Japanese station signs say 出口 (deguchi) for the exit and 入口 (iriguchi) for the entrance. You can read them now.";
-                    break;
-                case 1:
-                    d.TargetMeaning = "florist (a flower shop)";
-                    d.Target = h => P(Cmp(h, "hana", "ya"));
-                    d.Example("fireworks (flower fire)", h => P(Cmp(h, "hana", "bi")))
-                     .Example("butcher's (a meat shop)", h => P(Cmp(h, "niku", "ya")));
-                    d.RealText = "花屋 (hanaya)";
-                    d.Translation = "florist (literally 'flower shop')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words from them, the describing part first: 肉屋 (nikuya), 'meat shop', is a butcher's.";
-                    d.NowYouKnow = "花火 (hanabi), 'flower fire', is the Japanese word for fireworks.";
-                    break;
-                default:
-                    d.TargetMeaning = "telephone (electric talk)";
-                    d.Target = h => P(Cmp(h, "den", "wa"));
-                    d.Example("train (an electric vehicle)", h => P(Cmp(h, "den", "sha")))
-                     .Example("conversation (a meeting talk)", h => P(Cmp(h, "kai", "wa")));
-                    d.RealText = "電話 (denwa)";
-                    d.Translation = "telephone (literally 'electric talk')";
-                    d.Feature = "Each kanji carries a meaning, and Japanese builds words by joining them: 電車 (densha), 'electric vehicle', is a train.";
-                    d.NowYouKnow = "会話 (kaiwa), 'meet' + 'talk', is a conversation, and 電話 (denwa), 'electric talk', is a telephone.";
-                    break;
+                var pool = new List<Hint>();
+                foreach (var v2 in Statements)
+                {
+                    foreach (var k in v2.Objects)
+                    {
+                        var o2 = Objects.First(x => x.Key == k);
+                        foreach (var s2 in Actors)
+                            pool.Add(new Hint($"The {s2.En} {v2.En3} the {o2.En}.", h => Svo(h, "n." + s2.Key, "n." + o2.Key, "v." + v2.Key)));
+                        pool.Add(new Hint($"I {v2.En1} the {o2.En}.", h => Svo(h, null, "n." + o2.Key, "v." + v2.Key)));
+                    }
+                    if (v2.Intr != null)
+                        foreach (var s2 in Actors)
+                            pool.Add(new Hint($"The {s2.En} {v2.Intr}.", h => Svo(h, "n." + s2.Key, null, "v." + v2.Key)));
+                }
+                if (PickHints(this, d, pool, rng)) return d;
             }
             return d;
         }
 
-        // ---------------------------------------------------------------- tier 3: compound inside a sentence
-        Draft CompoundSentence(Rng rng, int tier)
+        // ---------------------------------------------------------------- tier 1: kanji compounds in a polite request
+        // rival bit 0: the two kanji the other way round; bit 1: verb first; bit 2: particle first
+        static Word KWord(int h, KNoun n) =>
+            n.Compound && Hyps.On(h, 0) ? W("k." + n.Glyphs[1], "k." + n.Glyphs[0]) : new Word(n.Glyphs.Select(g => "k." + g).ToArray());
+
+        Draft CompoundRequest(Rng rng, int tier)
         {
-            List<Word> Open(int h, Word thing)
+            Draft d = null;
+            var verbs = KVerbs.ToDictionary(v => v.Key);
+            for (int tries = 0; tries < 30; tries++)
             {
-                var np = P(thing, W("o"));
-                return Hyps.On(h, 1) ? Cat(P(W("v.open")), np) : Cat(np, P(W("v.open")));
+                var n = rng.Pick(KNouns.Where(x => x.Compound).ToList());
+                var v = verbs[rng.Pick(n.Verbs)];
+                var parts = n.Glyphs.Select(g => Kanji.First(k => k.key == g).gloss).ToArray();
+                string real = $"{n.Kanji}を{v.Kanji}ください ({Surface(KWord(0, n))} o {v.Romaji} kudasai)";
+                string meaning = $"Please {v.Please} {n.En}.";
+                d = new Draft
+                {
+                    Concept = LangConcepts.CompoundMeaning,
+                    Concepts = new[] { LangConcepts.VerbFinal, LangConcepts.Particles },
+                    MorphTiles = true,
+                    OrderConcept = LangConcepts.CompoundMeaning,
+                    HypConcepts = Hyps.Bits(LangConcepts.CompoundMeaning, LangConcepts.VerbFinal, LangConcepts.Particles),
+                    TargetMeaning = meaning,
+                    Target = h => Request(h, KWord(h, n), v.Key, true, 1, 2),
+                    RealText = real,
+                    Translation = meaning,
+                    Feature = $"Each kanji carries a meaning, and Japanese builds words by joining them, the describing part first: {n.Kanji} ({Surface(KWord(0, n))}) is {parts[0]} + {parts[1]}, '{n.Lit}'. The verb still comes last, followed only by ください (kudasai), 'please'.",
+                    NowYouKnow = "Japanese station signs say 出口 (deguchi), 'go out' + 'mouth', for the exit and 入口 (iriguchi), 'enter' + 'mouth', for the entrance.",
+                };
+                var pool = new List<Hint>();
+                foreach (var n2 in KNouns)
+                    foreach (var vk in n2.Verbs)
+                    {
+                        var v2 = verbs[vk];
+                        pool.Add(new Hint($"{v2.En} {n2.En}!", h => Request(h, KWord(h, n2), v2.Key, false, 1, 2)));
+                        pool.Add(new Hint($"Please {v2.Please} {n2.En}.", h => Request(h, KWord(h, n2), v2.Key, true, 1, 2)));
+                    }
+                if (PickHints(this, d, pool, rng)) return d;
             }
-            return new Draft
+            return d;
+        }
+
+        // ---------------------------------------------------------------- hint picker
+        sealed class Hint
+        {
+            public readonly string Pic; public readonly Render R;
+            public Hint(string pic, Render r) { Pic = pic; R = r; }
+        }
+
+        /// <summary>
+        /// Picks 3 hint sentences from the pool so that every target morph can be worked out by comparing them
+        /// (each target morph appears in a different set of hints from every other morph shown), no hint holds
+        /// the whole target, and every rival grammar renders at least one hint differently. Adds them to d.
+        /// </summary>
+        static bool PickHints(SourceLanguage lang, Draft d, List<Hint> pool, Rng rng)
+        {
+            const int MaxCandidates = 90;
+            var accepted = new HashSet<string> { PuzzleBuilder.Key(d.Target(0)) };
+            foreach (var a in d.AlsoCorrect) accepted.Add(PuzzleBuilder.Key(a));
+            var target = d.Target(0).SelectMany(w => w.M).Distinct().ToList();
+            var rivals = Enumerable.Range(1, d.HypConcepts.Length - 1).Where(h => !accepted.Contains(PuzzleBuilder.Key(d.Target(h)))).ToList();
+            string Shape(List<Word> ws) => string.Join(" ", ws.Select(w => w.Id));
+
+            var cands = new List<(Hint hint, string[] morphs, int kills)>();
+            foreach (var hint in pool)
             {
-                Concept = LangConcepts.CompoundMeaning,
-                Concepts = new[] { LangConcepts.VerbFinal, LangConcepts.Particles },
-                MorphTiles = true,
-                OrderConcept = LangConcepts.VerbFinal,
-                HypConcepts = Hyps.Bits(LangConcepts.CompoundMeaning, LangConcepts.VerbFinal),
-                TargetMeaning = "Open the exit!",
-                Target = h => Open(h, Cmp(h, "de", "guchi")),
-                RealText = "出口を開けて (deguchi o akete)",
-                Translation = "Open the exit!",
-                Feature = "Japanese builds words from meaningful kanji (出 'go out' + 口 'mouth' = 出口 'exit') and puts the verb last, after the particle を (o).",
-                NowYouKnow = "Japanese station signs say 出口 (deguchi) for the exit and 入口 (iriguchi) for the entrance. You can read them now.",
+                var r0 = hint.R(0);
+                if (accepted.Contains(PuzzleBuilder.Key(r0))) continue;
+                var ms = r0.SelectMany(w => w.M).Distinct().ToArray();
+                int shared = target.Count(ms.Contains);
+                if (shared < 2 || shared == target.Count) continue;
+                if (r0.Count > 6 || lang.Render(r0).Length > 40) continue;
+                int kills = 0;
+                string s0 = Shape(r0);
+                for (int i = 0; i < rivals.Count; i++) if (Shape(hint.R(rivals[i])) != s0) kills |= 1 << i;
+                cands.Add((hint, ms, kills));
             }
-            .Example("Open the entrance!", h => Open(h, Cmp(h, "iri", "guchi")))
-            .Example("Go in!", h => P(Kana("hai", "tte")))
-            .Example("Go out!", h => P(Kana("de", "te")));
+            rng.Shuffle(cands);
+            if (cands.Count > MaxCandidates) cands.RemoveRange(MaxCandidates, cands.Count - MaxCandidates);
+
+            var index = new Dictionary<string, int>();
+            foreach (var c in cands) foreach (var m in c.morphs) if (!index.ContainsKey(m)) index[m] = index.Count;
+            if (index.Count > 128) return false;
+            var bits = cands.Select(c => Bits.Of(c.morphs.Select(m => index[m]))).ToList();
+            var T = Bits.Of(target.Where(index.ContainsKey).Select(m => index[m]));
+            if (target.Any(m => !index.ContainsKey(m))) return false;
+            int need = (1 << rivals.Count) - 1;
+
+            for (int i = 0; i < cands.Count; i++)
+                for (int j = i + 1; j < cands.Count; j++)
+                    for (int k = j + 1; k < cands.Count; k++)
+                    {
+                        if (((cands[i].kills | cands[j].kills | cands[k].kills) & need) != need) continue;
+                        Bits A = bits[i], B = bits[j], C = bits[k];
+                        if (!T.SubsetOf(A | B | C)) continue;
+                        if (!Unique(A & ~B & ~C, T) || !Unique(~A & B & ~C, T) || !Unique(~A & ~B & C, T)
+                            || !Unique(A & B & ~C, T) || !Unique(A & ~B & C, T) || !Unique(~A & B & C, T) || !Unique(A & B & C, T)) continue;
+                        var chosen = new List<Hint> { cands[i].hint, cands[j].hint, cands[k].hint };
+                        rng.Shuffle(chosen);
+                        foreach (var c in chosen) d.Example(c.Pic, c.R);
+                        return true;
+                    }
+            return false;
+        }
+
+        // a set of morphs that holds a target morph must hold nothing else
+        static bool Unique(Bits cls, Bits target) => (cls & target).IsEmpty || cls.Count == 1;
+
+        struct Bits
+        {
+            public ulong Lo, Hi;
+            public static Bits Of(IEnumerable<int> ix) { var b = new Bits(); foreach (var i in ix) { if (i < 64) b.Lo |= 1UL << i; else b.Hi |= 1UL << (i - 64); } return b; }
+            public static Bits operator |(Bits a, Bits b) => new Bits { Lo = a.Lo | b.Lo, Hi = a.Hi | b.Hi };
+            public static Bits operator &(Bits a, Bits b) => new Bits { Lo = a.Lo & b.Lo, Hi = a.Hi & b.Hi };
+            public static Bits operator ~(Bits a) => new Bits { Lo = ~a.Lo, Hi = ~a.Hi };
+            public bool IsEmpty => Lo == 0 && Hi == 0;
+            public bool SubsetOf(Bits o) => (Lo & ~o.Lo) == 0 && (Hi & ~o.Hi) == 0;
+            public int Count { get { int n = 0; ulong x = Lo; while (x != 0) { x &= x - 1; n++; } x = Hi; while (x != 0) { x &= x - 1; n++; } return n; } }
         }
     }
 }

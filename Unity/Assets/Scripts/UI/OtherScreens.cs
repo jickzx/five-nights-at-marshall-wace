@@ -262,7 +262,15 @@ namespace Fnmw.UI
                     var ph = e.Phrases[p];
                     float rw = FontBook.Width(Rtl.Visual(ph.Real), 16);
                     Fade(Kit.Label("Real", Root, ph.Real, 16, Pal.Amber, TextAnchor.MiddleLeft, 56, y, rw + 4, 16), at + 0.15f);
-                    Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 56 + rw + 14, y, 460 - rw, 16), at + 0.15f);
+                    // a sentence and its meaning may not share a line left of the ship: the meaning drops below, or out when cramped
+                    float mw = FontBook.Width(ph.Translation ?? "", 16);
+                    if (56 + rw + 14 + mw <= 516)
+                        Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 56 + rw + 14, y, 460 - rw, 16), at + 0.15f);
+                    else if (roomy)
+                    {
+                        y += 19;
+                        Fade(Kit.Label("Means", Root, ph.Translation, 16, Pal.Dawn, TextAnchor.MiddleLeft, 68, y, 448, 16), at + 0.15f);
+                    }
                     y += roomy ? 19 : 17;
                 }
                 if (roomy && !string.IsNullOrEmpty(e.Fact))

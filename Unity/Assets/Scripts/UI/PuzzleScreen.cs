@@ -7,13 +7,15 @@ using UnityEngine.UI;
 namespace Fnmw.UI
 {
     /// <summary>
-    /// The console. Example phrases are mural rows (meaning :: glyphs); the answer is one more row the
-    /// player completes by stamping tiles into it. A wrong answer is not labelled: the glyphs melt, the
-    /// glass cracks and blood runs down it.
+    /// The console. Each example sentence is a mural row (meaning plate :: one glyph per word); the target
+    /// sentence is one more row the player completes by stamping tiles into it, word by word. A wrong
+    /// answer is not labelled: the glyphs melt, the glass cracks and blood runs down it.
+    /// Placement is worked out by <see cref="PuzzleLayout"/>.
     /// </summary>
     internal sealed class PuzzleScreen : UiScreen
     {
-        const int L = 30, R = 610, MaxSlots = 8;
+        const float L = PuzzleLayout.L, R = PuzzleLayout.R;
+        const int MaxSlots = PuzzleLayout.MaxSlots;
 
         sealed class TileView
         {
@@ -30,6 +32,7 @@ namespace Fnmw.UI
         readonly List<Text> _slotCaps = new List<Text>();
         readonly List<RectTransform> _stagger = new List<RectTransform>();
         RectTransform _slotRow;
+        PuzzleLayout _lay;
         Image _slotCursor, _sendFrame, _sendFill;
         Text _sendText, _msg;
         RawImage _sendIcon;
@@ -84,70 +87,46 @@ namespace Fnmw.UI
             Widgets.Power(head, R - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
             Kit.Box("Rule", head, Pal.Rust, L, 36, R - L, 1);
 
-            // tile rows first: they decide how much room the mural gets
-            int n = _p.Tiles.Count;
-            var widths = new float[n];
-            float sum = 0;
-            for (int i = 0; i < n; i++) { widths[i] = Mathf.Ceil(Mathf.Max(48, FontBook.Width(_p.Tiles[i].Alien, 16) + 14) / 2f) * 2f; sum += widths[i] + 6; }
-            int tileRows = sum - 6 > R - L ? 2 : 1;
-            int tileH = tileRows == 1 ? 58 : 52;
-            int yTiles = 322 - tileRows * (tileH + 2);
-            int yAnswer = yTiles - 58;
+            _lay = PuzzleLayout.For(_p);
+            float plateW = _lay.PlateW, wordX = _lay.WordX;
 
-            int ex = Mathf.Min(_p.Examples.Count, 6);
-            bool twoCol = ex > 3 || (tileRows == 2 && ex > 2);
-            int exRows = twoCol ? (ex + 1) / 2 : ex;
-            int rowH = exRows > 0 ? Mathf.Clamp((yAnswer - 4 - 44) / exRows, 46, 54) : 52;
-            int yEx = 44 + Mathf.Max(0, (yAnswer - 4 - 44 - exRows * rowH) / 2);
-
-            // one plate width for the whole mural, so the glyph columns line up
-            float plateMax = twoCol ? 120 : 216;
-            float plateW = Widgets.PlateWidth(_p.TargetMeaning, plateMax);
-            for (int i = 0; i < ex; i++) plateW = Mathf.Max(plateW, Widgets.PlateWidth(_p.Examples[i].Picture, plateMax));
-            plateW = Mathf.Clamp(plateW, 84, plateMax);
-            float wordX = L + plateW + 22;
-            for (int i = 0; i < ex; i++)
+            // the mural: one row per example sentence
+            for (int i = 0; i < _lay.Rows.Length; i++)
             {
                 var e = _p.Examples[i];
-                int col = twoCol ? i % 2 : 0, row = twoCol ? i / 2 : i;
+                var row = _lay.Rows[i];
                 var node = Section("Example" + i);
-                float x = L + col * 292, y = yEx + row * rowH;
-                Widgets.Plate(node, x, y, plateW, plateW, 44, e.Picture, false);
-                float wx = x + plateW + 22;
-                Colon(node, wx - 13, y + 14, Pal.Rust);
-                foreach (var w in e.Words)
-                    wx += Widgets.Word(node, wx, y - 2, w, _fam, Pal.Bone, Pal.BoneDim, out _, out _) + 6;
+                Widgets.Plate(node, row.Plate.x, row.Plate.y, plateW, plateW, PuzzleLayout.PlateH, e.Picture, false);
+                Colon(node, row.X - 13, row.Plate.y + 14, Pal.Rust);
+                var words = Kit.Node("Words", node, row.X, row.Y, row.Room, Widgets.WordH);
+                words.localScale = new Vector3(row.Scale, row.Scale, 1f);
+                for (int k = 0; k < e.Words.Count; k++)
+                    Widgets.Word(words, row.LocalX[k], 0, e.Words[k], _fam, Pal.Bone, Pal.BoneDim, out _, out _);
             }
 
             // the row the player must complete
             var ans = Section("Answer");
+            float yAnswer = _lay.YAnswer;
             Kit.Box("AnswerRule", ans, Pal.RustDeep, L, yAnswer - 4, R - L, 1);
-            Widgets.Plate(ans, L, yAnswer, plateW, plateW, 44, _p.TargetMeaning, true);
+            Widgets.Plate(ans, L, yAnswer, plateW, plateW, PuzzleLayout.PlateH, _p.TargetMeaning, true);
             Colon(ans, wordX - 13, yAnswer + 14, Pal.Bone);
-            _slotRow = Kit.Node("Slots", ans, wordX, yAnswer, R - wordX - 70, 52);
+            _slotRow = Kit.Node("Slots", ans, _lay.Slots.x, _lay.Slots.y, _lay.Slots.width, _lay.Slots.height);
             _slotCursor = Kit.Frame("Cursor", ans, Pal.RustHot, 0, 0, 32, 32);
 
-            var send = Kit.Node("Send", ans, R - 62, yAnswer + 8, 62, 32);
-            _sendFill = Kit.Box("Fill", send, Pal.Clear, 1, 1, 60, 30);
-            _sendFrame = Kit.Frame("Frame", send, Pal.Rust, 0, 0, 62, 32);
+            var sr = _lay.Send;
+            var send = Kit.Node("Send", ans, sr.x, sr.y, sr.width, sr.height);
+            _sendFill = Kit.Box("Fill", send, Pal.Clear, 1, 1, sr.width - 2, sr.height - 2);
+            _sendFrame = Kit.Frame("Frame", send, Pal.Rust, 0, 0, sr.width, sr.height);
             _sendIcon = Kit.Pic("Key", send, Pictograms.Get("enter"), Pal.Rust, 6, 10, 13, 13);
             _sendText = Kit.Label("Text", send, "SEND", 16, Pal.Rust, TextAnchor.MiddleLeft, 24, 8, 36, 16);
             AddHit(send, Submit);
 
             // tiles
             var tiles = Section("Tiles");
-            int perRow = tileRows == 1 ? n : (n + 1) / 2;
-            for (int r = 0; r < tileRows; r++)
+            for (int i = 0; i < _lay.Tiles.Length; i++)
             {
-                int from = r * perRow, to = Mathf.Min(n, from + perRow);
-                float rowW = -6;
-                for (int i = from; i < to; i++) rowW += widths[i] + 6;
-                float x = Mathf.Round((UiRig.StageW - rowW) / 2f);
-                for (int i = from; i < to; i++)
-                {
-                    _tiles.Add(BuildTile(tiles, i, x, yTiles + r * (tileH + 2), widths[i], tileH, r));
-                    x += widths[i] + 6;
-                }
+                var r = _lay.Tiles[i];
+                _tiles.Add(BuildTile(tiles, i, r.x, r.y, r.width, r.height, _lay.TileRow[i]));
             }
 
             var foot = Section("Foot");
@@ -179,8 +158,9 @@ namespace Fnmw.UI
             v.Rt = Kit.Node("Tile" + index, parent, x, y, w, h);
             v.Fill = Kit.Box("Fill", v.Rt, Pal.Soot, 1, 1, w - 2, h - 2);
             v.Frame = Kit.Frame("Frame", v.Rt, Pal.Rust, 0, 0, w, h);
-            v.Glyph = Kit.Pic("Glyph", v.Rt, GlyphGen.Texture(tile.GlyphSeed, _fam, Widgets.GlyphPx), Pal.Bone, (w - 32) / 2f, h >= 58 ? 6 : 2, 32, 32);
-            v.Cap = Kit.Label("Sound", v.Rt, tile.Alien ?? "", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 0, h - 19, w, 16);
+            int g = PuzzleLayout.TileGlyph(h);   // two tile rows are shorter, so their glyphs are smaller
+            v.Glyph = Kit.Pic("Glyph", v.Rt, GlyphGen.Texture(tile.GlyphSeed, _fam, g), Pal.Bone, (w - g) / 2f, h >= 58 ? 6 : h >= 50 ? 2 : 1, g, g);
+            v.Cap = Kit.Label("Sound", v.Rt, tile.Alien ?? "", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 0, h >= 50 ? h - 19 : h - 16, w, 16);
             string key = index < 9 ? (index + 1).ToString() : index == 9 ? "0" : "";
             v.Key = Kit.Label("Key", v.Rt, key, 16, Pal.RustHot, TextAnchor.MiddleLeft, 5, 2, 10, 16);
             int captured = index;
@@ -192,16 +172,21 @@ namespace Fnmw.UI
         {
             Kit.Clear(_slotRow);
             _slotGlyphs.Clear(); _slotCaps.Clear();
+            // a long sentence first closes up its gaps, then shrinks, so it never runs into SEND
+            var widths = new float[_picks.Count];
+            for (int i = 0; i < widths.Length; i++) widths[i] = Widgets.WordWidth(_p.Tiles[_picks[i]]);
+            PuzzleLayout.Fit(widths, _lay.SlotRoom(_picks.Count), out float gap, out float scale);
+            _slotRow.localScale = new Vector3(scale, scale, 1f);
             float x = 0;
             for (int i = 0; i < _picks.Count; i++)
             {
                 var tile = _p.Tiles[_picks[i]];
                 float w = Widgets.Word(_slotRow, x, -2, tile, _fam, Pal.Bone, Pal.Bone, out var g, out var c);
                 _slotGlyphs.Add(g); _slotCaps.Add(c);
-                x += w + 6;
+                x += w + gap;
             }
             var rowPos = _slotRow.anchoredPosition;
-            Kit.Place(_slotCursor.rectTransform, rowPos.x + x + 2, -rowPos.y - 2 + 0, 32, 32);
+            Kit.Place(_slotCursor.rectTransform, rowPos.x + x * scale + 2, -rowPos.y - 2, 32, 32);
             bool ready = _picks.Count > 0;
             var c0 = ready ? Pal.Bone : Pal.Rust;
             _sendFrame.color = c0; _sendText.color = c0; _sendIcon.color = c0;
@@ -356,6 +341,173 @@ namespace Fnmw.UI
                     RefreshTiles();
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Where everything on the console goes, worked out from the puzzle alone so tests can check the worst
+    /// cases fit. Stage coordinates, origin top-left, y down. Sized for the engine's sentence puzzles
+    /// (Fnmw.Lang.PuzzleBuilder): 3 example sentences of up to ~6 words, meanings that wrap to two plate
+    /// lines, 4-8 answer words and up to 10 tiles in at most two rows. A row of words that would overflow
+    /// first closes its gaps, then shrinks as a whole; the plate column narrows before that happens.
+    /// </summary>
+    public sealed class PuzzleLayout
+    {
+        public const float L = 30, R = 610, Top = 40, Bottom = 322, Foot = 324;
+        public const float Gap = 6, TightGap = 2, ColW = 292, PlateH = 44, CursorRoom = 36;
+        /// <summary>Most tiles a player can place: every tile (PuzzleBuilder.MaxTiles, keys 1-9 then 0).</summary>
+        public const int MaxSlots = 10;
+        const float AnswerH = 54, RuleH = 4, MinRow = 46, MaxRow = 54, SendW = 62, SendGap = 8;
+        const float PlateMin = 84, PlateMaxWide = 216, PlateMaxTwoCol = 120;
+
+        public sealed class Row
+        {
+            public Rect Plate;
+            public float X, Y, Room, Gap, Scale = 1f;   // words node origin, the width it may use, spacing and shrink
+            public float[] Widths, LocalX;
+            /// <summary>Stage rect of word <paramref name="i"/> after any shrink.</summary>
+            public Rect Word(int i) => new Rect(X + LocalX[i] * Scale, Y, Widths[i] * Scale, Widgets.WordH * Scale);
+        }
+
+        public bool TwoCol;
+        public int TileRows;
+        public float PlateW, WordX, RowH, YEx, YAnswer, YTiles, TileH;
+        public Row[] Rows;
+        public Rect Slots, Send;
+        public Rect[] Tiles;
+        public int[] TileRow;
+
+        /// <summary>Width the answer words may take with <paramref name="placed"/> tiles down (room for the cursor until full).</summary>
+        public float SlotRoom(int placed) => Slots.width - (placed < MaxSlots ? CursorRoom : 0);
+
+        /// <summary>Width of a placed or example word cell (glyph over caption).</summary>
+        public static float WordWidth(Tile tile) => Widgets.WordWidth(tile);
+
+        /// <summary>Tile glyph size for a tile height.</summary>
+        public static int TileGlyph(float tileH) => tileH >= 50 ? Widgets.GlyphPx : 24;
+
+        /// <summary>Spacing and shrink so a row of cells fits <paramref name="room"/>: normal gaps, then tight gaps, then scaled.</summary>
+        public static void Fit(IList<float> widths, float room, out float gap, out float scale)
+        {
+            float sum = 0;
+            int k = widths.Count;
+            for (int i = 0; i < k; i++) sum += widths[i];
+            gap = Gap; scale = 1f;
+            if (k == 0 || sum + Gap * (k - 1) <= room) return;
+            gap = TightGap;
+            float tight = sum + TightGap * (k - 1);
+            if (tight > room) scale = Mathf.Max(0.1f, room / tight);
+        }
+
+        static float Natural(IList<float> widths)
+        {
+            float sum = 0;
+            for (int i = 0; i < widths.Count; i++) sum += widths[i] + (i > 0 ? Gap : 0);
+            return sum;
+        }
+
+        /// <summary>Narrowest plate (from Widgets.PlateWidth's steps) that holds a meaning in two lines.</summary>
+        static float TwoLineWidth(string meaning, float maxW)
+        {
+            string label = (meaning ?? "").Trim().ToUpperInvariant();
+            if (label.Length == 0) return PlateMin;
+            for (float w = 112; w <= maxW; w += 8) if (Kit.Lines(label, 16, w - 14) <= 2) return w;
+            return maxW;
+        }
+
+        public static PuzzleLayout For(LangPuzzle p)
+        {
+            var lay = new PuzzleLayout();
+            float span = R - L;
+
+            // ---- vertical: Top..Bottom holds the example rows, the answer rule and row, and the tile rows
+            int n = p.Tiles.Count;
+            var tileW = new float[n];
+            for (int i = 0; i < n; i++) tileW[i] = Mathf.Ceil(Mathf.Max(48, FontBook.Width(p.Tiles[i].Alien, 16) + 14) / 2f) * 2f;
+            lay.TileRows = n > 7 || Natural(tileW) > span ? 2 : 1;
+
+            int ex = Mathf.Min(p.Examples.Count, 6);
+            lay.TwoCol = ex > 3;
+            int exRows = lay.TwoCol ? (ex + 1) / 2 : ex;
+            float room = Bottom - Top - RuleH - AnswerH;
+            lay.TileH = Mathf.Clamp(Mathf.Floor(((room - exRows * MinRow) / lay.TileRows - 2) / 2f) * 2f, 40, 58);
+            lay.RowH = exRows > 0 ? Mathf.Clamp(Mathf.Floor((room - lay.TileRows * (lay.TileH + 2)) / exRows), MinRow, MaxRow) : MaxRow;
+            lay.YTiles = Bottom - lay.TileRows * (lay.TileH + 2);
+            lay.YAnswer = lay.YTiles - AnswerH;
+            lay.YEx = Top + Mathf.Max(0, Mathf.Floor((lay.YAnswer - RuleH - Top - exRows * lay.RowH) / 2f));
+
+            // ---- plates: one width for the whole mural so the glyph columns line up; as wide as the words allow
+            var wordW = new float[ex][];
+            float widest = 0;
+            for (int i = 0; i < ex; i++)
+            {
+                var words = p.Examples[i].Words;
+                wordW[i] = new float[words.Count];
+                for (int k = 0; k < words.Count; k++) wordW[i][k] = Widgets.WordWidth(words[k]);
+                widest = Mathf.Max(widest, Natural(wordW[i]));
+            }
+            // the answer: assume the widest tiles, as many as an answer can hold
+            var sorted = (float[])tileW.Clone();
+            for (int i = 0; i < n; i++) sorted[i] = Widgets.WordWidth(p.Tiles[i]);
+            Array.Sort(sorted); Array.Reverse(sorted);
+            var answerGuess = new List<float>();
+            for (int i = 0; i < Mathf.Min(n, 8); i++) answerGuess.Add(sorted[i]);
+            float answerNeed = Natural(answerGuess) + CursorRoom + SendGap + SendW;
+
+            float plateMax;
+            if (lay.TwoCol) plateMax = PlateMaxTwoCol;
+            else
+            {
+                float need = PlateMin;
+                need = Mathf.Max(need, TwoLineWidth(p.TargetMeaning, PlateMaxWide));
+                for (int i = 0; i < ex; i++) need = Mathf.Max(need, TwoLineWidth(p.Examples[i].Picture, PlateMaxWide));
+                plateMax = Mathf.Clamp(Mathf.Min(span - 22 - widest, span - 22 - answerNeed), need, PlateMaxWide);
+            }
+            float plateW = Widgets.PlateWidth(p.TargetMeaning, plateMax);
+            for (int i = 0; i < ex; i++) plateW = Mathf.Max(plateW, Widgets.PlateWidth(p.Examples[i].Picture, plateMax));
+            lay.PlateW = plateW = Mathf.Clamp(plateW, PlateMin, plateMax);
+            lay.WordX = L + plateW + 22;
+
+            lay.Rows = new Row[ex];
+            for (int i = 0; i < ex; i++)
+            {
+                int col = lay.TwoCol ? i % 2 : 0, r = lay.TwoCol ? i / 2 : i;
+                float x = L + col * ColW, y = lay.YEx + r * lay.RowH;
+                var row = new Row { Plate = new Rect(x, y, plateW, PlateH), X = x + plateW + 22, Y = y - 2, Widths = wordW[i] };
+                row.Room = (lay.TwoCol && col == 0 ? L + ColW - Gap : R) - row.X;
+                Fit(row.Widths, row.Room, out row.Gap, out row.Scale);
+                row.LocalX = new float[row.Widths.Length];
+                float wx = 0;
+                for (int k = 0; k < row.Widths.Length; k++) { row.LocalX[k] = wx; wx += row.Widths[k] + row.Gap; }
+                lay.Rows[i] = row;
+            }
+
+            // ---- answer row: slots, then SEND at the right edge
+            lay.Slots = new Rect(lay.WordX, lay.YAnswer, R - SendW - SendGap - lay.WordX, 52);
+            lay.Send = new Rect(R - SendW, lay.YAnswer + 8, SendW, 32);
+
+            // ---- tiles: one row, or two of up to half each, centred on the stage
+            lay.Tiles = new Rect[n];
+            lay.TileRow = new int[n];
+            int perRow = lay.TileRows == 1 ? n : (n + 1) / 2;
+            for (int r = 0; r < lay.TileRows; r++)
+            {
+                int from = r * perRow, to = Mathf.Min(n, from + perRow);
+                var widths = new List<float>();
+                for (int i = from; i < to; i++) widths.Add(tileW[i]);
+                Fit(widths, span, out float gap, out float scale);
+                float rowW = -gap;
+                for (int i = from; i < to; i++) rowW += Mathf.Floor(tileW[i] * scale) + gap;
+                float x = Mathf.Round((UiRig.StageW - rowW) / 2f);
+                for (int i = from; i < to; i++)
+                {
+                    float w = Mathf.Floor(tileW[i] * scale);
+                    lay.Tiles[i] = new Rect(x, lay.YTiles + r * (lay.TileH + 2), w, lay.TileH);
+                    lay.TileRow[i] = r;
+                    x += w + gap;
+                }
+            }
+            return lay;
         }
     }
 }

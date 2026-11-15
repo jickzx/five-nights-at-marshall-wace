@@ -86,13 +86,22 @@ namespace Fnmw.UI
             out RawImage glyphImg, out Text capText)
         {
             string alien = tile?.Alien ?? "";
-            float w = Mathf.Max(GlyphPx + 4, FontBook.Width(alien, 16) + 6);
-            w = Mathf.Ceil(w / 2f) * 2f;
+            float w = WordWidth(tile);
             int seed = tile != null ? tile.GlyphSeed : 0;
             glyphImg = Kit.Pic("Glyph", parent, GlyphGen.Texture(seed, fam, GlyphPx), glyph, x + (w - GlyphPx) / 2f, y, GlyphPx, GlyphPx);
             capText = Kit.Label("Sound", parent, alien, 16, caption, TextAnchor.MiddleCenter, x, y + GlyphPx + 1, w, 16);
             return w;
         }
+
+        /// <summary>The cell width <see cref="Word"/> uses for a tile: the glyph, or the caption if wider.</summary>
+        public static float WordWidth(Tile tile)
+        {
+            float w = Mathf.Max(GlyphPx + 4, FontBook.Width(tile?.Alien ?? "", 16) + 6);
+            return Mathf.Ceil(w / 2f) * 2f;
+        }
+
+        /// <summary>Height of a <see cref="Word"/> cell: glyph, a pixel, then the caption.</summary>
+        public const int WordH = GlyphPx + 1 + 16;
 
         static readonly HashSet<string> Small = new HashSet<string> { "the", "a", "an", "is", "are", "of", "for", "to", "in", "my", "it", "this" };
 

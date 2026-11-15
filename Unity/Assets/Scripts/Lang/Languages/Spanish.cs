@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Fnmw.Core;
@@ -5,8 +6,10 @@ using Fnmw.Core;
 namespace Fnmw.Lang.Languages
 {
     /// <summary>
-    /// Spanish: the verb ending says who acts, so 'I', 'you' or 'we' is usually left out (no pronoun tiles are
-    /// offered); questions and exclamations open with ¿ or ¡; and these nouns and adjectives end in -o or -a for gender.
+    /// Spanish sentences: the verb ending says who acts, so 'I', 'you' or 'we' is usually left out; questions and
+    /// exclamations open with ¿ or ¡; adjectives follow the noun and end in -o or -a to match its gender.
+    /// Whole-word tiles. The opening mark is written glued to the first word ("¿comes"), so it is part of that
+    /// tile, and it shares one morph with the closing mark (both mean "question"), which keeps it deducible.
     /// </summary>
     public sealed class Spanish : SourceLanguage
     {
@@ -21,162 +24,325 @@ namespace Fnmw.Lang.Languages
         sealed class Verb { public string Key, Stem, En, En3; }
         static readonly Verb[] Verbs =
         {
-            new Verb { Key = "run", Stem = "corr", En = "run", En3 = "runs" },
             new Verb { Key = "eat", Stem = "com", En = "eat", En3 = "eats" },
             new Verb { Key = "drink", Stem = "beb", En = "drink", En3 = "drinks" },
-            new Verb { Key = "learn", Stem = "aprend", En = "learn", En3 = "learns" },
             new Verb { Key = "read", Stem = "le", En = "read", En3 = "reads" },
+            new Verb { Key = "break", Stem = "romp", En = "break", En3 = "breaks" },
+            new Verb { Key = "sell", Stem = "vend", En = "sell", En3 = "sells" },
         };
         static readonly string[] Persons = { "1SG", "2SG", "3SG", "1PL" };
         static readonly Dictionary<string, string> RealEnding = new Dictionary<string, string> { { "1SG", "o" }, { "2SG", "es" }, { "3SG", "e" }, { "1PL", "emos" } };
         static readonly Dictionary<string, string> Subject = new Dictionary<string, string> { { "1SG", "I" }, { "2SG", "you" }, { "3SG", "she" }, { "1PL", "we" } };
+        static readonly Dictionary<string, string> Pronoun = new Dictionary<string, string> { { "1SG", "yo" }, { "2SG", "tú" }, { "3SG", "ella" }, { "1PL", "nosotros" } };
 
-        sealed class Noun { public string Key, Stem, Male, Female; }
+        // the gender belongs to the noun; "carne", "leche" and "sangre" do not show it, only the words around them do
+        sealed class Noun { public string Key, Es, En; public bool Fem, Mass; public string[] Verbs, Adjs; }
         static readonly Noun[] Nouns =
         {
-            new Noun { Key = "child", Stem = "niñ", Male = "boy", Female = "girl" },
-            new Noun { Key = "sibling", Stem = "herman", Male = "brother", Female = "sister" },
-            new Noun { Key = "offspring", Stem = "hij", Male = "son", Female = "daughter" },
-            new Noun { Key = "uncle", Stem = "tí", Male = "uncle", Female = "aunt" },
+            new Noun { Key = "soup", Es = "sopa", En = "soup", Fem = true, Mass = true, Verbs = new[] { "eat", "sell" }, Adjs = new[] { "cold", "black", "new" } },
+            new Noun { Key = "meat", Es = "carne", En = "meat", Fem = true, Mass = true, Verbs = new[] { "eat", "sell" }, Adjs = new[] { "cold", "red", "white" } },
+            new Noun { Key = "milk", Es = "leche", En = "milk", Fem = true, Mass = true, Verbs = new[] { "drink", "sell" }, Adjs = new[] { "cold", "black" } },
+            new Noun { Key = "blood", Es = "sangre", En = "blood", Fem = true, Mass = true, Verbs = new[] { "drink" }, Adjs = new[] { "cold", "red", "black" } },
+            new Noun { Key = "wine", Es = "vino", En = "wine", Mass = true, Verbs = new[] { "drink", "sell" }, Adjs = new[] { "cold", "white", "old", "new" } },
+            new Noun { Key = "cheese", Es = "queso", En = "cheese", Mass = true, Verbs = new[] { "eat", "sell" }, Adjs = new[] { "white", "old", "new" } },
+            new Noun { Key = "bread", Es = "pan", En = "bread", Mass = true, Verbs = new[] { "eat", "sell" }, Adjs = new[] { "white", "black", "old", "cold" } },
+            new Noun { Key = "letter", Es = "carta", En = "letter", Fem = true, Verbs = new[] { "read", "break", "sell" }, Adjs = new[] { "red", "black", "white", "old", "new" } },
+            new Noun { Key = "book", Es = "libro", En = "book", Verbs = new[] { "read", "break", "sell" }, Adjs = new[] { "red", "black", "white", "old", "new" } },
+            new Noun { Key = "glass", Es = "vaso", En = "glass", Verbs = new[] { "break", "sell" }, Adjs = new[] { "red", "black", "white", "old", "new" } },
+            new Noun { Key = "bottle", Es = "botella", En = "bottle", Fem = true, Verbs = new[] { "break", "sell" }, Adjs = new[] { "red", "black", "white", "old", "new" } },
+            new Noun { Key = "window", Es = "ventana", En = "window", Fem = true, Verbs = new[] { "break" }, Adjs = new[] { "red", "black", "white", "old", "new" } },
         };
         sealed class Adj { public string Key, Stem, En; }
         static readonly Adj[] Adjs =
         {
-            new Adj { Key = "blond", Stem = "rubi", En = "blond" },
-            new Adj { Key = "dead", Stem = "muert", En = "dead" },
-            new Adj { Key = "tall", Stem = "alt", En = "tall" },
-            new Adj { Key = "pale", Stem = "pálid", En = "pale" },
+            new Adj { Key = "red", Stem = "roj", En = "red" },
+            new Adj { Key = "black", Stem = "negr", En = "black" },
+            new Adj { Key = "white", Stem = "blanc", En = "white" },
+            new Adj { Key = "cold", Stem = "frí", En = "cold" },
+            new Adj { Key = "old", Stem = "viej", En = "old" },
+            new Adj { Key = "new", Stem = "nuev", En = "new" },
         };
 
         public Spanish()
         {
             foreach (var v in Verbs) Add("v." + v.Key, MorphKind.Root, v.Stem, v.En);
             foreach (var p in Persons) Add(p, MorphKind.Affix, RealEnding[p], Subject[p], LangConcepts.VerbEnding);
-            Add("Q.O", MorphKind.Punct, "¿", "question-open", LangConcepts.Punctuation);
-            Add("Q.C", MorphKind.Punct, "?", "question-close", LangConcepts.Punctuation);
-            Add("E.O", MorphKind.Punct, "¡", "exclaim-open", LangConcepts.Punctuation);
-            Add("E.C", MorphKind.Punct, "!", "exclaim-close", LangConcepts.Punctuation);
-            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Stem, n.Key);
-            foreach (var a in Adjs) Add("a." + a.Key, MorphKind.Root, a.Stem, a.En);
-            Add("M", MorphKind.Affix, "o", "MASC", LangConcepts.GenderAgreement);
-            Add("F", MorphKind.Affix, "a", "FEM", LangConcepts.GenderAgreement);
+            foreach (var p in Persons) Add("p." + p, MorphKind.Particle, Pronoun[p], Subject[p], LangConcepts.VerbEnding);
+            Add("Q", MorphKind.Punct, "?", "question", LangConcepts.Punctuation);   // opening ¿ is written glued to the first word
+            Add("E", MorphKind.Punct, "!", "exclaim", LangConcepts.Punctuation);
+            Add("DOT", MorphKind.Punct, ".", "end");
+            Add("hay", MorphKind.Root, "hay", "there-is");
+            foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Es, n.En);
+            // each gender form is one morph: with only three hints, a separate -a morph would always travel with
+            // the feminine noun and never be told apart from it, so agreement is learned form by form
+            foreach (var a in Adjs)
+            {
+                Add("a." + a.Key + ".M", MorphKind.Root, a.Stem + "o", a.En, LangConcepts.AdjectiveOrder);
+                Add("a." + a.Key + ".F", MorphKind.Root, a.Stem + "a", a.En + ".FEM", LangConcepts.GenderAgreement);
+            }
             Add("el", MorphKind.Particle, "el", "the.MASC", LangConcepts.GenderAgreement);
             Add("la", MorphKind.Particle, "la", "the.FEM", LangConcepts.GenderAgreement);
-
 
             Kind("verb-ending", 0, VerbEndingKind);
             Kind("punctuation", 1, PunctuationKind);
             Kind("gender", 2, GenderKind);
         }
 
-        static string Real(Verb v, string p) => v.Stem + RealEnding[p];
-        static string Say(Verb v, string p) => $"{Subject[p]} {(p == "3SG" ? v.En3 : v.En)}";
-
-        // ending before the stem is the rival (h bit 0)
-        static Word Verbal(int h, Verb v, string p, int bit = 0) => Hyps.On(h, bit) ? W(p, "v." + v.Key) : W("v." + v.Key, p);
-
-        Draft VerbEndingKind(Rng rng, int tier)
+        /// <summary>A word that starts with Q or E plus more morphs is the first word of a question or exclamation: ¿ or ¡ glued on.</summary>
+        public override string Surface(Word w)
         {
-            var vs = rng.Sample(Verbs, 2);
-            var ps = rng.Sample(Persons, 2);
-            Verb v = vs[0], v2 = vs[1];
-            string p = ps[0], p2 = ps[1];
-            var d = new Draft
-            {
-                Concept = LangConcepts.VerbEnding,
-                OrderConcept = LangConcepts.VerbEnding,
-                MorphTiles = true,
-                HypConcepts = Hyps.Bits(LangConcepts.VerbEnding),
-                TargetMeaning = Cap(Say(v, p)),
-                Target = h => P(Verbal(h, v, p)),
-                RealText = Real(v, p),
-                Translation = Cap(Say(v, p)),
-                Feature = $"In Spanish the verb ending says who is acting, so the word for 'I', 'you' or 'we' is usually left out: {Real(v, "1SG")} '{Say(v, "1SG")}', {Real(v, "1PL")} '{Say(v, "1PL")}'.",
-                NowYouKnow = "Hablo español means 'I speak Spanish', and there is no separate word for 'I' in it: the -o ending already says it.",
-            }
-            .Example(Cap(Say(v, p2)), h => P(Verbal(h, v, p2)))
-            .Example(Cap(Say(v2, p)), h => P(Verbal(h, v2, p)));
-            foreach (var other in Persons.Where(x => x != p)) d.Mistake(P(Verbal(0, v, other)), LangConcepts.VerbEnding);
-            return d;
+            if (w.M.Length > 1 && (w.M[0] == "Q" || w.M[0] == "E"))
+                return (w.M[0] == "Q" ? "¿" : "¡") + string.Concat(w.M.Skip(1).Select(k => Spec(k).Form));
+            return base.Surface(w);
         }
 
-        Draft PunctuationKind(Rng rng, int tier)
+        // ---------------------------------------------------------------- sentences
+
+        /// <summary>"(verb) (the) noun (adj)" or "hay noun adj", as a statement '.', question '?' or exclamation '!'.</summary>
+        sealed class Cl
         {
-            var vs = rng.Sample(Verbs, 2);
-            Verb v = vs[0], v2 = vs[1];
-            string p = rng.Chance(0.5f) ? "2SG" : "3SG";
-            string Ask(Verb x) => p == "2SG" ? $"Do you {x.En}?" : $"Does she {x.En}?";
-            // bit 0: no opening mark (English habit); bit 1: ending before stem
-            List<Word> Say(int h, Verb x, string person, char mode)
-            {
-                var core = Verbal(h, x, person, 1);
-                if (mode == '.') return P(core);
-                string o = mode == '?' ? "Q.O" : "E.O", c = mode == '?' ? "Q.C" : "E.C";
-                return Hyps.On(h, 0) ? P(core, W(c)) : P(W(o), core, W(c));
-            }
-            string real = "¿" + Cap(Real(v, p)) + "?";
-            return new Draft
-            {
-                Concept = LangConcepts.Punctuation,
-                Concepts = new[] { LangConcepts.VerbEnding },
-                MorphTiles = true,
-                OrderConcept = LangConcepts.Punctuation,
-                HypConcepts = Hyps.Bits(LangConcepts.Punctuation, LangConcepts.VerbEnding),
-                TargetMeaning = Ask(v),
-                Target = h => Say(h, v, p, '?'),
-                RealText = real,
-                Translation = Ask(v),
-                Feature = $"Spanish marks a question at both ends, starting with an upside-down ¿: {real} '{Ask(v)}'. Exclamations get ¡…! the same way.",
-                NowYouKnow = $"The opening ¿ was recommended by the Royal Spanish Academy in 1754, because a Spanish question can look exactly like a statement until its end: {Cap(Real(v, p))} is a statement, {real} a question.",
-            }
-            .Example(Ask(v2), h => Say(h, v2, p, '?'))
-            .Example($"We {v.En}!", h => Say(h, v, "1PL", '!'))
-            .Example($"I {v2.En}.", h => Say(h, v2, "1SG", '.'), optional: true);
+            public bool Hay; public string Person; public Verb V; public Noun N; public bool Art; public Adj A; public char Mode;
+            public Cl Copy() => (Cl)MemberwiseClone();
         }
 
-        Draft GenderKind(Rng rng, int tier)
+        /// <summary>Rival bits (-1 = unused): subject pronoun written, same verb ending for everyone, no opening mark, no gender agreement, adjective first.</summary>
+        struct Bits { public int Pron, NoPerson, NoOpen, NoGender, AdjFirst; }
+        static bool On(int h, int bit) => bit >= 0 && Hyps.On(h, bit);
+
+        static List<Word> Say(int h, Bits b, Cl c)
         {
-            var ns = rng.Sample(Nouns, 3);
-            var adjs = rng.Sample(Adjs, 3);
-            string g = rng.Chance(0.5f) ? "F" : "M", g2 = g == "F" ? "M" : "F";
-            // bit 0: no agreement (article and adjective stay masculine); bit 1: adjective before the noun
-            List<Word> NP(int h, Noun n, string gender, Adj a)
+            var r = new List<Word>();
+            if (c.Hay) r.Add(W("hay"));
+            else
             {
-                string art = Hyps.On(h, 0) ? "el" : gender == "F" ? "la" : "el";
-                string ag = Hyps.On(h, 0) ? "M" : gender;
-                var noun = W("n." + n.Key, gender);
-                var adj = W("a." + a.Key, ag);
-                return Hyps.On(h, 1) ? P(W(art), adj, noun) : P(W(art), noun, adj);
+                if (On(h, b.Pron)) r.Add(W("p." + c.Person));
+                r.Add(W("v." + c.V.Key, On(h, b.NoPerson) ? "3SG" : c.Person));
             }
-            string En(Noun n, string gender, Adj a) => $"the {a.En} {(gender == "F" ? n.Female : n.Male)}";
-            string RealNp(Noun n, string gender, Adj a)
+            bool fem = c.N.Fem && !On(h, b.NoGender);
+            if (c.Art) r.Add(W(fem ? "la" : "el"));
+            var noun = W("n." + c.N.Key);
+            if (c.A == null) r.Add(noun);
+            else
             {
-                string e = gender == "F" ? "a" : "o";
-                return $"{(gender == "F" ? "la" : "el")} {n.Stem}{e} {a.Stem}{e}";
+                var adj = W("a." + c.A.Key + (fem ? ".F" : ".M"));
+                if (On(h, b.AdjFirst)) { r.Add(adj); r.Add(noun); } else { r.Add(noun); r.Add(adj); }
             }
-            Noun n0 = ns[0], n1 = ns[1], n2 = ns[2];
-            Adj a0 = adjs[0], a1 = adjs[1], a2 = adjs[2];
-            var other = g2;
-            return new Draft
-            {
-                Concept = LangConcepts.GenderAgreement,
-                Concepts = new[] { LangConcepts.AdjectiveOrder },
-                OrderConcept = LangConcepts.AdjectiveOrder,
-                HypConcepts = Hyps.Bits(LangConcepts.GenderAgreement, LangConcepts.AdjectiveOrder),
-                TargetMeaning = Cap(En(n0, g, a0)),
-                Target = h => NP(h, n0, g, a0),
-                RealText = RealNp(n0, g, a0),
-                Translation = Cap(En(n0, g, a0)),
-                Feature = $"Spanish nouns are masculine or feminine, often ending in -o or -a, and 'the' and the adjective (which follows the noun) change to match: {RealNp(n0, "M", a0)} '{En(n0, "M", a0)}', {RealNp(n0, "F", a0)} '{En(n0, "F", a0)}'.",
-                NowYouKnow = "Spanish gives gender even to things: el libro 'the book' is masculine and la mesa 'the table' is feminine.",
-            }
-            .Example(Cap(En(n0, other, a1)), h => NP(h, n0, other, a1))
-            .Example(Cap(En(n1, other, a0)), h => NP(h, n1, other, a0))
-            .Example(Cap(En(n2, g, a2)), h => NP(h, n2, g, a2))
-            .Mistake(P(W(g == "F" ? "la" : "el"), W("n." + n0.Key, g), W("a." + a0.Key, other)), LangConcepts.GenderAgreement)
-            .Mistake(P(W(g == "F" ? "el" : "la"), W("n." + n0.Key, g), W("a." + a0.Key, g)), LangConcepts.GenderAgreement);
+            if (c.Mode == '.') { r.Add(W("DOT")); return r; }
+            string mark = c.Mode == '?' ? "Q" : "E";
+            if (!On(h, b.NoOpen)) r[0] = new Word(new[] { mark }.Concat(r[0].M).ToArray());
+            r.Add(W(mark));
+            return r;
+        }
+
+        static string En(Cl c)
+        {
+            string np = (c.Art ? "the " : "") + (c.A != null ? c.A.En + " " : "") + c.N.En;
+            string end = c.Mode == '?' ? "?" : c.Mode == '!' ? "!" : ".";
+            if (c.Hay) return c.Mode == '?' ? $"Is there {np}?" : $"There is {np}{end}";
+            string s = Subject[c.Person];
+            if (c.Mode == '?')
+                return (c.Person == "3SG" ? "Does she " : c.Person == "1SG" ? "Do I " : $"Do {s} ") + $"{c.V.En} {np}?";
+            return Cap(s) + " " + (c.Person == "3SG" ? c.V.En3 : c.V.En) + " " + np + end;
         }
 
         static string Cap(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+        string Real(Cl c)
+        {
+            var s = Render(Say(0, default(Bits), c));
+            int i = 0;
+            while (i < s.Length && !char.IsLetter(s[i])) i++;
+            return i < s.Length ? s.Substring(0, i) + char.ToUpperInvariant(s[i]) + s.Substring(i + 1) : s;
+        }
+
+        static bool Sensible(Cl c) =>
+            (c.Hay || c.N.Verbs.Contains(c.V.Key))
+            && (c.A == null || c.N.Adjs.Contains(c.A.Key))
+            && (c.Art || c.N.Mass)                     // countable nouns need 'the' here
+            && !(c.Hay && c.Art)                       // 'hay' takes no definite article
+            && !(c.Mode == '?' && c.Person == "1SG");
+
+        bool Fits(Cl c)
+        {
+            var w = Say(0, default(Bits), c);
+            return w.Count <= 7 && w.Count(x => !(x.M.Length == 1 && Spec(x.M[0]).Kind == MorphKind.Punct)) <= 6
+                && Render(w).Length <= 40 && En(c).Length <= 32;
+        }
+
+        // ---------------------------------------------------------------- hint search (same idea as French)
+
+        List<Cl> FindHints(Rng rng, Bits b, int hyps, Cl target, Func<Rng, Cl, Cl> mutate)
+        {
+            var tw = Say(0, b, target);
+            var tKey = PuzzleBuilder.Key(tw);
+            var tMorphs = tw.SelectMany(w => w.M).Distinct().ToList();
+            for (int attempt = 0; attempt < 600; attempt++)
+            {
+                _altSeed = rng.Next();
+                var ex = new List<Cl>();
+                for (int i = 0; i < PuzzleBuilder.ExampleCount; i++)
+                {
+                    Cl e = null;
+                    for (int k = 0; k < 20 && e == null; k++)
+                    {
+                        _slot = 0;
+                        var c = mutate(rng, target);
+                        if (!Sensible(c) || !Fits(c)) continue;
+                        var key = PuzzleBuilder.Key(Say(0, b, c));
+                        if (key == tKey || ex.Any(x => PuzzleBuilder.Key(Say(0, b, x)) == key)) continue;
+                        e = c;
+                    }
+                    if (e == null) break;
+                    ex.Add(e);
+                }
+                if (ex.Count != PuzzleBuilder.ExampleCount) continue;
+                var em = ex.Select(e => Say(0, b, e).SelectMany(w => w.M).ToList()).ToList();
+                if (em.Any(m => tMorphs.All(m.Contains))) continue;
+                if (!PuzzleBuilder.AllDeducible(em, tMorphs, out _)) continue;
+                // the target noun's gender must be visible in some hint (el/la or an agreeing adjective)
+                if (!ex.Any(e => e.N == target.N && (e.Art || e.A != null))) continue;
+                bool ok = true;
+                for (int h = 1; h < hyps && ok; h++)
+                {
+                    if (PuzzleBuilder.Key(Say(h, b, target)) == tKey) continue;
+                    ok = ex.Any(e => PuzzleBuilder.Key(Say(h, b, e)) != PuzzleBuilder.Key(Say(0, b, e)));
+                }
+                if (ok) return ex;
+            }
+            return null;
+        }
+
+        // Each search attempt fixes one 'other' value per slot, shared by the three hints, so a replaced piece
+        // tends to recur across hints (one-off extras would make target pieces impossible to tell apart).
+        ulong _altSeed; int _slot;
+        T Maybe<T>(Rng rng, T keep, IList<T> all, float pKeep = 0.5f)
+        {
+            int slot = _slot++;
+            if (rng.Chance(pKeep)) return keep;
+            return rng.Chance(0.75f) ? all[(int)(Hash.Mix((long)_altSeed, slot) % (ulong)all.Count)] : rng.Pick(all);
+        }
+
+        Draft Make(Rng rng, Bits b, string[] hypConcepts, Func<Rng, Cl> pickTarget, Func<Rng, Cl, Cl> mutate, Func<Cl, Draft> fill)
+        {
+            Cl target = null; List<Cl> hints = null;
+            for (int t = 0; t < 40 && hints == null; t++)
+            {
+                target = pickTarget(rng);
+                if (!Sensible(target) || !Fits(target)) continue;
+                hints = FindHints(rng, b, hypConcepts.Length, target, mutate);
+            }
+            hints ??= new List<Cl> { target, target, target }; // gives up: PuzzleBuilder rejects it and the engine retries
+            var d = fill(target);
+            d.HypConcepts = hypConcepts;
+            d.Target = h => Say(h, b, target);
+            d.TargetMeaning = En(target);
+            d.Translation = En(target);
+            d.RealText = Real(target);
+            foreach (var e in hints) { var ec = e; d.Example(En(ec), h => Say(h, b, ec)); }
+            return d;
+        }
+
+        Cl Pick(Rng rng, bool hay, IList<string> persons, Func<Noun, bool> nounOk, bool adj, char mode)
+        {
+            var n = rng.Pick(Nouns.Where(nounOk).ToList());
+            return new Cl
+            {
+                Hay = hay, Person = rng.Pick(persons), V = ByKey(Verbs, rng.Pick(n.Verbs)), N = n,
+                Art = hay ? false : !n.Mass || rng.Chance(adj ? 0.3f : 0.8f),
+                A = adj ? ByKey(Adjs, rng.Pick(n.Adjs)) : null, Mode = mode,
+            };
+        }
+
+        Cl Mutate(Rng rng, Cl t, bool hayOk, float pAdj, string modes)
+        {
+            var c = t.Copy();
+            c.Hay = hayOk && Maybe(rng, t.Hay, new[] { false, true });
+            c.N = Maybe(rng, t.N, Nouns);
+            c.Person = Maybe(rng, t.Person, Persons);
+            c.V = c.N.Verbs.Contains(t.V.Key) && rng.Chance(0.5f) ? t.V : ByKey(Verbs, rng.Pick(c.N.Verbs));
+            c.Art = !c.Hay && (!c.N.Mass || rng.Chance(0.5f));
+            if (rng.Chance(pAdj)) c.A = t.A != null && c.N.Adjs.Contains(t.A.Key) && rng.Chance(0.5f) ? t.A : ByKey(Adjs, rng.Pick(c.N.Adjs));
+            else c.A = null;
+            c.Mode = Maybe(rng, t.Mode, modes.ToCharArray());
+            return c;
+        }
+
+        static Verb ByKey(Verb[] all, string k) => all.First(x => x.Key == k);
+        static Adj ByKey(Adj[] all, string k) => all.First(x => x.Key == k);
+
+        // ---------------------------------------------------------------- kinds
+
+        // "Bebemos el vino." — the ending -emos already says 'we'
+        Draft VerbEndingKind(Rng rng, int tier)
+        {
+            var b = new Bits { Pron = 0, NoPerson = 1, NoOpen = -1, NoGender = -1, AdjFirst = -1 };
+            return Make(rng, b, Hyps.Bits(LangConcepts.VerbEnding, LangConcepts.VerbEnding),
+                r => Pick(r, false, new[] { "1SG", "2SG", "1PL" }, _ => true, false, '.'),
+                (r, t) => { var c = Mutate(r, t, false, 0f, "."); c.Art = true; return c; },
+                t =>
+                {
+                    var d = new Draft
+                    {
+                        Concept = LangConcepts.VerbEnding,
+                        OrderConcept = LangConcepts.WordOrder,
+                        Feature = $"In Spanish the verb ending says who is acting, so the word for 'I', 'you' or 'we' is usually left out: {t.V.Stem}{RealEnding[t.Person]} already means '{Subject[t.Person]} {t.V.En}'.",
+                        NowYouKnow = "Hablo español means 'I speak Spanish', and there is no separate word for 'I' in it: the -o ending already says it.",
+                    };
+                    foreach (var p in Persons.Where(x => x != t.Person)) d.Extra(W("v." + t.V.Key, p), LangConcepts.VerbEnding);
+                    return d;
+                });
+        }
+
+        // "¿Comes la sopa?" — a question opens with ¿ and closes with ?
+        Draft PunctuationKind(Rng rng, int tier)
+        {
+            var b = new Bits { NoOpen = 0, Pron = 1, NoPerson = -1, NoGender = -1, AdjFirst = -1 };
+            return Make(rng, b, Hyps.Bits(LangConcepts.Punctuation, LangConcepts.VerbEnding),
+                r => { var c = Pick(r, false, new[] { "2SG", "3SG", "1PL" }, _ => true, false, '?'); c.Art = true; return c; },
+                (r, t) => { var c = Mutate(r, t, false, 0f, "?!."); c.Art = true; return c; },
+                t =>
+                {
+                    var real = Real(t);
+                    var d = new Draft
+                    {
+                        Concept = LangConcepts.Punctuation,
+                        Concepts = new[] { LangConcepts.VerbEnding },
+                        OrderConcept = LangConcepts.Punctuation,
+                        Feature = $"Spanish marks a question at both ends, starting with an upside-down ¿: {real}. Exclamations get ¡…! the same way.",
+                        NowYouKnow = "The opening ¿ was recommended by the Royal Spanish Academy in 1754, because a Spanish question can look exactly like a statement until its end.",
+                    };
+                    d.Extra(W("v." + t.V.Key, t.Person), LangConcepts.Punctuation);
+                    d.Extra(W("E", "v." + t.V.Key, t.Person), LangConcepts.Punctuation);
+                    return d;
+                });
+        }
+
+        // "¿Hay sopa fría?" / "Bebes leche fría." — the adjective follows the noun and takes its gender
+        Draft GenderKind(Rng rng, int tier)
+        {
+            var b = new Bits { NoGender = 0, AdjFirst = 1, NoOpen = 2, Pron = -1, NoPerson = -1 };
+            return Make(rng, b, Hyps.Bits(LangConcepts.GenderAgreement, LangConcepts.AdjectiveOrder, LangConcepts.Punctuation),
+                r =>
+                {
+                    var c = Pick(r, r.Chance(0.6f), new[] { "1SG", "2SG", "3SG", "1PL" }, n => n.Mass && (n.Fem || r.Chance(0.4f)), true, r.Chance(0.5f) ? '?' : '.');
+                    c.Art = false;
+                    return c;
+                },
+                (r, t) => Mutate(r, t, true, 0.75f, "?!."),
+                t =>
+                {
+                    string e = t.N.Fem ? "a" : "o";
+                    var d = new Draft
+                    {
+                        Concept = LangConcepts.GenderAgreement,
+                        Concepts = new[] { LangConcepts.AdjectiveOrder },
+                        OrderConcept = LangConcepts.AdjectiveOrder,
+                        Feature = $"Spanish adjectives follow the noun and end in -o or -a to match its gender: {t.N.Es} {t.A.Stem}{e}." +
+                                  (t.N.Es.EndsWith("e") ? $" {Cap(t.N.Es)} itself does not show its gender; only the words around it do." : ""),
+                        NowYouKnow = t.N.Key == "blood" ? "A sangre fría, 'in cold blood', is a Spanish idiom too: done calmly, on purpose." : "Spanish gives gender even to things: el libro 'the book' is masculine and la mesa 'the table' is feminine.",
+                    };
+                    d.Extra(W("a." + t.A.Key + (t.N.Fem ? ".M" : ".F")), LangConcepts.GenderAgreement);
+                    return d;
+                });
+        }
     }
 }

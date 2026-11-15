@@ -83,7 +83,7 @@ namespace Fnmw.UI
             var seeds = new List<int>();
             if (_answer != null && _answer.Count > 0) foreach (var t in _answer) seeds.Add(t.GlyphSeed);
             else foreach (var word in _alienText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) seeds.Add(SeedOf(word));
-            if (seeds.Count > 7) seeds.RemoveRange(7, seeds.Count - 7);
+            if (seeds.Count > 10) seeds.RemoveRange(10, seeds.Count - 10);   // a sentence is up to 8 words; 10 still fits at 48px
 
             _alienRow = Kit.Node("Alien", _top, 0, 0, UiRig.StageW, 160);
             Kit.Group(_alienRow);
@@ -135,11 +135,13 @@ namespace Fnmw.UI
             string name = (_reveal.AlienName ?? _puzzle?.AlienName ?? State?.World?.AlienName ?? "ALIEN").ToUpperInvariant();
             int minis = Mathf.Min(seeds.Count, 7);
             float sw = FontBook.Width(name, 16) + 10 + minis * 18 + 6 + FontBook.Width(_alienText, 16);
+            bool sound = sw <= 600;     // a whole sentence is already spelled out under the glyphs; drop it here if it would run off
+            if (!sound) sw -= 6 + FontBook.Width(_alienText, 16);
             float sx = Mathf.Round((UiRig.StageW - sw) / 2f);
             Kit.Label("Name", _source, name, 16, Pal.Rust, TextAnchor.MiddleLeft, sx, 0, 200, 16);
             sx += FontBook.Width(name, 16) + 10;
             for (int i = 0; i < minis; i++) { Kit.Pic("Mini", _source, GlyphGen.Texture(seeds[i], _fam, 16), Pal.BoneDim, sx, 0, 16, 16); sx += 18; }
-            Kit.Label("Sound", _source, _alienText, 16, Pal.BoneDim, TextAnchor.MiddleLeft, sx + 6, 0, 300, 16);
+            if (sound) Kit.Label("Sound", _source, _alienText, 16, Pal.BoneDim, TextAnchor.MiddleLeft, sx + 6, 0, Mathf.Max(300, FontBook.Width(_alienText, 16) + 4), 16);
             Kit.Group(_source).alpha = 0;
 
             string meaning = string.IsNullOrWhiteSpace(_reveal.Translation) ? "" : "“" + _reveal.Translation.Trim() + "”";

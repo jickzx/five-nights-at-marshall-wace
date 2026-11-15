@@ -27,17 +27,26 @@ namespace Fnmw.Lang
     /// distractors that test the puzzle's concept, then verifies by brute force that the only tile sequences
     /// a player could justify from the examples are the ones the real language accepts.
     ///
-    /// Solver model: the player is assumed to know what each picture means and to consider the true grammar
+    /// Design: the target is always a SENTENCE (at least MinSentenceWords non-punctuation words, 4-8 answer
+    /// tiles) and exactly ExampleCount (3) example sentences ("hints") are shown with their English meanings.
+    /// Each hint shares pieces with the target, no single hint contains all of it, so the player must combine
+    /// at least two hints, and every target morph must be deducible by comparing hints (AllDeducible).
+    ///
+    /// Solver model: the player is assumed to know what each hint means and to consider the true grammar
     /// plus every rival grammar of the draft (English word order, no agreement, other suffix orders...).
     /// A rival "survives" if it renders every example exactly as shown. A tile sequence is a valid answer if
-    /// some surviving grammar renders the target as that sequence. We enumerate every sequence of distinct
-    /// tiles (at most 6 tiles, so at most 1956 sequences) and require that the valid ones are exactly the
-    /// accepted ones (usually one; Japanese also accepts the object moved to the front), and that every morph
-    /// of the answer is visible somewhere in the examples.
+    /// some surviving grammar renders the target as that sequence. We enumerate sequences of distinct tiles
+    /// (at most MaxTiles = 10, pruned to those that are a morph-prefix of some valid key) and require that
+    /// the valid ones are exactly the accepted ones (usually one; Japanese also accepts the object moved to
+    /// the front), and that every morph of the answer is visible and deducible from the examples.
     /// </summary>
     public static class PuzzleBuilder
     {
-        public const int MaxTiles = 6;
+        public const int MaxTiles = 10;        // answer + distractors; UI number keys are 1-9,0
+        public const int MinAnswerTiles = 4;
+        public const int MaxAnswerTiles = 8;
+        public const int MinSentenceWords = 3;  // non-punctuation words in the target
+        public const int ExampleCount = 3;      // hints shown per puzzle
 
         public static string Key(IEnumerable<Word> words) => string.Join("+", words.SelectMany(w => w.M));
         static string ShapeKey(IEnumerable<Word> words) => string.Join(" ", words.Select(w => w.Id));
@@ -47,12 +56,15 @@ namespace Fnmw.Lang
         {
             error = null;
             var examples = d.Examples.Where(e => !(dropOptional && e.Optional)).ToList();
-            if (examples.Count < 2 || examples.Count > 3) { error = $"needs 2-3 examples, has {examples.Count}"; return null; }
+            if (examples.Count != ExampleCount) { error = $"needs {ExampleCount} examples, has {examples.Count}"; return null; }
 
             var target = d.Target(0);
             List<Word> Tiles(List<Word> ws) => d.MorphTiles ? Split(ws) : ws;
             var answerTiles = Tiles(target);
-            if (answerTiles.Count >= MaxTiles) { error = "answer too long"; return null; }
+            if (answerTiles.Count > MaxAnswerTiles) { error = $"answer too long ({answerTiles.Count} tiles)"; return null; }
+            if (answerTiles.Count < MinAnswerTiles) { error = $"answer too short ({answerTiles.Count} tiles)"; return null; }
+            int words = target.Count(w => !(w.M.Length == 1 && lang.Spec(w.M[0]).Kind == MorphKind.Punct));
+            if (words < MinSentenceWords) { error = $"target is not a sentence ({words} words)"; return null; }
 
             var b = new BuiltPuzzle { Draft = d, Language = lang, TargetWords = target, AnswerKey = Key(target) };
             b.AcceptedKeys.Add(b.AnswerKey);
@@ -126,6 +138,11 @@ namespace Fnmw.Lang
             var missing = target.SelectMany(w => w.M).Where(m => !attested.Contains(m)).ToList();
             if (missing.Count > 0) { error = "unattested morphs: " + string.Join(",", missing); return null; }
             if (examples.Any(e => b.AcceptedKeys.Contains(Key(e.Render(0))))) { error = "target equals an example"; return null; }
+            var exampleMorphs = examples.Select(e => e.Render(0).SelectMany(w => w.M).ToList()).ToList();
+            var targetMorphs = target.SelectMany(w => w.M).Distinct().ToList();
+            // the player must combine at least two hints: no single hint may contain the whole target
+            if (exampleMorphs.Any(em => targetMorphs.All(em.Contains))) { error = "one example contains the whole target"; return null; }
+            if (!AllDeducible(exampleMorphs, targetMorphs, out var unresolved)) { error = "not deducible: " + unresolved; return null; }
 
             b.ValidAnswerCount = CountValidSequences(allTiles, b.MorphsById, valid, out var found);
             if (b.ValidAnswerCount != b.AcceptedKeys.Count || !found.SetEquals(b.AcceptedKeys))
@@ -157,9 +174,59 @@ namespace Fnmw.Lang
             return b;
         }
 
-        /// <summary>Every sequence of distinct tiles (length 1..n) whose morphs form a valid answer.</summary>
+        /// <summary>
+        /// Can every target morph be worked out from the hints, rather than guessed? Models a player comparing
+        /// the three English meanings against the three real sentences (cross-situational learning). Each morph
+        /// key stands for both a visible form and its meaning, and meaning m is present in an example exactly
+        /// when form m is. For each form f seen in any example:
+        ///   candidates(f) = (meanings of every example containing f) minus (meanings of any example without f)
+        /// i.e. f must mean something present every time f appears and absent every time it doesn't. Then
+        /// eliminate: a form with one candidate is resolved, and that meaning is struck from every other form
+        /// (repeat until nothing changes). The true meaning always survives, so a target morph is deducible
+        /// iff it ends with exactly itself as candidate. Two morphs that always co-occur stay ambiguous.
+        /// </summary>
+        public static bool AllDeducible(List<List<string>> exampleMorphs, IEnumerable<string> targetMorphs, out string unresolved)
+        {
+            var sets = exampleMorphs.Select(e => new HashSet<string>(e)).ToList();
+            var cands = new Dictionary<string, HashSet<string>>();
+            foreach (var f in sets.SelectMany(x => x).Distinct())
+            {
+                HashSet<string> c = null;
+                foreach (var s in sets.Where(x => x.Contains(f)))
+                    if (c == null) c = new HashSet<string>(s); else c.IntersectWith(s);
+                foreach (var s in sets.Where(x => !x.Contains(f))) c.ExceptWith(s);
+                cands[f] = c;
+            }
+            var resolved = new HashSet<string>();
+            for (bool changed = true; changed;)
+            {
+                changed = false;
+                foreach (var f in cands.Keys)
+                {
+                    if (resolved.Contains(f) || cands[f].Count != 1) continue;
+                    resolved.Add(f);
+                    var m = cands[f].First();
+                    foreach (var g in cands.Keys) if (g != f && cands[g].Remove(m)) changed = true;
+                    changed = true;
+                }
+            }
+            foreach (var t in targetMorphs)
+                if (!cands.TryGetValue(t, out var c) || c.Count != 1 || !c.Contains(t)) { unresolved = t; return false; }
+            unresolved = null;
+            return true;
+        }
+
+        /// <summary>Every sequence of distinct tiles (length 1..n) whose morphs form a valid answer.
+        /// Only branches whose morph sequence is a prefix of some valid key are explored (same result, far fewer sequences).</summary>
         public static int CountValidSequences(List<Tile> tiles, Dictionary<string, string[]> morphs, HashSet<string> valid, out HashSet<string> found)
         {
+            // every morph-boundary prefix of every valid key ("a", "a+b", "a+b+c" for "a+b+c")
+            var prefixes = new HashSet<string>();
+            foreach (var v in valid)
+            {
+                var parts = v.Split('+');
+                for (int n = 1; n <= parts.Length; n++) prefixes.Add(string.Join("+", parts, 0, n));
+            }
             int count = 0;
             var hits = new HashSet<string>();
             var used = new bool[tiles.Count];
@@ -169,9 +236,9 @@ namespace Fnmw.Lang
                 if (seq.Count > 0)
                 {
                     var k = string.Join("+", seq);
+                    if (!prefixes.Contains(k)) return;   // no valid key starts this way: nothing below can match
                     if (valid.Contains(k)) { count++; hits.Add(k); }
                 }
-                if (seq.Count == tiles.Count) return;
                 for (int i = 0; i < tiles.Count; i++)
                 {
                     if (used[i]) continue;
