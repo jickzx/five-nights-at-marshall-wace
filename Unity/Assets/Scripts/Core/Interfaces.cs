@@ -40,6 +40,8 @@ namespace Fnmw.Core
         public int Mistakes;
         public Vector3 PlayerForward; // camera forward, flattened by the brain
         public bool Watched;          // beast is on screen, in fog range and not occluded
+        /// <summary>0..1 from GameState.BeastGrace: 1 = the beast neither evolves nor presses (tutorial console).</summary>
+        public float Grace;
     }
 
     public struct BeastIntent
@@ -77,5 +79,10 @@ namespace Fnmw.Core
         void ShowQuiz(QuizQuestion quiz, Action<int> onChoose);
         void ShowEnd(bool escaped, GameState state, Action onRestart);
         void HideAll();
+        /// <summary>The first-run tutorial, called every frame during play. Optional: defaults to nothing.</summary>
+        void ShowTutorial(TutorialView view) { }
+        /// <summary>Walk the player through a solved example on the console; call onDone when they finish or skip it.
+        /// Optional: the default skips straight to onDone.</summary>
+        void ShowWorkedExample(WorkedExample example, Action onDone) { onDone?.Invoke(); }
     }
 }

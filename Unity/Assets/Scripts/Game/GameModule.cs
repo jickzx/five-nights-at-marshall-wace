@@ -15,6 +15,7 @@ namespace Fnmw.Game
             var director = new GameObject("GameDirector");
             director.AddComponent<GameDirector>();
             director.AddComponent<DevKeys>();
+            director.AddComponent<TutorialCoach>();
         }
     }
 }

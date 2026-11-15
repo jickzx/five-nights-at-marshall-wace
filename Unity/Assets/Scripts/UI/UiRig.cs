@@ -9,6 +9,7 @@ namespace Fnmw.UI
     {
         public int Digit;          // 0-based index of a number key pressed this frame, -1 for none
         public bool Enter, Space, Back, Clear, Left, Right, Up, Down, Click;
+        public bool Replay;        // T: the title's "replay tutorial"
         public bool HasPointer;
         public Vector2 Pointer;    // stage space: origin at the centre of the stage, y up, in virtual pixels
 
@@ -19,6 +20,7 @@ namespace Fnmw.UI
         public static UiInput Key(int digit) => new UiInput { Digit = digit };
         public static UiInput PressEnter => new UiInput { Digit = -1, Enter = true };
         public static UiInput PressBack => new UiInput { Digit = -1, Back = true };
+        public static UiInput PressReplay => new UiInput { Digit = -1, Replay = true };
     }
 
     /// <summary>
@@ -169,11 +171,12 @@ namespace Fnmw.UI
                 i.Enter = kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame;
                 i.Space = kb.spaceKey.wasPressedThisFrame;
                 i.Back = kb.backspaceKey.wasPressedThisFrame;
-                i.Clear = kb.deleteKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame;
+                i.Clear = kb.deleteKey.wasPressedThisFrame;   // Esc walks away from the console (PlayerController); it no longer also wipes the tiles
                 i.Left = kb.leftArrowKey.wasPressedThisFrame;
                 i.Right = kb.rightArrowKey.wasPressedThisFrame;
                 i.Up = kb.upArrowKey.wasPressedThisFrame;
                 i.Down = kb.downArrowKey.wasPressedThisFrame;
+                i.Replay = kb.tKey.wasPressedThisFrame;
             }
             var mouse = Mouse.current;
             if (mouse != null && Cursor.lockState != CursorLockMode.Locked)
