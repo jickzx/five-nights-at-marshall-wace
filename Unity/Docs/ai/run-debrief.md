@@ -2,6 +2,8 @@
 
 When the run ends, the end screen shows two or three sentences about it: the languages met, where the player slipped, how far the beast grew, and how it ended. It works with no key: a stock debrief built from the log goes up first, and a Gemini reply replaces it only if it passes every check.
 
+**Live limitation.** The Gemini reply needs `Services.Ai`, which in a player build works only through a generateContent proxy (`aiProxyUrl`, see `README.md`). No such proxy is in this repository or deployed, so desktop and Quest builds always show the stock debrief. A live reply can be tried only in the Editor with a local key in `Unity/secrets.json`, and the last live check (15 November 2026) was refused with HTTP 402 because the project had no credit, so no live debrief has been seen yet.
+
 Code: `Assets/Scripts/Game/Debrief/`. `RunDebrief` (added to the GameDirector object by `GameModule`) hosts `RunDebriefer`, which listens to `GameEvents`. `DebriefWriter` holds the stock text, the request and the reply check. `RunLog` is the record. UI: `GameUI.ShowDebrief` and the death and escape screens in `UI/OtherScreens.cs`.
 
 ## What the log records

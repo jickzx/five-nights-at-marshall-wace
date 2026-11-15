@@ -290,6 +290,35 @@ namespace Fnmw.Tests
         }
 
         [Test]
+        public void Config_InABuild_IgnoresEveryKey_AndNeedsAProxy()
+        {
+            var env = new Dictionary<string, string> { { AiConfig.EnvKey, "envkey" } };
+            var cfg = AiConfig.From("{\"geminiApiKey\":\"filekey\"}", k => env.TryGetValue(k, out var v) ? v : null, allowDirectKey: false);
+            Assert.AreEqual("", cfg.ApiKey);
+            Assert.IsFalse(cfg.Usable, "a build with only a key must stay on stock lines");
+        }
+
+        [Test]
+        public void Config_InABuild_KeepsTheFileProxy_EvenWithAnEnvironmentKey()
+        {
+            var cfg = AiConfig.From("{\"aiProxyUrl\":\"https://example.test/api/ai\",\"geminiApiKey\":\"filekey\"}",
+                k => k == AiConfig.EnvKey ? "envkey" : null, allowDirectKey: false);
+            Assert.IsTrue(cfg.Usable);
+            Assert.IsTrue(cfg.UsesProxy);
+            Assert.AreEqual("", cfg.ApiKey);
+            StringAssert.StartsWith("https://example.test/api/ai?model=", cfg.Endpoint());
+        }
+
+        [Test]
+        public void HoldsKey_FlagsOnlyANonEmptyKey()
+        {
+            Assert.IsTrue(AiConfig.HoldsKey("{\"geminiApiKey\":\"k\"}"));
+            Assert.IsFalse(AiConfig.HoldsKey("{\"geminiApiKey\":\"  \",\"aiProxyUrl\":\"https://example.test\"}"));
+            Assert.IsFalse(AiConfig.HoldsKey(null));
+            Assert.IsTrue(AiConfig.HoldsKey("{ not json, geminiApiKey"), "unreadable text that mentions a key must stop the build");
+        }
+
+        [Test]
         public void Config_AcceptsTheModelsPrefix()
         {
             var cfg = AiConfig.From("{\"geminiApiKey\":\"k\",\"geminiModel\":\"models/m2\"}", null);
