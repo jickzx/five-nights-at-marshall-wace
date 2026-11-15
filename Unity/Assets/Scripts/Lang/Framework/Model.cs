@@ -132,6 +132,18 @@ namespace Fnmw.Lang
             var m = new MorphSpec(key, kind, form, gloss, concept);
             _inventory.Add(m);
             _byKey.Add(key, m);
+            if (_inventory.Count > 64) throw new InvalidOperationException($"{Name}: more than 64 morphs, too many for MorphMask");
+            _bit.Add(key, 1UL << (_inventory.Count - 1));
+            return m;
+        }
+
+        readonly Dictionary<string, ulong> _bit = new Dictionary<string, ulong>();
+
+        /// <summary>The set of morphs in these words as a bitmask over the inventory (one bit per morph), for fast hint search.</summary>
+        public ulong MorphMask(IEnumerable<Word> words)
+        {
+            ulong m = 0;
+            foreach (var w in words) foreach (var k in w.M) m |= _bit.TryGetValue(k, out var b) ? b : throw new KeyNotFoundException($"{Name}: no morph '{k}'");
             return m;
         }
 

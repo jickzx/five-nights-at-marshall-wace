@@ -82,10 +82,10 @@ namespace Fnmw.Lang.Languages
             Add("min", MorphKind.Particle, "min", "from");
 
             BuildPool();
-            Kind("root-pattern", 0, (r, t) => Make(r, Sentence.Where, false, false));
-            Kind("root-pattern-from", 1, (r, t) => Make(r, Sentence.From, false, false));
-            Kind("root-pattern-lean", 2, (r, t) => Make(r, Sentence.Where, true, false));
-            Kind("root-pattern-from-lean", 3, (r, t) => Make(r, Sentence.From, true, false));
+            // Targets are always "verb subject fī place". A "kharaja X min Y" target cannot be pinned down by three
+            // hints: min always comes with a verb, a place and (or not) a subject, so its pieces never separate.
+            Kind("root-pattern", 0, (r, t) => Make(r, Sentence.Where, false));
+            Kind("root-pattern-lean", 2, (r, t) => Make(r, Sentence.Where, true));
         }
 
         /// <summary>
@@ -106,8 +106,8 @@ namespace Fnmw.Lang.Languages
         static string Ar(Entry e) => Noun(e) ? "ال" + e.Ar : e.Ar;
 
         // ---- the sentence pool: every sentence a puzzle may show
-        enum Sentence { Where, From, Is, Enter, Bare, Kill, Via }
-        sealed class Sent { public Sentence Type; public List<Word> Words; public string En; public HashSet<string> Morphs; public ulong Mask; }
+        enum Sentence { Where, From, Is, Enter, Bare, Kill, Via, He }
+        sealed class Sent { public int Index; public Sentence Type; public List<Word> Words; public string En; public HashSet<string> Morphs; public ulong Mask; }
         readonly List<Sent> _pool = new List<Sent>();
 
         static Entry Agent(string r) => Find(r, "AGENT");
@@ -118,10 +118,8 @@ namespace Fnmw.Lang.Languages
         {
             var agents = Words.Where(e => e.Pattern == "AGENT").ToList();
             var places = Words.Where(e => e.Pattern == "PLACE").ToList();
-            var bit = Inventory.Select((m, i) => (m.Key, i)).ToDictionary(x => x.Key, x => 1UL << x.i);
             void Put(Sentence t, string en, params Word[] ws) =>
-                _pool.Add(new Sent { Type = t, Words = ws.ToList(), En = en, Morphs = new HashSet<string>(ws.SelectMany(w => w.M)),
-                                     Mask = ws.SelectMany(w => w.M).Aggregate(0UL, (m, k) => m | bit[k]) });
+                _pool.Add(new Sent { Type = t, Words = ws.ToList(), En = en, Morphs = new HashSet<string>(ws.SelectMany(w => w.M)), Mask = MorphMask(ws) });
             Word Wn(Entry e) => Wd(e.Root, e.Pattern);
             foreach (var s in agents)
             {
@@ -149,7 +147,24 @@ namespace Fnmw.Lang.Languages
                 foreach (var o in agents.Where(o => o != s))
                     Put(Sentence.Kill, $"The {s.En} killed the {o.En}.", Wn(Verb("qtl")), Wn(s), Wn(o));
             }
+            // the verb ending already says 'he', so a sentence needs no subject word: kharaja min al-maktab 'he left the office'
+            foreach (var kv in VerbPlaces)
+            {
+                var v = Verb(kv.Key);
+                foreach (var pr in kv.Value)
+                {
+                    var p = Place(pr);
+                    Put(Sentence.He, $"He {v.En} {p.Prep} the {p.En}.", Wn(v), W("fi"), Wn(p));
+                }
+            }
+            foreach (var pr in Enterable)
+            {
+                var p = Place(pr);
+                Put(Sentence.He, $"He entered the {p.En}.", Wn(Verb("dkhl")), Wn(p));
+                Put(Sentence.He, $"He left the {p.En}.", Wn(Verb("khrj")), W("min"), Wn(p));
+            }
             _pool.RemoveAll(s => s.Type == Sentence.Bare && s.Words[0].M[0] == "r.skn");   // bare "sakana" means "calmed down"
+            for (int i = 0; i < _pool.Count; i++) _pool[i].Index = i;
         }
 
         static string Real(Sent s) =>
@@ -161,50 +176,28 @@ namespace Fnmw.Lang.Languages
         /// Target: a verb-first sentence (verb, subject, fī/min, place). Hints: three other real sentences that,
         /// compared with each other, pin down every root and every pattern of the target, so the target's nouns
         /// (often never seen as whole words) are derived as root + pattern. Lean: no word of the target is shown
-        /// whole in a hint (lean-all: not even the verb); every word must be assembled from a root seen elsewhere.
+        /// whole in a hint; every noun must be assembled from a root seen elsewhere.
         /// </summary>
-        Draft Make(Rng rng, Sentence type, bool lean, bool allLean = false)
+        // targets with no valid hint triple at all (the pool is fixed, and the search finds a triple whenever one exists)
+        static readonly HashSet<(int, bool)> Unsolvable = new HashSet<(int, bool)>();
+
+        Draft Make(Rng rng, Sentence type, bool lean)
         {
             var targets = _pool.Where(s => s.Type == type).ToList();
             rng.Shuffle(targets);
             foreach (var tgt in targets)
             {
-                var tWords = new HashSet<string>(tgt.Words.Where(w => w.M.Length == 2 && (allLean || Noun(FindW(w)))).Select(w => w.Id));
-                var sols = Solutions(tgt).Where(x => !lean || x.All(i => !_pool[i].Words.Any(w => tWords.Contains(w.Id)))).ToList();
-                if (sols.Count == 0) continue;
-                return Draft(tgt, rng.Pick(sols).Select(i => _pool[i]).ToList());
+                // one draw per target whether or not it is searched, so skipping a known dead end keeps a seed's puzzles the same
+                var sub = new Rng(rng.Next());
+                lock (Unsolvable) if (Unsolvable.Contains((tgt.Index, lean))) continue;
+                var tWords = new HashSet<string>(tgt.Words.Where(w => w.M.Length == 2 && Noun(FindW(w))).Select(w => w.Id));
+                var cands = _pool.Where(x => x != tgt && (!lean || !x.Words.Any(w => tWords.Contains(w.Id)))).ToList();
+                var pick = PuzzleBuilder.FindHintTriple(tgt.Mask, cands.Select(x => x.Mask).ToList(), sub);
+                if (pick == null) { lock (Unsolvable) Unsolvable.Add((tgt.Index, lean)); continue; }
+                return Draft(tgt, pick.Select(i => cands[i]).ToList());
             }
             return Draft(targets[0], _pool.Take(3).ToList());   // PuzzleBuilder rejects it and the engine retries
         }
-
-        readonly Dictionary<Sent, List<int[]>> _solutions = new Dictionary<Sent, List<int[]>>();
-
-        /// <summary>
-        /// Every hint triple that passes PuzzleBuilder.AllDeducible for this target, by bitmask: a target morph is
-        /// deducible exactly when no other morph appears in the same subset of the three hints.
-        /// </summary>
-        List<int[]> Solutions(Sent tgt)
-        {
-            if (_solutions.TryGetValue(tgt, out var have)) return have;
-            ulong t = tgt.Mask;
-            var c = Enumerable.Range(0, _pool.Count).Where(i => _pool[i] != tgt && (_pool[i].Mask & t) != 0 && (t & ~_pool[i].Mask) != 0).ToArray();
-            var sols = new List<int[]>();
-            for (int x = 0; x < c.Length; x++)
-            for (int y = x + 1; y < c.Length; y++)
-            for (int z = y + 1; z < c.Length; z++)
-            {
-                ulong a = _pool[c[x]].Mask, b = _pool[c[y]].Mask, d = _pool[c[z]].Mask;
-                if ((t & ~(a | b | d)) != 0) continue;
-                if (Bad(a & ~b & ~d, t) || Bad(~a & b & ~d, t) || Bad(~a & ~b & d, t) || Bad(a & b & ~d, t) ||
-                    Bad(a & ~b & d, t) || Bad(~a & b & d, t) || Bad(a & b & d, t)) continue;
-                sols.Add(new[] { c[x], c[y], c[z] });
-            }
-            _solutions[tgt] = sols;
-            return sols;
-        }
-
-        // a region of the hints' Venn diagram holding a target morph must hold nothing else
-        static bool Bad(ulong region, ulong t) => (region & t) != 0 && (region & (region - 1)) != 0;
 
         Draft Draft(Sent tgt, List<Sent> ex)
         {

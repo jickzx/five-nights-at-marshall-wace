@@ -70,7 +70,6 @@ namespace Fnmw.Lang.Languages
             foreach (var p in Persons) Add("p." + p, MorphKind.Particle, Pronoun[p], Subject[p], LangConcepts.VerbEnding);
             Add("Q", MorphKind.Punct, "?", "question", LangConcepts.Punctuation);   // opening ¿ is written glued to the first word
             Add("E", MorphKind.Punct, "!", "exclaim", LangConcepts.Punctuation);
-            Add("DOT", MorphKind.Punct, ".", "end");
             Add("hay", MorphKind.Root, "hay", "there-is");
             foreach (var n in Nouns) Add("n." + n.Key, MorphKind.Root, n.Es, n.En);
             // each gender form is one morph: with only three hints, a separate -a morph would always travel with
@@ -127,7 +126,7 @@ namespace Fnmw.Lang.Languages
                 var adj = W("a." + c.A.Key + (fem ? ".F" : ".M"));
                 if (On(h, b.AdjFirst)) { r.Add(adj); r.Add(noun); } else { r.Add(noun); r.Add(adj); }
             }
-            if (c.Mode == '.') { r.Add(W("DOT")); return r; }
+            if (c.Mode == '.') return r;   // no full stop tile: it would sit in every statement and never be told apart
             string mark = c.Mode == '?' ? "Q" : "E";
             if (!On(h, b.NoOpen)) r[0] = new Word(new[] { mark }.Concat(r[0].M).ToArray());
             r.Add(W(mark));
@@ -148,7 +147,7 @@ namespace Fnmw.Lang.Languages
         static string Cap(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
         string Real(Cl c)
         {
-            var s = Render(Say(0, default(Bits), c));
+            var s = Render(Say(0, default(Bits), c)) + (c.Mode == '.' ? "." : "");
             int i = 0;
             while (i < s.Length && !char.IsLetter(s[i])) i++;
             return i < s.Length ? s.Substring(0, i) + char.ToUpperInvariant(s[i]) + s.Substring(i + 1) : s;
@@ -174,45 +173,43 @@ namespace Fnmw.Lang.Languages
         {
             var tw = Say(0, b, target);
             var tKey = PuzzleBuilder.Key(tw);
-            var tMorphs = tw.SelectMany(w => w.M).Distinct().ToList();
-            for (int attempt = 0; attempt < 600; attempt++)
+            ulong tm = MorphMask(tw);
+            // rival grammars that would render the target differently: some hint must show each one wrong
+            int need = 0;
+            for (int h = 1; h < hyps; h++) if (PuzzleBuilder.Key(Say(h, b, target)) != tKey) need |= 1 << h;
+
+            // candidate hints: distinct sensible mutations of the target that share some, but not all, of its morphs
+            var cands = new List<Cl>();
+            var masks = new List<ulong>();
+            var refutes = new List<int>();     // rival hypotheses this hint renders differently
+            var gender = new List<bool>();     // shows the target noun's gender
+            var seen = new HashSet<string> { tKey };
+            for (int i = 0; i < CandidateTries && cands.Count < MaxCandidates; i++)
             {
                 _altSeed = rng.Next();
-                var ex = new List<Cl>();
-                for (int i = 0; i < PuzzleBuilder.ExampleCount; i++)
-                {
-                    Cl e = null;
-                    for (int k = 0; k < 20 && e == null; k++)
-                    {
-                        _slot = 0;
-                        var c = mutate(rng, target);
-                        if (!Sensible(c) || !Fits(c)) continue;
-                        var key = PuzzleBuilder.Key(Say(0, b, c));
-                        if (key == tKey || ex.Any(x => PuzzleBuilder.Key(Say(0, b, x)) == key)) continue;
-                        e = c;
-                    }
-                    if (e == null) break;
-                    ex.Add(e);
-                }
-                if (ex.Count != PuzzleBuilder.ExampleCount) continue;
-                var em = ex.Select(e => Say(0, b, e).SelectMany(w => w.M).ToList()).ToList();
-                if (em.Any(m => tMorphs.All(m.Contains))) continue;
-                if (!PuzzleBuilder.AllDeducible(em, tMorphs, out _)) continue;
-                // the target noun's gender must be visible in some hint (el/la or an agreeing adjective)
-                if (!ex.Any(e => e.N == target.N && (e.Art || e.A != null))) continue;
-                bool ok = true;
-                for (int h = 1; h < hyps && ok; h++)
-                {
-                    if (PuzzleBuilder.Key(Say(h, b, target)) == tKey) continue;
-                    ok = ex.Any(e => PuzzleBuilder.Key(Say(h, b, e)) != PuzzleBuilder.Key(Say(0, b, e)));
-                }
-                if (ok) return ex;
+                _slot = 0;
+                var c = mutate(rng, target);
+                if (!Sensible(c) || !Fits(c)) continue;
+                var w = Say(0, b, c);
+                var key = PuzzleBuilder.Key(w);
+                if (!seen.Add(key)) continue;
+                ulong m = MorphMask(w);
+                if ((m & tm) == 0 || (tm & ~m) == 0) continue;
+                int r = 0;
+                for (int h = 1; h < hyps; h++) if ((need & (1 << h)) != 0 && PuzzleBuilder.Key(Say(h, b, c)) != key) r |= 1 << h;
+                cands.Add(c); masks.Add(m); refutes.Add(r);
+                gender.Add(c.N == target.N && (c.Art || c.A != null));
             }
-            return null;
+            // three of them that make every target morph deducible (PuzzleBuilder.AllDeducible, by bitmask), show
+            // the target noun's gender somewhere, and rule out every rival grammar
+            var pick = PuzzleBuilder.FindHintTriple(tm, masks, rng,
+                (x, y, z) => (gender[x] || gender[y] || gender[z]) && ((refutes[x] | refutes[y] | refutes[z]) & need) == need);
+            return pick?.Select(i => cands[i]).ToList();
         }
 
-        // Each search attempt fixes one 'other' value per slot, shared by the three hints, so a replaced piece
-        // tends to recur across hints (one-off extras would make target pieces impossible to tell apart).
+        const int CandidateTries = 400, MaxCandidates = 120;
+
+        // Each candidate hint draws a fresh 'other' value per slot (mostly from _altSeed, sometimes from rng).
         ulong _altSeed; int _slot;
         T Maybe<T>(Rng rng, T keep, IList<T> all, float pKeep = 0.5f)
         {
@@ -276,8 +273,8 @@ namespace Fnmw.Lang.Languages
         {
             var b = new Bits { Pron = 0, NoPerson = 1, NoOpen = -1, NoGender = -1, AdjFirst = -1 };
             return Make(rng, b, Hyps.Bits(LangConcepts.VerbEnding, LangConcepts.VerbEnding),
-                r => Pick(r, false, new[] { "1SG", "2SG", "1PL" }, _ => true, false, '.'),
-                (r, t) => { var c = Mutate(r, t, false, 0f, "."); c.Art = true; return c; },
+                r => { var c = Pick(r, false, new[] { "1SG", "2SG", "1PL" }, _ => true, true, '.'); c.Art = true; return c; },
+                (r, t) => { var c = Mutate(r, t, false, 0.6f, "."); c.Art = true; return c; },
                 t =>
                 {
                     var d = new Draft
@@ -324,7 +321,8 @@ namespace Fnmw.Lang.Languages
                 r =>
                 {
                     var c = Pick(r, r.Chance(0.6f), new[] { "1SG", "2SG", "3SG", "1PL" }, n => n.Mass && (n.Fem || r.Chance(0.4f)), true, r.Chance(0.5f) ? '?' : '.');
-                    c.Art = false;
+                    c.Art = c.Mode == '.';   // a statement has no ¿ ?, so it takes 'the' to stay four words long
+                    if (c.Art) c.Hay = false;
                     return c;
                 },
                 (r, t) => Mutate(r, t, true, 0.75f, "?!."),

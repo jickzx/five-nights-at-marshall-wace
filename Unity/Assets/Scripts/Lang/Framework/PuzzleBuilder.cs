@@ -216,6 +216,58 @@ namespace Fnmw.Lang
             return true;
         }
 
+        /// <summary>
+        /// AllDeducible, plus "no single hint holds the whole target", on morph bitmasks (SourceLanguage.MorphMask):
+        /// t = target morphs, a/b/c = the three hints' morphs. Two forms can be told apart exactly when they appear in
+        /// different subsets of the hints, so every target morph must be seen, and must be alone in its region of the
+        /// hints' Venn diagram. Same verdict as AllDeducible, in a few nanoseconds.
+        /// </summary>
+        public static bool DeducibleMasks(ulong t, ulong a, ulong b, ulong c)
+        {
+            if ((t & ~(a | b | c)) != 0 || (t & ~a) == 0 || (t & ~b) == 0 || (t & ~c) == 0) return false;
+            return Alone(a & ~b & ~c, t) && Alone(~a & b & ~c, t) && Alone(~a & ~b & c, t) && Alone(a & b & ~c, t)
+                && Alone(a & ~b & c, t) && Alone(~a & b & c, t) && Alone(a & b & c, t);
+        }
+
+        // a region holding a target morph must hold nothing else
+        static bool Alone(ulong region, ulong t) => (region & t) == 0 || !Many(region);
+        static bool Many(ulong bits) => (bits & (bits - 1)) != 0;
+        // cut in two, can every target morph of this region end up alone? Only if it holds at most two morphs, or one target morph
+        static bool Splittable(ulong region, ulong t)
+        {
+            if (!Many(region & t)) return true;
+            return !Many(region & (region - 1));   // two target morphs: the region must be exactly those two
+        }
+
+        /// <summary>
+        /// Picks three candidate hints (indices into masks) that make every target morph deducible and pass accept,
+        /// trying triples in a random order and stopping at the first. Systematic, so it finds a triple whenever one
+        /// exists among the candidates (a random search over triples rarely does: almost none of them qualify).
+        /// Null when no triple works.
+        /// </summary>
+        public static int[] FindHintTriple(ulong target, IList<ulong> masks, Rng rng, System.Func<int, int, int, bool> accept = null)
+        {
+            var order = Enumerable.Range(0, masks.Count).Where(i => (masks[i] & target) != 0 && (target & ~masks[i]) != 0).ToList();
+            rng.Shuffle(order);
+            int n = order.Count;
+            for (int x = 0; x < n; x++)
+            for (int y = x + 1; y < n; y++)
+            {
+                ulong a = masks[order[x]], b = masks[order[y]], need = target & ~(a | b);
+                // the third hint only splits each region of the first two in two, and its own new morphs form one
+                // region: prune pairs no third hint can rescue (the search stays fast when no triple exists)
+                if (Many(need) || !Splittable(a & ~b, target) || !Splittable(~a & b, target) || !Splittable(a & b, target)) continue;
+                for (int z = y + 1; z < n; z++)
+                {
+                    ulong c = masks[order[z]];
+                    if ((need & ~c) != 0 || !DeducibleMasks(target, a, b, c)) continue;
+                    if (accept != null && !accept(order[x], order[y], order[z])) continue;
+                    return new[] { order[x], order[y], order[z] };
+                }
+            }
+            return null;
+        }
+
         /// <summary>Every sequence of distinct tiles (length 1..n) whose morphs form a valid answer.
         /// Only branches whose morph sequence is a prefix of some valid key are explored (same result, far fewer sequences).</summary>
         public static int CountValidSequences(List<Tile> tiles, Dictionary<string, string[]> morphs, HashSet<string> valid, out HashSet<string> found)

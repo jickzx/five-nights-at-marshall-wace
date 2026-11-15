@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Fnmw.Core;
@@ -203,12 +204,12 @@ namespace Fnmw.Lang.Languages
                 d.Translation = en;
                 d.RealText = $"{han}。({Cap(pin)}.)";
 
-                if (PickHints(this, d, HintPool(rv), rng)) return d;
+                if (PickHints(d, Pool, rv, rng)) return d;
             }
             return d;
         }
 
-        List<Hint> HintPool(Rivals rv)
+        List<Hint> HintPool()
         {
             var pool = new List<Hint>();
             foreach (var n in Nouns)
@@ -217,19 +218,19 @@ namespace Fnmw.Lang.Languages
                 {
                     foreach (var s in Pronouns)
                     {
-                        pool.Add(new Hint(SayVerb(s, v, null, n), h => Svo(h, rv, s, v, null, n)));
+                        pool.Add(new Hint(SayVerb(s, v, null, n), (rv, h) => Svo(h, rv, s, v, null, n)));
                         foreach (var d in Numbers.Concat(Pointers))
-                            pool.Add(new Hint(SayVerb(s, v, d, n), h => Svo(h, rv, s, v, d, n)));
+                            pool.Add(new Hint(SayVerb(s, v, d, n), (rv, h) => Svo(h, rv, s, v, d, n)));
                     }
                 }
-                pool.Add(new Hint(SayVerb(null, Have, null, n), h => Svo(h, rv, null, Have, null, n)));
+                pool.Add(new Hint(SayVerb(null, Have, null, n), (rv, h) => Svo(h, rv, null, Have, null, n)));
                 foreach (var d in Numbers)
-                    pool.Add(new Hint(SayVerb(null, Have, d, n), h => Svo(h, rv, null, Have, d, n)));
+                    pool.Add(new Hint(SayVerb(null, Have, d, n), (rv, h) => Svo(h, rv, null, Have, d, n)));
                 foreach (var a in Adjs)
                 {
-                    pool.Add(new Hint(SayAdj(null, n, a), h => IsAdj(h, rv, null, n, a)));
+                    pool.Add(new Hint(SayAdj(null, n, a), (rv, h) => IsAdj(h, rv, null, n, a)));
                     foreach (var d in Pointers)
-                        pool.Add(new Hint(SayAdj(d, n, a), h => IsAdj(h, rv, d, n, a)));
+                        pool.Add(new Hint(SayAdj(d, n, a), (rv, h) => IsAdj(h, rv, d, n, a)));
                 }
             }
             // the measure word on its own, the noun understood: 这辆很大 'this one is big', 我要那张 'I want that one'
@@ -237,19 +238,32 @@ namespace Fnmw.Lang.Languages
                 foreach (var d in Pointers)
                 {
                     foreach (var a in Adjs)
-                        pool.Add(new Hint(Cap($"{d.En} one is {a.En}."), h => IsAdj(h, rv, d, null, a, c.Key)));
+                        pool.Add(new Hint(Cap($"{d.En} one is {a.En}."), (rv, h) => IsAdj(h, rv, d, null, a, c.Key)));
                     foreach (var v in Verbs)
                         foreach (var s in Pronouns)
-                            pool.Add(new Hint(Cap($"{s.En} {(s.Third ? v.En3 : v.En)} {d.En} one."), h => Svo(h, rv, s, v, d, null, c.Key)));
+                            pool.Add(new Hint(Cap($"{s.En} {(s.Third ? v.En3 : v.En)} {d.En} one."), (rv, h) => Svo(h, rv, s, v, d, null, c.Key)));
                 }
+            foreach (var hint in pool)
+            {
+                hint.R0 = hint.F(null, 0);   // the true grammar never looks at the rivals
+                hint.Mask = MorphMask(hint.R0);
+                hint.Key = PuzzleBuilder.Key(hint.R0);
+                hint.Fits = hint.R0.Count <= 6 && Render(hint.R0).Length <= 40;
+            }
             return pool;
         }
+
+        // every hint sentence and its true rendering, built once and shared (it is the same for every instance):
+        // only the rival renderings depend on the puzzle
+        static List<Hint> _hintPool;
+        List<Hint> Pool => _hintPool ??= HintPool();
 
         // ---------------------------------------------------------------- hint picker
         sealed class Hint
         {
-            public readonly string Pic; public readonly Render R;
-            public Hint(string pic, Render r) { Pic = pic; R = r; }
+            public readonly string Pic; public readonly Func<Rivals, int, List<Word>> F;
+            public List<Word> R0; public ulong Mask; public string Key; public bool Fits;
+            public Hint(string pic, Func<Rivals, int, List<Word>> f) { Pic = pic; F = f; }
         }
 
         /// <summary>
@@ -257,69 +271,37 @@ namespace Fnmw.Lang.Languages
         /// (each target morph appears in a different set of hints from every other morph shown), no hint holds
         /// the whole target, and every rival grammar renders at least one hint differently. Adds them to d.
         /// </summary>
-        static bool PickHints(SourceLanguage lang, Draft d, List<Hint> pool, Rng rng)
+        bool PickHints(Draft d, List<Hint> pool, Rivals rv, Rng rng)
         {
             const int MaxCandidates = 90;
             var accepted = new HashSet<string> { PuzzleBuilder.Key(d.Target(0)) };
             foreach (var a in d.AlsoCorrect) accepted.Add(PuzzleBuilder.Key(a));
-            var target = d.Target(0).SelectMany(w => w.M).Distinct().ToList();
+            ulong target = MorphMask(d.Target(0));
             var rivals = Enumerable.Range(1, d.HypConcepts.Length - 1).Where(h => !accepted.Contains(PuzzleBuilder.Key(d.Target(h)))).ToList();
             string Shape(List<Word> ws) => string.Join(" ", ws.Select(w => w.Id));
 
-            var cands = new List<(Hint hint, string[] morphs, int kills)>();
+            var cands = new List<(Hint hint, int kills)>();
             foreach (var hint in pool)
             {
-                var r0 = hint.R(0);
-                if (accepted.Contains(PuzzleBuilder.Key(r0))) continue;
-                var ms = r0.SelectMany(w => w.M).Distinct().ToArray();
-                int shared = target.Count(ms.Contains);
-                if (shared < 2 || shared == target.Count) continue;
-                if (r0.Count > 6 || lang.Render(r0).Length > 40) continue;
+                ulong shared = hint.Mask & target;
+                if ((shared & (shared - 1)) == 0 || shared == target) continue;   // shares at least two target morphs, not all
+                if (!hint.Fits || accepted.Contains(hint.Key)) continue;
                 int kills = 0;
-                string s0 = Shape(r0);
-                for (int i = 0; i < rivals.Count; i++) if (Shape(hint.R(rivals[i])) != s0) kills |= 1 << i;
-                cands.Add((hint, ms, kills));
+                string s0 = Shape(hint.R0);
+                for (int i = 0; i < rivals.Count; i++) if (Shape(hint.F(rv, rivals[i])) != s0) kills |= 1 << i;
+                cands.Add((hint, kills));
             }
             rng.Shuffle(cands);
             if (cands.Count > MaxCandidates) cands.RemoveRange(MaxCandidates, cands.Count - MaxCandidates);
 
-            var index = new Dictionary<string, int>();
-            foreach (var c in cands) foreach (var m in c.morphs) if (!index.ContainsKey(m)) index[m] = index.Count;
-            if (index.Count > 128 || target.Any(m => !index.ContainsKey(m))) return false;
-            var bits = cands.Select(c => Bits.Of(c.morphs.Select(m => index[m]))).ToList();
-            var T = Bits.Of(target.Select(m => index[m]));
             int need = (1 << rivals.Count) - 1;
-
-            for (int i = 0; i < cands.Count; i++)
-                for (int j = i + 1; j < cands.Count; j++)
-                    for (int k = j + 1; k < cands.Count; k++)
-                    {
-                        if (((cands[i].kills | cands[j].kills | cands[k].kills) & need) != need) continue;
-                        Bits A = bits[i], B = bits[j], C = bits[k];
-                        if (!T.SubsetOf(A | B | C)) continue;
-                        if (!Unique(A & ~B & ~C, T) || !Unique(~A & B & ~C, T) || !Unique(~A & ~B & C, T)
-                            || !Unique(A & B & ~C, T) || !Unique(A & ~B & C, T) || !Unique(~A & B & C, T) || !Unique(A & B & C, T)) continue;
-                        var chosen = new List<Hint> { cands[i].hint, cands[j].hint, cands[k].hint };
-                        rng.Shuffle(chosen);
-                        foreach (var c in chosen) d.Example(c.Pic, c.R);
-                        return true;
-                    }
-            return false;
-        }
-
-        // a set of morphs that holds a target morph must hold nothing else
-        static bool Unique(Bits cls, Bits target) => (cls & target).IsEmpty || cls.Count == 1;
-
-        struct Bits
-        {
-            public ulong Lo, Hi;
-            public static Bits Of(IEnumerable<int> ix) { var b = new Bits(); foreach (var i in ix) { if (i < 64) b.Lo |= 1UL << i; else b.Hi |= 1UL << (i - 64); } return b; }
-            public static Bits operator |(Bits a, Bits b) => new Bits { Lo = a.Lo | b.Lo, Hi = a.Hi | b.Hi };
-            public static Bits operator &(Bits a, Bits b) => new Bits { Lo = a.Lo & b.Lo, Hi = a.Hi & b.Hi };
-            public static Bits operator ~(Bits a) => new Bits { Lo = ~a.Lo, Hi = ~a.Hi };
-            public bool IsEmpty => Lo == 0 && Hi == 0;
-            public bool SubsetOf(Bits o) => (Lo & ~o.Lo) == 0 && (Hi & ~o.Hi) == 0;
-            public int Count { get { int n = 0; ulong x = Lo; while (x != 0) { x &= x - 1; n++; } x = Hi; while (x != 0) { x &= x - 1; n++; } return n; } }
+            var pick = PuzzleBuilder.FindHintTriple(target, cands.Select(c => c.hint.Mask).ToList(), rng,
+                (i, j, k) => ((cands[i].kills | cands[j].kills | cands[k].kills) & need) == need);
+            if (pick == null) return false;
+            var chosen = pick.Select(i => cands[i].hint).ToList();
+            rng.Shuffle(chosen);
+            foreach (var c in chosen) d.Example(c.Pic, h => c.F(rv, h));
+            return true;
         }
     }
 }

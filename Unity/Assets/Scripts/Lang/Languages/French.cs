@@ -151,50 +151,50 @@ namespace Fnmw.Lang.Languages
         // ---------------------------------------------------------------- hint search
 
         /// <summary>
-        /// Picks three hint sentences around the target by mutating its parts, until every target morph can be
-        /// worked out by comparing hints (PuzzleBuilder.AllDeducible), no hint holds the whole target, the hints
-        /// rule out every rival grammar, and everything fits the UI.
+        /// Picks three hint sentences around the target: generates candidate hints by mutating its parts, then
+        /// searches their triples (by morph bitmask) for one where every target morph can be worked out by comparing
+        /// hints (PuzzleBuilder.AllDeducible), no hint holds the whole target, the hints rule out every rival
+        /// grammar, and everything fits the UI.
         /// </summary>
         List<Cl> FindHints(Rng rng, Bits b, int hyps, Cl target, Func<Rng, Cl, Cl> mutate)
         {
             var tw = Say(0, b, target);
             var tKey = PuzzleBuilder.Key(tw);
-            var tMorphs = tw.SelectMany(w => w.M).Distinct().ToList();
-            for (int attempt = 0; attempt < 600; attempt++)
+            ulong tm = MorphMask(tw);
+            // rival grammars that would render the target differently: some hint must show each one wrong
+            int need = 0;
+            for (int h = 1; h < hyps; h++) if (PuzzleBuilder.Key(Say(h, b, target)) != tKey) need |= 1 << h;
+
+            // candidate hints: distinct sensible mutations of the target that share some, but not all, of its morphs
+            var cands = new List<Cl>();
+            var masks = new List<ulong>();
+            var refutes = new List<int>();     // rival hypotheses this hint renders differently
+            var gender = new List<bool>();     // shows the target noun's gender
+            var seen = new HashSet<string> { tKey };
+            for (int i = 0; i < CandidateTries && cands.Count < MaxCandidates; i++)
             {
                 _altSeed = rng.Next();
-                var ex = new List<Cl>();
-                for (int i = 0; i < PuzzleBuilder.ExampleCount; i++)
-                {
-                    Cl e = null;
-                    for (int k = 0; k < 20 && e == null; k++)
-                    {
-                        _slot = 0;
-                        var c = mutate(rng, target);
-                        if (!Sensible(c) || !Fits(c)) continue;
-                        var key = PuzzleBuilder.Key(Say(0, b, c));
-                        if (key == tKey || ex.Any(x => PuzzleBuilder.Key(Say(0, b, x)) == key)) continue;
-                        e = c;
-                    }
-                    if (e == null) break;
-                    ex.Add(e);
-                }
-                if (ex.Count != PuzzleBuilder.ExampleCount) continue;
-                var em = ex.Select(e => Say(0, b, e).SelectMany(w => w.M).ToList()).ToList();
-                if (em.Any(m => tMorphs.All(m.Contains))) continue;
-                if (!PuzzleBuilder.AllDeducible(em, tMorphs, out _)) continue;
-                // the target noun's gender must be visible in some hint (article la/le or an agreeing adjective)
-                if (!ex.Any(e => e.N == target.N && (!e.Pl || e.A != null || e.P != null))) continue;
-                bool ok = true;
-                for (int h = 1; h < hyps && ok; h++)
-                {
-                    if (PuzzleBuilder.Key(Say(h, b, target)) == tKey) continue;
-                    ok = ex.Any(e => PuzzleBuilder.Key(Say(h, b, e)) != PuzzleBuilder.Key(Say(0, b, e)));
-                }
-                if (ok) return ex;
+                _slot = 0;
+                var c = mutate(rng, target);
+                if (!Sensible(c) || !Fits(c)) continue;
+                var w = Say(0, b, c);
+                var key = PuzzleBuilder.Key(w);
+                if (!seen.Add(key)) continue;
+                ulong m = MorphMask(w);
+                if ((m & tm) == 0 || (tm & ~m) == 0) continue;
+                int r = 0;
+                for (int h = 1; h < hyps; h++) if ((need & (1 << h)) != 0 && PuzzleBuilder.Key(Say(h, b, c)) != key) r |= 1 << h;
+                cands.Add(c); masks.Add(m); refutes.Add(r);
+                gender.Add(c.N == target.N && (!c.Pl || c.A != null || c.P != null));
             }
-            return null;
+            // three of them that make every target morph deducible (PuzzleBuilder.AllDeducible, by bitmask), show
+            // the target noun's gender somewhere, and rule out every rival grammar
+            var pick = PuzzleBuilder.FindHintTriple(tm, masks, rng,
+                (x, y, z) => (gender[x] || gender[y] || gender[z]) && ((refutes[x] | refutes[y] | refutes[z]) & need) == need);
+            return pick?.Select(i => cands[i]).ToList();
         }
+
+        const int CandidateTries = 400, MaxCandidates = 120;
 
         bool Fits(Cl c)
         {
@@ -202,8 +202,7 @@ namespace Fnmw.Lang.Languages
             return w.Count <= 6 && Render(w).Length <= 40 && En(c).Length <= 32;
         }
 
-        // Each search attempt fixes one 'other' value per slot, shared by the three hints, so a replaced piece
-        // tends to recur across hints (one-off extras would make target pieces impossible to tell apart).
+        // Each candidate hint draws a fresh 'other' value per slot (mostly from _altSeed, sometimes from rng).
         ulong _altSeed; int _slot;
         T Maybe<T>(Rng rng, T keep, IList<T> all, float pKeep = 0.5f)
         {
