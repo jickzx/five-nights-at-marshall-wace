@@ -35,3 +35,6 @@ sysinfo.txt
 *.unitypackage
 crashlytics-build.properties
 .DS_Store
+
+# Local API keys (see Docs/ai/README.md). Never commit.
+/secrets.json
