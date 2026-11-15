@@ -60,6 +60,10 @@ namespace Fnmw.UI
         /// <summary>What the pronunciation cue shows ("" when hidden).</summary>
         public string PronunciationCue => _sayCue && _sayCue.gameObject.activeInHierarchy ? _sayCue.text : "";
 
+        /// <summary>The payoff is up and the sentence can be played again (P, or X on Touch).</summary>
+        public bool ReplayOffered => _step == Step.Payoff && _reveal != null && _puzzle != null
+                                     && Ui.Pronunciation.PuzzleId == _puzzle.Id && Ui.Pronunciation.State == PronunciationState.Ready;
+
         GameState State => Ui.State ?? Services.State;
 
         // ---- reveal ---------------------------------------------------------------------
@@ -316,7 +320,7 @@ namespace Fnmw.UI
                 case PronunciationState.Loading: return "VOICE: LOADING";
                 case PronunciationState.Preparing: return "VOICE: STARTING";
                 case PronunciationState.Playing: return mock ? "MOCK TONE PLAYING (NOT SPEECH)" : "VOICE: PLAYING";
-                case PronunciationState.Ready: return mock ? "P  REPLAY MOCK TONE (NOT SPEECH)" : "P  HEAR IT AGAIN";
+                case PronunciationState.Ready: return (XrBridge.Active ? "X" : "P") + (mock ? "  REPLAY MOCK TONE (NOT SPEECH)" : "  HEAR IT AGAIN");
                 case PronunciationState.Unavailable: return "VOICE UNAVAILABLE";
                 default: return "";
             }

@@ -41,8 +41,11 @@ namespace Fnmw.XR
             }
         }
 
-        /// <summary>Labels for the left controller: X, Y, stick, trigger, grip.</summary>
-        public static void LeftLabels(XrContext c, bool tutorial, out string x, out string y, out string stick, out string trigger, out string grip)
+        /// <summary>Labels for the left controller: X, Y, stick, trigger, grip. <paramref name="hint"/> and
+        /// <paramref name="speak"/> are what the UI offers right now (XrBridge.HintOffered / SpeakOffered): X is
+        /// labelled on a console or screen only when it does something there.</summary>
+        public static void LeftLabels(XrContext c, bool tutorial, out string x, out string y, out string stick, out string trigger, out string grip,
+            bool hint = false, bool speak = false)
         {
             trigger = "";
             switch (c)
@@ -51,14 +54,14 @@ namespace Fnmw.XR
                 case XrContext.Roam: x = "LAMP"; y = tutorial ? "HOLD: SKIP TUTORIAL" : ""; stick = "WALK"; grip = "RUN"; return;
                 case XrContext.LessonReading:
                 case XrContext.LessonBuilding: x = ""; y = tutorial ? "LEAVE · HOLD SKIP TUTORIAL" : "LEAVE"; stick = "BACK / NEXT"; grip = ""; return;
-                case XrContext.Console: x = ""; y = tutorial ? "LEAVE · HOLD SKIP" : "LEAVE"; stick = "CURSOR"; grip = ""; return;
-                case XrContext.Screen: x = ""; y = ""; stick = "CURSOR"; grip = ""; return;
+                case XrContext.Console: x = hint ? "SHIP HINT" : ""; y = tutorial ? "LEAVE · HOLD SKIP" : "LEAVE"; stick = "CURSOR"; grip = ""; return;
+                case XrContext.Screen: x = speak ? "HEAR AGAIN" : ""; y = ""; stick = "CURSOR"; grip = ""; return;
                 default: x = ""; y = ""; stick = ""; grip = ""; return;
             }
         }
 
         /// <summary>The wrist card: a heading and at most five short lines, big enough to read at arm's length.</summary>
-        public static string Card(XrContext c, bool smoothTurn, bool tutorial)
+        public static string Card(XrContext c, bool smoothTurn, bool tutorial, bool hint = false, bool speak = false)
         {
             switch (c)
             {
@@ -69,9 +72,10 @@ namespace Fnmw.XR
                 case XrContext.LessonBuilding:
                     return "PRACTICE\nA / trigger  place / send\nB  undo\nHold B  skip example\nY  leave";
                 case XrContext.Console:
-                    return "CONSOLE\nTrigger  place tile\nA  send\nB  undo  ·  hold B  clear\nY  leave" + (tutorial ? "  ·  hold Y  skip tutorial" : "");
+                    return "CONSOLE\nTrigger  place tile\nA  send\nB  undo  ·  hold B  clear\nY  leave" + (tutorial ? "  ·  hold Y  skip tutorial" : "")
+                        + (hint ? "\nX  ask the ship" : "");
                 case XrContext.Screen:
-                    return "SCREEN\nTrigger  select\nA  ok\nSticks  move cursor";
+                    return "SCREEN\nTrigger  select\nA  ok\nSticks  move cursor" + (speak ? "\nX  hear it again" : "");
                 case XrContext.Cutscene:
                     return "CUTSCENE\nA or Y  skip (intro)";
                 default:

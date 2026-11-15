@@ -248,10 +248,11 @@ namespace Fnmw.XR
         {
             var c = Context;
             bool tut = XrBridge.TutorialActive;
-            int key = (int)c * 4 + (_turner.Smooth ? 2 : 0) + (tut ? 1 : 0);
+            bool hint = XrBridge.HintOffered, speak = XrBridge.SpeakOffered;
+            int key = (int)c * 16 + (_turner.Smooth ? 8 : 0) + (tut ? 4 : 0) + (hint ? 2 : 0) + (speak ? 1 : 0);
             if (key == _helpKey) return;      // nothing changed: no strings built, no text touched
             _helpKey = key;
-            if (_card) _card.text = XrHelp.Card(c, _turner.Smooth, tut);
+            if (_card) _card.text = XrHelp.Card(c, _turner.Smooth, tut, hint, speak);
             if (_rightModel != null)
             {
                 XrHelp.RightLabels(c, _turner.Smooth, out var a, out var b, out var st, out var tr, out var gr);
@@ -263,7 +264,7 @@ namespace Fnmw.XR
             }
             if (_leftModel != null)
             {
-                XrHelp.LeftLabels(c, tut, out var x, out var y, out var st, out var tr, out var gr);
+                XrHelp.LeftLabels(c, tut, out var x, out var y, out var st, out var tr, out var gr, hint, speak);
                 _leftModel.Label(XrControllerModel.Button.Face1, x);
                 _leftModel.Label(XrControllerModel.Button.Face2, y);
                 _leftModel.Label(XrControllerModel.Button.Stick, st);
@@ -442,7 +443,7 @@ namespace Fnmw.XR
             XrBridge.Move = m.Move; XrBridge.Run = m.Run; XrBridge.Interact = m.Interact; XrBridge.Flashlight = m.Flashlight;
             XrBridge.Leave = m.Leave; XrBridge.SkipHeld = m.SkipHeld;
             XrBridge.Enter = m.Enter; XrBridge.Space = m.Space; XrBridge.Back = m.Back; XrBridge.Clear = m.Clear;
-            XrBridge.Replay = m.Replay; XrBridge.Click = m.Click;
+            XrBridge.Replay = m.Replay; XrBridge.Click = m.Click; XrBridge.Hint = m.Hint; XrBridge.Speak = m.Speak;
             XrBridge.Left = m.Left; XrBridge.Right = m.Right; XrBridge.Up = m.Up; XrBridge.Down = m.Down;
             if (onGlass) { XrBridge.HasPointer = true; XrBridge.PointerUv = _pointerUv; }
         }

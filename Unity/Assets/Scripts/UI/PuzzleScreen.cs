@@ -44,10 +44,11 @@ namespace Fnmw.UI
         public const string HintKeys = "KEYS PLACE  ·  BKSP UNDO  ·  ENTER SEND";
         public const string HintXr = "TRIGGER PLACES  ·  B UNDO  ·  A SENDS";
         public const string HintKeysWithShip = HintKeys + "  ·  H SHIP";
+        public const string HintXrWithShip = HintXr + "  ·  X SHIP";
         /// <summary>The footer's key line: the keyboard's, or the Touch buttons' in a headset.</summary>
         public static string Hint => XrBridge.Active ? HintXr : HintKeys;
-        /// <summary>The key line, offering the ship's hint (H) when <paramref name="offerShip"/>. Touch has no hint button yet.</summary>
-        public static string Legend(bool offerShip) => offerShip && !XrBridge.Active ? HintKeysWithShip : Hint;
+        /// <summary>The key line, offering the ship's hint (H on a keyboard, X on Touch) when <paramref name="offerShip"/>.</summary>
+        public static string Legend(bool offerShip) => offerShip ? (XrBridge.Active ? HintXrWithShip : HintKeysWithShip) : Hint;
         int _wrong;                       // wrong answers on this console: after the first, the legend offers the ship
         string _footer = "", _hintText;   // what the footer shows; the hint text being typed out
         float _hintT;
@@ -60,6 +61,8 @@ namespace Fnmw.UI
         public int PickCount => _picks.Count;
         public bool Melting => _wrongT >= 0;
         public string FooterShown => _footer;
+        /// <summary>Asking the ship would do something right now (the console takes input and hints exist).</summary>
+        public bool ShipOffered => Interactive && _p != null && VoiceHintsAvailable();
 
         public List<Tile> PickedTiles()
         {

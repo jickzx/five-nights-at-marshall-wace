@@ -47,6 +47,13 @@ namespace Fnmw.Core
         /// <summary>The UI publishes the worked-example step for controller help.</summary>
         public static XrLessonStage LessonStage;
 
+        /// <summary>Published by the UI every frame: the console can ask the ship for a hint right now (X on Touch).
+        /// The controller labels and wrist card only offer X when this is true.</summary>
+        public static bool HintOffered;
+
+        /// <summary>Published by the UI every frame: the quiz payoff can play the decoded sentence again (X on Touch).</summary>
+        public static bool SpeakOffered;
+
         /// <summary>Layer the UI glass should sit on (0 normally; the theater's own layer while a cutscene is up).</summary>
         public static int GlassLayer;
 
@@ -62,6 +69,9 @@ namespace Fnmw.Core
         // ---- screens (UiRig.ReadInput) ----
         public static int Digit = -1;
         public static bool Enter, Space, Back, Clear, Left, Right, Up, Down, Click, Replay;
+        /// <summary>X on a screen, pressed this frame: the console reads it as "ask the ship" (H), the quiz payoff as
+        /// "hear it again" (P). Roaming reads the same press as the lamp (Flashlight) instead.</summary>
+        public static bool Hint, Speak;
         /// <summary>Where the laser meets the UI glass, 0..1 across and up. Only meaningful while HasPointer.</summary>
         public static bool HasPointer;
         public static Vector2 PointerUv;
@@ -71,6 +81,7 @@ namespace Fnmw.Core
         {
             Active = false; Head = null; Glass = null; CutscenePlaying = false; GlassLayer = 0;
             HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false; LessonStage = XrLessonStage.None;
+            HintOffered = SpeakOffered = false;
             ClearFrame();
         }
 
@@ -78,7 +89,7 @@ namespace Fnmw.Core
         public static void ClearFrame()
         {
             Move = Vector2.zero; Run = Interact = Flashlight = Leave = SkipHeld = false;
-            Digit = -1; Enter = Space = Back = Clear = Left = Right = Up = Down = Click = Replay = false;
+            Digit = -1; Enter = Space = Back = Clear = Left = Right = Up = Down = Click = Replay = Hint = Speak = false;
             HasPointer = false; PointerUv = Vector2.zero;
         }
     }

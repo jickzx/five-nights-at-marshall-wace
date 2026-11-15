@@ -81,7 +81,7 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             _disposed = true;
-            if (XrBridge.Active) XrBridge.LessonStage = XrLessonStage.None;
+            if (XrBridge.Active) { XrBridge.LessonStage = XrLessonStage.None; XrBridge.HintOffered = XrBridge.SpeakOffered = false; }
             GameEvents.BeastStageChanged -= OnBeastStage;
             _puzzle?.Close(); _escape?.Close(); _title?.Close();
             Fx?.Dispose();
@@ -303,6 +303,12 @@ namespace Fnmw.UI
             bool tutorial = TutorialAllowed;
             if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
             if (tutorial) _tutorial.Tick(dt, UiInput.None);
+            if (XrBridge.Active)
+            {
+                // what X does on this screen, for the controller labels and wrist card
+                XrBridge.HintOffered = _modal == _puzzle && _puzzle.ShipOffered;
+                XrBridge.SpeakOffered = _modal == _decode && _decode.ReplayOffered;
+            }
             if (XrBridge.Active) XrBridge.LessonStage = _modal != _example ? XrLessonStage.None
                 : _example.Current == WorkedExampleScreen.Step.Build ? XrLessonStage.Building : XrLessonStage.Reading;
             Fx.Tick(dt);

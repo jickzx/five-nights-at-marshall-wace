@@ -264,6 +264,8 @@ namespace Fnmw.UI
                 i.Enter |= XrBridge.Enter; i.Space |= XrBridge.Space; i.Back |= XrBridge.Back; i.Clear |= XrBridge.Clear;
                 i.Left |= XrBridge.Left; i.Right |= XrBridge.Right; i.Up |= XrBridge.Up; i.Down |= XrBridge.Down;
                 i.Replay |= XrBridge.Replay;
+                i.Hint |= XrBridge.Hint;
+                i.Speak |= XrBridge.Speak;
                 if (XrBridge.HasPointer)
                 {
                     i.HasPointer = true;

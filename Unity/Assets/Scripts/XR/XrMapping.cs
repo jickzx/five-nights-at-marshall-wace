@@ -193,6 +193,7 @@ namespace Fnmw.XR
         public Vector2 Move;
         public bool Run, Interact, Flashlight, Leave, SkipHeld;
         public bool Enter, Space, Back, Clear, Replay, Click;
+        public bool Hint, Speak;   // X on a screen: ask the ship (console) / hear it again (quiz payoff)
         public bool Left, Right, Up, Down;
     }
 
@@ -206,7 +207,8 @@ namespace Fnmw.XR
     ///   left stick     walk (and steps the screen cursor, as does the right stick)
     ///   left grip      run
     ///   right stick    turn (snap or smooth; click switches)
-    ///   X              lamp (F)
+    ///   X              lamp (F) while roaming; on a screen: ask the ship for a hint on the console (H),
+    ///                  hear the decoded sentence again on the quiz payoff (P). Each reader only looks at its own
     ///   Y              tap: leave the console / skip the intro (Esc), replay tutorial on the title (T)
     ///                  hold: skip the tutorial (hold Q)
     ///   left trigger   nothing (it used to send, and fired by accident while gripping)
@@ -248,6 +250,10 @@ namespace Fnmw.XR
             m.Back = B.Tap;
             m.Clear = B.Hold;
             m.Replay = Y.Tap;
+            // X is the lamp while roaming and the voice button on a screen. The player reads Flashlight only while it
+            // can move, the console reads only Hint and the payoff only Speak, so one press never does two things.
+            m.Hint = x;
+            m.Speak = x;
             var stick = f.RightStick.sqrMagnitude >= f.LeftStick.sqrMagnitude ? f.RightStick : f.LeftStick;
             _arrows.Tick(stick, dt);
             m.Left = _arrows.Left; m.Right = _arrows.Right; m.Up = _arrows.Up; m.Down = _arrows.Down;

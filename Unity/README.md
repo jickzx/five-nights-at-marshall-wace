@@ -49,7 +49,7 @@ Gotchas:
 
 **Meta Quest 2 (VR):** see [Docs/oculus/SETUP.md](Docs/oculus/SETUP.md) for the install list, build steps and Touch controls. The VR code (`Assets/Scripts/XR`, `Fnmw.XR`) only turns on when an OpenXR runtime is running, i.e. in the Android/Quest build; the desktop build has no XR loader and plays unchanged. Other areas read VR input through `Fnmw.Core.XrBridge`, next to their keyboard reads.
 
-Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. H asks the ship for a hint (the legend offers it after a wrong answer). In the quiz, the number keys pick an answer; on the payoff, P plays the decoded sentence again when voice is available. F2 shows the voice status line.
+Playing by hand: Enter starts the game. Use WASD and the mouse to move and look, and E at the green console. In a puzzle, the number keys add tiles, Backspace clears and Enter submits. H asks the ship for a hint (the legend offers it after a wrong answer). In the quiz, the number keys pick an answer; on the payoff, P plays the decoded sentence again when voice is available. F2 shows the voice status line. In a headset the same two actions are on the X button: X asks the ship on a console and replays the sentence on the payoff (the wrist card and button labels say so only when that action is available).
 
 ### Optional voices (monster dialogue, ship hints, pronunciation)
 
