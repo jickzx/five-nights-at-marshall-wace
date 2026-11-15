@@ -84,5 +84,14 @@ namespace Fnmw.Core
         /// <summary>Walk the player through a solved example on the console; call onDone when they finish or skip it.
         /// Optional: the default skips straight to onDone.</summary>
         void ShowWorkedExample(WorkedExample example, Action onDone) { onDone?.Invoke(); }
+        /// <summary>A line the beast says, as a subtitle over play for about `seconds`. Null/empty hides it.
+        /// Optional: defaults to nothing.</summary>
+        void ShowMonsterLine(string text, float seconds) { }
+        /// <summary>Replace the hint on the open puzzle without replaying the rejection effects. Null/empty restores
+        /// the hint from ShowAnswerFeedback. Optional: defaults to nothing.</summary>
+        void ShowHint(string text) { }
+        /// <summary>A short account of the run on the end screen. May arrive after ShowEnd. Null/empty clears it.
+        /// Optional: defaults to nothing.</summary>
+        void ShowDebrief(string text) { }
     }
 }
