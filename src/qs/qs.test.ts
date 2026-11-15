@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { PublicSource } from "./public";
 import fixtureJson from "./demo/fixture.json";
 import { DemoSource, type Clock, type Fixture } from "./demo";
 import { EVENT_LABELS, FEATURES, OUTCOME_LABELS, fmt } from "./labels";
@@ -171,5 +172,27 @@ describe("chart helpers", () => {
     expect(fmt(2.345, "×")).toBe("2.35×");
     expect(fmt(0.97, "")).toBe("97%");
     expect(fmt(null)).toBe("—");
+  });
+});
+
+describe("PublicSource polling", () => {
+  it("continues from the last window of the loaded snapshot", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      urls.push(url);
+      const body = url.includes("tail=true") ? [{ seq: 7 }, { seq: 9 }] : url.endsWith("/sessions/s1") ? { id: "s1" } : [];
+      return { ok: true, json: async () => body };
+    });
+    try {
+      const src = new PublicSource({ apiUrl: "http://x", supabaseUrl: "", publishableKey: "", demo: false });
+      await src.load("s1");
+      urls.length = 0;
+      const stop = src.subscribe("s1", () => {});
+      await vi.waitFor(() => expect(urls.some((u) => u.includes("after_seq="))).toBe(true));
+      stop();
+      expect(urls.find((u) => u.includes("after_seq="))).toContain("after_seq=9");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

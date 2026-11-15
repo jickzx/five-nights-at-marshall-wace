@@ -334,7 +334,7 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
     def events_all() -> list[dict]:
         nonlocal all_events
         if all_events is None:
-            all_events = server.select("qs_events", Query(eq={"session_id": sid}, order="t", limit=20000))
+            all_events = server.select("qs_events", Query(eq={"session_id": sid}, order="t", tiebreak="id", limit=20000))
         return all_events
 
     # ---- baseline from calibration
@@ -456,6 +456,8 @@ def auto_summary(server: Db, session_id: str, summarizer, broadcaster: Broadcast
         if not rows:
             return None
         session = rows[0]
+        if _active_consent(server, session_id) is None:
+            return None   # consent withdrawn: nothing more is generated from this session's data
         cand = server.select("qs_candidates", Query(eq={"id": session["candidate_id"]}), columns="pseudonym")
         session["candidate_pseudonym"] = cand[0]["pseudonym"] if cand else None
         facts, records = _summary_inputs(server, session)
@@ -488,6 +490,8 @@ def make_summary(user: Db, server: Db, session_id: str, summarizer, refresh: boo
         if not refresh or age < SUMMARY_COOLDOWN_S:
             return {"status": "ok", "reason": None, "summary": cached[0]["summary"], "model": cached[0].get("model"),
                     "cached": True, "dropped": []}
+    if _active_consent(server, session_id) is None:
+        raise ServiceError(409, "consent was withdrawn for this session; no summary can be generated")
     facts, records = _summary_inputs(user, session)
     if not records:
         raise ServiceError(409, "no QS records yet for this session")

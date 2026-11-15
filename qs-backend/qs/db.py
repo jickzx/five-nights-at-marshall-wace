@@ -36,6 +36,7 @@ class Query:
     is_null: dict[str, bool] = field(default_factory=dict)
     order: str | None = None
     desc: bool = False
+    tiebreak: str | None = None   # secondary order column so offset paging is stable on a non-unique order
     limit: int | None = None
 
 
@@ -99,7 +100,8 @@ class PostgrestDb:
         p += [(k, f"gt.{_fmt(v)}") for k, v in q.gt.items()]
         p += [(k, "is.null" if v else "not.is.null") for k, v in q.is_null.items()]
         if q.order:
-            p.append(("order", f"{q.order}.{'desc' if q.desc else 'asc'}"))
+            d = "desc" if q.desc else "asc"
+            p.append(("order", f"{q.order}.{d}" + (f",{q.tiebreak}.{d}" if q.tiebreak else "")))
         return p
 
     def _send(self, method: str, path: str, *, params=None, json=None, prefer: str | None = None) -> Any:
@@ -303,7 +305,8 @@ class MemoryDb:
             if columns == "*" or hidden & set(columns.split(",")):
                 raise DbError(403, f"permission denied for table {table}", "42501")   # column grant, as in SQL
         if q and q.order:
-            rows.sort(key=lambda r: (r.get(q.order) is None, r.get(q.order)), reverse=q.desc)
+            cols = [q.order] + ([q.tiebreak] if q.tiebreak else [])
+            rows.sort(key=lambda r: tuple((r.get(c) is None, r.get(c)) for c in cols), reverse=q.desc)
         if columns != "*":
             cols = [c.strip() for c in columns.split(",")]
             rows = [{c: r.get(c) for c in cols} for r in rows]

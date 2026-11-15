@@ -7,6 +7,8 @@ const POLL_MS = 1000;
 
 export class PublicSource implements QsSource {
   readonly mode = "live" as const;
+  /** Last window seq each loaded session's snapshot ended on, so polling continues from there. */
+  private loadedSeq = new Map<string, number>();
   constructor(private cfg: QsConfig) {}
 
   private async get<T>(path: string): Promise<T> {
@@ -30,6 +32,7 @@ export class PublicSource implements QsSource {
       this.get<SessionSnapshot["windows"]>(`/sessions/${id}/windows?tail=true&limit=1200`),
       this.get<SessionSnapshot["events"]>(`/sessions/${id}/events`),
     ]);
+    this.loadedSeq.set(id, windows.reduce((m, w) => Math.max(m, w.seq), -1));
     return { session, windows, events, records: records.map((r) => r.record), baseline: session.baseline ?? null,
       summary: await this.storedSummary(id) };
   }
@@ -44,7 +47,7 @@ export class PublicSource implements QsSource {
   }
 
   subscribe(sessionId: string, onMessage: (m: QsMessage) => void): () => void {
-    let lastSeq = -1, stopped = false, ticks = 0, seenSummary = false;
+    let lastSeq = this.loadedSeq.get(sessionId) ?? -1, stopped = false, ticks = 0, seenSummary = false;
     const id = encodeURIComponent(sessionId);
     const tick = async () => {
       if (stopped) return;
