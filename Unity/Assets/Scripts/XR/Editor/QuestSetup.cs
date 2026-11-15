@@ -112,7 +112,7 @@ namespace Fnmw.XR.EditorTools
             PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel32;   // Horizon OS (Quest 2 included) is Android 12L / API 32+
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel32;
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel34;   // installed with Unity's Android module; fine for sideloading (minSdk 32 keeps Quest 2)
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.GameActivity;   // OpenXR validation for Unity 6
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
