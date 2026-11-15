@@ -48,8 +48,9 @@ namespace Fnmw.XR
     }
 
     /// <summary>
-    /// Snap or smooth turning from the right stick's x axis. Snap turns once per flick and needs the stick
-    /// back near the centre before it turns again.
+    /// Snap or smooth turning from the right stick. Snap turns once per flick: the stick has to be pushed
+    /// mostly sideways (a flick that drifts up or down still counts, a forward or back push does not) and has
+    /// to come back near the centre before it turns again.
     /// </summary>
     public sealed class Turner
     {
@@ -58,9 +59,13 @@ namespace Fnmw.XR
         const float SnapAt = 0.7f, RearmAt = 0.3f, DeadZone = 0.15f;
         bool _armed = true;
 
+        /// <summary>Degrees to yaw this frame (positive = turn right), from the stick's x axis alone.</summary>
+        public float Tick(float x, float dt) => Tick(new Vector2(x, 0f), dt);
+
         /// <summary>Degrees to yaw this frame (positive = turn right).</summary>
-        public float Tick(float x, float dt)
+        public float Tick(Vector2 stick, float dt)
         {
+            float x = stick.x;
             if (Smooth)
             {
                 _armed = true;
@@ -68,10 +73,23 @@ namespace Fnmw.XR
                 if (a < DeadZone) return 0f;
                 return Mathf.Sign(x) * Mathf.InverseLerp(DeadZone, 1f, a) * SmoothDegreesPerSecond * dt;
             }
-            if (!_armed) { if (Mathf.Abs(x) < RearmAt) _armed = true; return 0f; }
-            if (Mathf.Abs(x) < SnapAt) return 0f;
+            // Snap reads how far the stick is pushed, not x alone: a thumb rarely flicks exactly sideways, and a
+            // full push 40 degrees off the axis only reaches x = 0.69, which never turned.
+            float push = stick.magnitude;
+            if (!_armed) { if (push < RearmAt) _armed = true; return 0f; }
+            if (push < SnapAt || Mathf.Abs(x) < Mathf.Abs(stick.y)) return 0f;
             _armed = false;
             return Mathf.Sign(x) * SnapDegrees;
+        }
+
+        /// <summary>
+        /// Call instead of Tick while the stick is not turning the player (it steps the cursor on a screen, or
+        /// a cutscene is playing). A stick still held when turning comes back must be let go first, so the view
+        /// does not jump the moment the player gets control.
+        /// </summary>
+        public void Rest(Vector2 stick)
+        {
+            if (stick.magnitude >= RearmAt) _armed = false;
         }
     }
 

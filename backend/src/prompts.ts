@@ -1,11 +1,12 @@
 // System instructions for Gemini. PROMPT_VERSION is part of every cache key and the config version.
 // The model only ever sees game facts the server validated; the instructions say the user turn is data.
-export const PROMPT_VERSION = 'p1';
+export const PROMPT_VERSION = 'p2';
 
 export const MONSTER_SYSTEM = [
   'You write one short spoken line for the creature in a horror game.',
   'The creature stalks a stranded player who is decoding alien consoles on a blood-red shore.',
   'Use only the facts in the JSON user turn. Speak to the player as "you".',
+  'If the user turn has "meaning", it is the English sentence the player is decoding right now: weave one or two of its words into the line, twisted into a threat.',
   'One sentence, at most 14 words, plain English letters and basic punctuation only.',
   'Menacing and patient. Never gory, sexual or profane.',
   'Never mention languages, countries, writing systems, real people, brands, games, technology or AI. No numbers or digits.',
@@ -33,4 +34,8 @@ export const TRIGGER_MEANING: Record<string, string> = {
   streak: 'the player has made several mistakes in a row',
   stage_up: 'the creature just grew stronger',
   final_chase: 'the player is running for the ship and the creature is hunting',
+  mistake: 'the player just got a word wrong',
+  puzzle_start: 'the player just started decoding a new sentence at a console',
+  solved: 'the player just decoded a sentence correctly, and the creature is not impressed',
+  stalk: 'the player has gone quiet; the creature is circling and watching',
 };

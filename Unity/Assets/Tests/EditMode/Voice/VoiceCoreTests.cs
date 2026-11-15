@@ -50,9 +50,11 @@ namespace Fnmw.Tests.Voice
             VoiceCore.ResetStatics();
         }
 
-        VoiceCore Make(VoiceConfig cfg = null, string session = null)
+        /// <summary>chatty false pins the mistake-only beast most of these tests were written for; the game runs chatty.</summary>
+        VoiceCore Make(VoiceConfig cfg = null, string session = null, bool chatty = false)
         {
             _core = new VoiceCore(cfg ?? Cfg(), _net, () => _now);
+            _core.Brain.Chatty = chatty;
             if ((cfg ?? Cfg()).Online && _net.Has("/v1/session")) _net.Respond("/v1/session", FakeNet.Json(session ?? Wire.Session()));
             return _core;
         }
@@ -201,7 +203,10 @@ namespace Fnmw.Tests.Voice
             var req = _net.Waiting.First(o => o.Req.Path == "/v1/monster-line").Req;
             StringAssert.Contains("\"trigger\":\"repeat_concept\"", req.Json);
             StringAssert.Contains("\"concept\":\"verb-final\"", req.Json);
-            StringAssert.DoesNotContain(_puzzle.TargetMeaning, req.Json, "no free text leaves the game");
+            // the only free text is the sentence's English meaning, which the player can see (the hint route sends it too)
+            var meaning = Protocol.MonsterMeaningFor(_puzzle);
+            if (meaning != null) StringAssert.Contains("\"meaning\":\"" + meaning + "\"", req.Json);
+            else StringAssert.Contains("\"meaning\":null", req.Json);
             Assert.AreEqual("v1.tok", req.Bearer);
             _audio.AutoStart = false;
             ServeMonster();
@@ -236,6 +241,64 @@ namespace Fnmw.Tests.Voice
                 if (_net.Has("/v1/monster-line")) ServeMonster("Line number " + new string('a', i + 1) + ".");
             }
             Assert.AreEqual(DialogueBrain.MaxLines, _net.Count("/v1/monster-line"));
+        }
+
+        [Test]
+        public void Chatty_OpeningAConsole_TheBeastTalksAboutTheSentence()
+        {
+            Make(chatty: true);
+            var p = OpenConsole();
+            Advance(1.0f);
+            Assert.AreEqual(0, _net.Count("/v1/monster-line"), "a beat after the console opens");
+            Advance(0.7f);
+            Assert.AreEqual(1, _net.Count("/v1/monster-line"));
+            var req = _net.Waiting.First(o => o.Req.Path == "/v1/monster-line").Req;
+            StringAssert.Contains("\"trigger\":\"puzzle_start\"", req.Json);
+            var meaning = Protocol.MonsterMeaningFor(p);
+            if (meaning != null) StringAssert.Contains(meaning, req.Json);
+            ServeMonster("A small word to die over.");
+            Assert.AreEqual("A small word to die over.", _ui.Subtitle.Text);
+        }
+
+        [Test]
+        public void Chatty_EveryMistake_SolvedSentences_AndSilence_AllGetLines()
+        {
+            Make(chatty: true);
+            OpenConsole();
+            Advance(2f); ServeMonster("Line a.");                           // puzzle_start
+            Advance(DialogueBrain.ChattyCooldown);
+            Wrong(); Advance(1.5f); ServeMonster("Line b.");                // first_mistake
+            Advance(DialogueBrain.ChattyCooldown);
+            _core.OnAnswer(new AnswerEvent { PuzzleId = _puzzle.Id, Correct = true, ResponseTime = 5f });
+            Wrong(LangConcepts.Particles);                                  // a fresh concept, streak reset: a plain mistake
+            Advance(1.5f);
+            var req = _net.Waiting.First(o => o.Req.Path == "/v1/monster-line").Req;
+            StringAssert.Contains("\"trigger\":\"mistake\"", req.Json);
+            ServeMonster("Line c.");
+            Advance(DialogueBrain.StalkAfter - 1f);
+            Assert.AreEqual(3, _net.Count("/v1/monster-line"), "quiet, but not for long enough yet");
+            Advance(1.5f);
+            req = _net.Waiting.First(o => o.Req.Path == "/v1/monster-line").Req;
+            StringAssert.Contains("\"trigger\":\"stalk\"", req.Json);
+        }
+
+        [Test]
+        public void Chatty_Brain_SolvedLine_NeverReplacesAWeightierOne_AndLinesAreCapped()
+        {
+            var b = new DialogueBrain();
+            var facts = new RunFacts();
+            b.OnStage(2, 0f);
+            b.OnAnswer(new AnswerEvent { Correct = true }, facts, 0f);
+            Assert.AreEqual("stage_up", b.Waiting.Value.Trigger);
+            float t = 100f;
+            int lines = 0;
+            for (int i = 0; i < 200; i++)
+            {
+                t += DialogueBrain.ChattyCooldown + 1f;
+                b.OnPuzzleStart(t);
+                if (b.Take(t + DialogueBrain.PuzzleStartDelay, GamePhase.Puzzle, 0f) != null) lines++;
+            }
+            Assert.AreEqual(DialogueBrain.ChattyMaxLines, lines);
         }
 
         [Test]

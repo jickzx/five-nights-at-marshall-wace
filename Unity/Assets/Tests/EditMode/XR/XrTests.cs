@@ -73,6 +73,46 @@ namespace Fnmw.XR.Tests
         }
 
         [Test]
+        public void Snap_TurnsOnAFlickThatIsNotExactlySideways()
+        {
+            // a full push about 40 degrees above the axis: x alone never reaches the old 0.7 threshold
+            var t = new Turner { Smooth = false, SnapDegrees = 45f };
+            Assert.AreEqual(45f, t.Tick(new Vector2(0.69f, 0.58f), 0.016f));
+            t.Tick(Vector2.zero, 0.016f);
+            Assert.AreEqual(-45f, t.Tick(new Vector2(-0.66f, -0.6f), 0.016f));
+        }
+
+        [Test]
+        public void Snap_IgnoresAForwardPushAndNeedsTheCentreToRearm()
+        {
+            var t = new Turner { Smooth = false, SnapDegrees = 45f };
+            Assert.AreEqual(0f, t.Tick(new Vector2(0.3f, 0.95f), 0.016f), "pushed forward, not sideways");
+            Assert.AreEqual(45f, t.Tick(new Vector2(0.9f, 0.1f), 0.016f));
+            Assert.AreEqual(0f, t.Tick(new Vector2(0.1f, 0.9f), 0.016f), "rolled round the rim: x is small but the stick never came back");
+            Assert.AreEqual(0f, t.Tick(new Vector2(0.9f, 0.1f), 0.016f), "so it does not turn a second time");
+            t.Tick(new Vector2(0.1f, 0.1f), 0.016f);
+            Assert.AreEqual(45f, t.Tick(new Vector2(0.9f, 0.1f), 0.016f), "re-armed at the centre");
+        }
+
+        [Test]
+        public void Snap_AStickHeldWhileRestingDoesNotTurnWhenTurningResumes()
+        {
+            // the right stick was held over to step a screen's cursor when the player got control back
+            var t = new Turner { Smooth = false, SnapDegrees = 45f };
+            t.Rest(new Vector2(0.9f, 0f));
+            Assert.AreEqual(0f, t.Tick(new Vector2(0.9f, 0f), 0.016f));
+            t.Tick(Vector2.zero, 0.016f);
+            Assert.AreEqual(45f, t.Tick(new Vector2(0.9f, 0f), 0.016f), "let go and flicked again");
+
+            // switching from smooth to snap with the stick pushed over
+            var s = new Turner { Smooth = true };
+            s.Tick(new Vector2(1f, 0f), 0.016f);
+            s.Smooth = false;
+            s.Rest(new Vector2(1f, 0f));
+            Assert.AreEqual(0f, s.Tick(new Vector2(1f, 0f), 0.016f));
+        }
+
+        [Test]
         public void Smooth_TurnsWithStickAndDeadZone()
         {
             var t = new Turner { Smooth = true, SmoothDegreesPerSecond = 100f };

@@ -56,9 +56,12 @@ uv run uvicorn main:app --reload --env-file .env
 
 Regenerate the employer page's demo data after changing features: `PYTHONPATH=. uv run python scripts/make_demo_fixture.py ../src/qs/demo/fixture.json`.
 
-## Provision and deploy (the team does this; nothing has been created)
+## Provision and deploy
 
-1. **Supabase project.** Create a project. In the SQL editor (or `supabase link && supabase db push`), run `supabase/migrations/20261115000000_qs_init.sql`.
+**Status (2026-11-15):** steps 1 and 2 are done on the team's Supabase project (eu-west-1): migration `20261115000000_qs_init` is applied, all 13 `qs_*` tables have RLS on, and Realtime is private-only. Steps 3 to 7 are still to do.
+
+1. **Supabase project.** Create a project. In the SQL editor (or `supabase link && supabase db push`), run `supabase/migrations/20261115000000_qs_init.sql`. If `db push` hangs connecting to `*.pooler.supabase.com` (Postgres port blocked on your network), apply it through the Management API instead (`POST /v1/projects/<ref>/database/migrations`) and keep the version recorded as `20261115000000` so a later `db push` treats it as applied.
+   The security advisor then reports two expected items: `qs_session_tokens` has RLS and no policies (server-only by design), and `qs_delete_candidate` is a `SECURITY DEFINER` function callable by `authenticated` (it checks the caller is an owner of the candidate's employer before deleting).
 2. **Realtime.** Project Settings → Realtime: turn off "Allow public access" so only private channels work.
 3. **Keys.** Project Settings → API Keys: copy the **publishable** key and create a **secret** key. The secret key goes only into Vercel's environment; never into Unity, the frontend or git.
 4. **Employer accounts.** Authentication → Users: create a user per employer staff member. Then link them (SQL editor):

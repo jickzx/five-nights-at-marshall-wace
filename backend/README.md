@@ -43,7 +43,11 @@ Unity's player setting "Allow downloads over HTTP" is off in this project. The E
 3. Choose voices your account may use through the API: an original Voice Design voice, or a stock or library voice you are licensed for. Put their ids in `FNMW_VOICE_MONSTER`, `FNMW_VOICE_SHIP` and `FNMW_VOICE_NATIVE`. You can override the native voice per language with `FNMW_VOICE_NATIVE_JA` and so on. Do not clone or imitate a real person's voice. Nothing in the code uploads audio samples, and nothing in it names a voice.
 4. Set `FNMW_SESSION_SECRET` to at least 32 bytes (`openssl rand -hex 32`). Live mode refuses to start without it.
 
-A feature whose key or voice id is missing is reported off in the session reply. The game then uses its offline behaviour for that feature: silence for the monster, authored text for hints, and no pronunciation.
+A feature whose key or voice id is missing is reported off in the session reply. The monster needs only ElevenLabs and `FNMW_VOICE_MONSTER`: when Gemini is missing, out of credits, disabled by an auth error, or over its daily budget, the server writes the line itself (`src/monster-lines.ts`) from the trigger and the words of `meaning`, runs the same check on it, and ElevenLabs speaks it.
+
+### Monster triggers
+
+The game (chatty by default, `DialogueBrain` in `Unity/Assets/Scripts/Voice/Rules.cs`) asks for a line when a console opens (`puzzle_start`), after a solved sentence (`solved`), after every mistake (`first_mistake`, `mistake`, `streak`, `repeat_concept`), when the beast grows (`stage_up`), on the final chase, and after 30 s of quiet (`stalk`). Lines are at least 9 s apart and capped at 36 per run (80 per session on the server). The game then uses its offline behaviour for that feature: silence for the monster, authored text for hints, and no pronunciation.
 
 ## API
 
@@ -53,7 +57,7 @@ Every POST body is JSON of at most 8 KB, with exactly the documented keys. Unkno
 |---|---|---|---|
 | `GET /healthz` | none | – | `{"ok":true}` |
 | `POST /v1/session` | game token | `{"proto":1,"build":"[A-Za-z0-9._-]{1,32}"}` | `{session, expires_in_s, mode, config_version, features:{monster,hint,hint_speech,pronounce}}` |
-| `POST /v1/monster-line` | session | enums and small integers only: `seq, trigger, stage, concept, concept_misses, wrong_streak, mistakes, solved, total, pace, distance, aggression` | `{id, text, source, speech}` |
+| `POST /v1/monster-line` | session | enums and small integers: `seq, trigger, stage, concept, concept_misses, wrong_streak, mistakes, solved, total, pace, distance, aggression`, plus optional `meaning` (the console sentence's English meaning, plain letters, at most 100 characters) | `{id, text, source, speech}` |
 | `POST /v1/hint` | session | `seq, level (1-2), concept, attempts, target_meaning, examples[3]{meaning, words[1-12]}, tiles[4-12]` | `{id, text, kind: "generated"\|"guided", rows, source, speech}` |
 | `POST /v1/pronounce` | session | `{seq, lang: ja\|fr\|es\|de\|tr\|zh\|ar, text}`, where text is at most 80 characters in that language's script | `{id, source, speech}` |
 | `GET /v1/speech/{id}` | session that owns the id | – | raw PCM, `X-Fnmw-Audio: pcm_s16le;rate=24000;channels=1`, `X-Fnmw-Source` |
