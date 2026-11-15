@@ -4,12 +4,12 @@
 
 ## Turn it on
 
-1. Copy `Unity/secrets.example.json` to `Unity/secrets.json` and paste the key into `geminiApiKey`. The file is gitignored.
+1. Copy `Unity/secrets.example.json` to `Unity/Assets/Resources/Ai/secrets.json`, then paste the key into `geminiApiKey` in the copy. Never put a key in the example file: it is tracked. The whole `Assets/Resources/Ai` folder is gitignored.
 2. Press Play. The console prints `[Ai] Gemini ready: model ...`. Each request then logs `[Ai] <feature> <status> in <ms> ms`.
 
-Environment variables override the file: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off.
+Because that file is under `Resources`, a build made on a machine that has it carries the key inside the app and needs no setup where it runs. A `secrets.json` in the Unity project folder (beside a build's data folder, in a build) and one in the save folder are also read. Building with the key file present logs a warning that the build carries the key. Environment variables override all of them: `GEMINI_API_KEY`, `GEMINI_MODEL`, `FNMW_AI_PROXY_URL`, and `FNMW_AI_DISABLED=1` to switch it off.
 
-Never commit a key or ship one in a build, because keys in a build can be extracted. A distributed build sets `aiProxyUrl` instead: the client POSTs the same body to that URL with `?model=<model>` and no key, and the proxy adds the key and forwards it to Gemini. The proxy is not written yet.
+This repository is public, so the key file must stay out of git: a key pushed to GitHub can be used by anyone and is likely to be disabled by Google. A key baked into a build can also be extracted from it, which is acceptable for a demo build handed to judges and not for a public release. A public release sets `aiProxyUrl` instead: the client POSTs the same body to that URL with `?model=<model>` and no key, and the proxy adds the key and forwards it to Gemini. The proxy is not written yet.
 
 The default model is `gemini-3.5-flash-lite`. Change `geminiModel` if the account has no access to it.
 
@@ -43,7 +43,7 @@ if (Services.Ai.Available)
 ## Rules for every feature
 
 - **The game never waits.** Apply the answer, move the beast and show the stock line first. A reply only improves on what is already on screen.
-- **Cancel stale requests.** Call `handle.Cancel()` when the puzzle changes, the run restarts or ends, or the object is destroyed. A cancelled callback never runs.
+- **Cancel stale requests.** Call `handle.Cancel()` when the puzzle changes, the run restarts or ends, or the object is destroyed. A cancelled callback never runs. When a new run boots, the client cancels every request still in flight itself, so never wait on a callback: check `handle.Done`.
 - **The callback can run before `Request` returns** (disabled, throttled). Do not rely on it being asynchronous.
 - **Check every reply.** A schema fixes the shape, not the length, the truth or the content. Enforce length with `AiText.Fits`, and reject a reply that names the language before the quiz or quotes the answer (`AiText.MentionsAny`).
 - **Send only facts the game holds.** The model must not be asked to invent what the player did, and it never decides an answer, a puzzle, the difficulty or where the beast goes.
@@ -54,11 +54,11 @@ if (Services.Ai.Available)
 
 `IGameUI` has three optional methods for these features, each a no-op until the UI implements it: `ShowMonsterLine(text, seconds)`, `ShowHint(text)` and `ShowDebrief(text)`.
 
-## Not verified yet
+## What has been verified
 
-The request and reply JSON are covered by tests against the documented `generateContent` format, but no live call has been made, because no key was available when this was written. The first run with a real key should confirm the model name and the reply.
+The request and reply JSON are covered by tests. On 15 November 2026 a real key listed `gemini-3.5-flash-lite` as supporting `generateContent`, and the endpoint accepted the key, but the call itself was refused with HTTP 402 because the project's prepaid credits were used up. So a successful live reply has not been seen yet. A 402 reaches a feature as `BadResponse`, and it keeps its stock line.
 
 ## Checking your work without the Editor
 
-- Compile: `python3 Unity/Tools/cc.py` compiles every Fnmw assembly of the checkout it sits in with Unity's own compiler, without disturbing an open Editor.
+- Compile: `python3 Unity/Tools/cc.py` compiles the Fnmw assemblies of the checkout it sits in with Unity's own compiler, without disturbing an open Editor. It borrows compiler settings from a checkout that Unity has opened, so an assembly whose asmdef is new is skipped and the script exits non-zero.
 - Tests: from the `Unity` folder, `unity test "$PWD" --mode EditMode --filter AiScaffoldTests -o out.xml` (needs a `Library` folder in that checkout).

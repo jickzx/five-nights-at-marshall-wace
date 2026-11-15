@@ -14,14 +14,20 @@ namespace Fnmw.Core.Ai
             s = s.Trim();
             if (!s.StartsWith("```", StringComparison.Ordinal)) return s;
             int firstLine = s.IndexOf('\n');
-            if (firstLine < 0) return s;
-            s = s.Substring(firstLine + 1);
+            if (firstLine >= 0) s = s.Substring(firstLine + 1);
+            else
+            {
+                // A fence on one line: ```json {...} ```
+                s = s.Substring(3);
+                if (s.StartsWith("json", StringComparison.OrdinalIgnoreCase)) s = s.Substring(4);
+            }
             int close = s.LastIndexOf("```", StringComparison.Ordinal);
             if (close >= 0) s = s.Substring(0, close);
             return s.Trim();
         }
 
-        /// <summary>Parse a JSON reply into a [Serializable] class with public fields. False when it is not valid JSON.</summary>
+        /// <summary>Parse a JSON object reply into a [Serializable] class with public fields. False when it is not valid
+        /// JSON. A field the reply left out keeps its default, so check the fields you need.</summary>
         public static bool TryParseJson<T>(string text, out T value) where T : class
         {
             value = null;
@@ -44,9 +50,19 @@ namespace Fnmw.Core.Ai
                 sb.Append(c);
             }
             string t = sb.ToString();
-            while (t.Length >= 2 && IsQuote(t[0]) && IsQuote(t[t.Length - 1])) t = t.Substring(1, t.Length - 2).Trim();
+            // Only a single pair around the whole line is wrapping: `"Run," I said, "now."` keeps its quotes.
+            if (t.Length >= 2 && IsQuote(t[0]) && IsQuote(t[t.Length - 1]))
+            {
+                string inner = t.Substring(1, t.Length - 2);
+                bool more = false;
+                foreach (char c in inner) if (IsQuote(c)) { more = true; break; }
+                if (!more) t = inner.Trim();
+            }
             return t;
         }
+
+        /// <summary>A letter or digit of a script that separates words with spaces (below the Hebrew block).</summary>
+        static bool Spaced(char c) => c < 0x0590 && char.IsLetterOrDigit(c);
 
         static bool IsQuote(char c) => c == '"' || c == '“' || c == '”';
 
@@ -61,8 +77,11 @@ namespace Fnmw.Core.Ai
             !string.IsNullOrWhiteSpace(s) && s.Length <= maxChars && WordCount(s) <= maxWords;
 
         /// <summary>
-        /// True when text contains any of the terms as a whole word, ignoring case. Use it to reject a reply that
-        /// names the language before the quiz or quotes an answer word. Empty terms are ignored.
+        /// True when text contains any of the terms, ignoring case. Use it to reject a reply that names the language
+        /// before the quiz or quotes an answer word. Empty terms are ignored. In scripts that put spaces between
+        /// words (Latin, Greek, Cyrillic) the term must be a whole word, so "man" is not found in "german". In
+        /// scripts that do not (Japanese, Chinese) or that attach particles to words (Arabic, Korean) any
+        /// occurrence counts.
         /// </summary>
         public static bool MentionsAny(string text, params string[] terms)
         {
@@ -76,9 +95,9 @@ namespace Fnmw.Core.Ai
                 {
                     int i = text.IndexOf(t, from, StringComparison.OrdinalIgnoreCase);
                     if (i < 0) break;
-                    bool startOk = i == 0 || !char.IsLetterOrDigit(text[i - 1]);
                     int end = i + t.Length;
-                    bool endOk = end >= text.Length || !char.IsLetterOrDigit(text[end]);
+                    bool startOk = i == 0 || !(Spaced(t[0]) && Spaced(text[i - 1]));
+                    bool endOk = end >= text.Length || !(Spaced(t[t.Length - 1]) && Spaced(text[end]));
                     if (startOk && endOk) return true;
                     from = i + 1;
                 }
