@@ -89,11 +89,12 @@ def response_schema(question_keys: Sequence[str]) -> dict[str, Any]:
     citation = {
         "type": "object",
         "properties": {
-            "statement": {"type": "string", "description": "One neutral observation, under 240 characters."},
-            "question_keys": {"type": "array", "items": {"type": "string", "enum": keys + ["session"]}, "minItems": 1},
-            "features": {"type": "array", "items": {"type": "string", "enum": CITABLE_FEATURES}, "minItems": 1},
-            "states": {"type": "array", "items": {"type": "string", "enum": STATE_KEYS},
-                       "description": "State keys this observation names; empty if it names none."},
+            # Kept deliberately plain: Gemini rejects schemas past a size/complexity limit (HTTP 400), so there are
+            # no descriptions or item counts here. check_summary enforces non-empty citations and the rest.
+            "statement": {"type": "string"},
+            "question_keys": {"type": "array", "items": {"type": "string", "enum": keys + ["session"]}},
+            "features": {"type": "array", "items": {"type": "string", "enum": CITABLE_FEATURES}},
+            "states": {"type": "array", "items": {"type": "string", "enum": STATE_KEYS}},
             "direction": {"type": "string", "enum": ["above_baseline", "below_baseline", "near_baseline", "not_applicable"]},
         },
         "required": ["statement", "question_keys", "features", "states", "direction"],
@@ -102,8 +103,8 @@ def response_schema(question_keys: Sequence[str]) -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "observations": {"type": "array", "items": citation, "minItems": 1, "maxItems": 12},
-            "data_quality": {"type": "array", "items": citation, "maxItems": 6},
+            "observations": {"type": "array", "items": citation},
+            "data_quality": {"type": "array", "items": citation},
         },
         "required": ["observations", "data_quality"],
         "additionalProperties": False,
@@ -187,8 +188,8 @@ def check_summary(raw: Mapping[str, Any], records: Sequence[Mapping[str, Any]]) 
         return kept
 
     summary = {
-        "observations": clean(raw.get("observations")),
-        "data_quality": clean(raw.get("data_quality")),
+        "observations": clean(raw.get("observations"))[:12],
+        "data_quality": clean(raw.get("data_quality"))[:6],
         "limitations": FIXED_LIMITATIONS,
     }
     return summary, dropped
@@ -231,7 +232,11 @@ def summarize(api_key: str, model: str, facts: Mapping[str, Any], records: Seque
     if r.status_code == 429:
         return unavailable("Gemini rate limit or quota reached (HTTP 429). Try again later.")
     if r.status_code >= 400:
-        return unavailable(f"Gemini returned HTTP {r.status_code}.")
+        try:
+            detail = str(r.json()["error"]["message"])[:160]
+        except (ValueError, KeyError, TypeError):
+            detail = ""
+        return unavailable(f"Gemini returned HTTP {r.status_code}{': ' + detail if detail else ''}.")
     try:
         data = r.json()
         parts = data["candidates"][0]["content"]["parts"]

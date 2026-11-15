@@ -8,7 +8,7 @@ Takes raw head and controller motion from the Quest, turns it into **QS records*
 - **Unity sender:** [`Unity/Docs/qs/README.md`](../Unity/Docs/qs/README.md).
 - **Employer page:** the QS Data Pipeline page of the root site, `/qs/` (`src/qs/`), runs in demo mode with no backend.
 
-QS describes movement, not people: no field is a score or a verdict, every motion value is relative to the person's own calm calibration, and the Gemini summary cites evidence and leaves every judgement to the employer.
+QS reports possible momentary states from motion and on-device breathing features relative to the person’s calm calibration. These are inferences, not diagnoses or hiring scores; the Gemini summary cites evidence and leaves the judgement to the employer.
 
 ## Layout
 
@@ -34,7 +34,7 @@ Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 ```sh
 cd qs-backend
 uv sync                       # creates .venv with runtime + dev dependencies
-uv run pytest                 # 70 tests; the RLS tests start a throwaway Postgres via pgserver
+uv run pytest                 # RLS tests start a throwaway Postgres via pgserver
 ```
 
 **Without Supabase** (in-memory store, data lost on restart; employer tokens must be HS256 JWTs signed with `SUPABASE_JWT_SECRET`):
@@ -58,7 +58,7 @@ Regenerate the employer page's demo data after changing features: `PYTHONPATH=. 
 
 ## Provision and deploy
 
-**Status (2026-11-15):** steps 1 and 2 are done on the team's Supabase project (eu-west-1): migration `20261115000000_qs_init` is applied, all 13 `qs_*` tables have RLS on, and Realtime is private-only. Steps 3 to 7 are still to do.
+Apply all migrations in `supabase/migrations/` in order, including the device enrollment migration. The deployed demo uses Supabase and private Realtime channels.
 
 1. **Supabase project.** Create a project. In the SQL editor (or `supabase link && supabase db push`), run `supabase/migrations/20261115000000_qs_init.sql`. If `db push` hangs connecting to `*.pooler.supabase.com` (Postgres port blocked on your network), apply it through the Management API instead (`POST /v1/projects/<ref>/database/migrations`) and keep the version recorded as `20261115000000` so a later `db push` treats it as applied.
    The security advisor then reports two expected items: `qs_session_tokens` has RLS and no policies (server-only by design), and `qs_delete_candidate` is a `SECURITY DEFINER` function callable by `authenticated` (it checks the caller is an owner of the candidate's employer before deleting).
@@ -70,9 +70,9 @@ Regenerate the employer page's demo data after changing features: `PYTHONPATH=. 
    insert into qs_employer_members (employer_id, user_id, role) values ('<employer id>', '<auth user id>', 'owner');
    ```
    `owner` can see real identities and delete data; `viewer` sees pseudonymous data only.
-5. **Vercel project for the API.** Import the repo, set **Root Directory = `qs-backend`** (framework: FastAPI, detected), pick the function region closest to the Supabase region, and add environment variables from `.env.example`: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (type Secret), optionally `GEMINI_API_KEY` (Secret) and `GEMINI_MODEL` (default `gemini-3.5-flash-lite`), and `QS_CORS_ORIGINS` = the site's URL. Deploy, then check `GET /healthz`.
+5. **Vercel project for the API.** Import the repo, set **Root Directory = `qs-backend`** (framework: FastAPI, detected), pick the function region closest to the Supabase region, and add environment variables from `.env.example`: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (type Secret), optionally `GEMINI_API_KEY` (Secret) and `GEMINI_MODEL` (default `gemini-3.8-flash`), and `QS_CORS_ORIGINS` = the site's URL. Deploy, then check `GET /healthz`.
 6. **Site.** In the Vercel project for the root site, set `VITE_QS_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (public values only) and redeploy. Without them `/qs/` stays in demo mode.
-7. **Headset.** For each assessment, create a candidate and a session (`POST /v1/candidates`, `POST /v1/sessions`), then put the session id and ingest token into `Unity/Assets/Resources/Qs/qs.json` (gitignored) or the `FNMW_QS_*` environment variables (see the Unity doc).
+7. **Headset.** Enroll a device for a question set with `POST /v1/devices`, then place its key in the gitignored `Unity/Assets/Resources/Qs/qs.json`. Each consenting player gets a new pseudonymous session automatically. See the Unity doc for the build and install steps.
 
 ## Security notes
 

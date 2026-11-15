@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Sequence
 
 import numpy as np
@@ -195,6 +196,9 @@ def delete_candidate(user: Db, candidate_id: str) -> dict:
 
 # ---------------------------------------------------------------- ingest --------------------------------
 
+_pool = ThreadPoolExecutor(max_workers=4)
+
+
 def authenticate_ingest(server: Db, session_id: str, token: str) -> dict:
     """The session a headset token belongs to, or a 401. Same error for unknown session and wrong token."""
     if not token:
@@ -282,6 +286,7 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
 
     # ---- motion window
     window_rows: list[dict] = []
+    record_status = None
     if batch.samples is not None:
         s = batch.samples
         t = np.asarray(s.t, dtype=float)
@@ -296,6 +301,10 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         rel = F.relative_to_baseline(feats, baseline) if baseline else None
         freeze = F.is_freeze(feats, baseline) if baseline else None
         window_states: list[dict] = []
+        if batch.question_key and not batch.events:
+            # fetched alongside the stimuli below (each round trip is ~140 ms); used for the record refresh later
+            record_status = _pool.submit(server.select, "qs_records",
+                                         Query(eq={"session_id": sid, "question_key": batch.question_key}), "status")
         if baseline:
             # the stimuli this window may be reacting to: the batch's own events plus the last few seconds'
             recent = server.select("qs_events", Query(eq={"session_id": sid}, in_={"type": sorted(F.STARTLE_EVENTS)},
@@ -356,7 +365,8 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         # A window alone refreshes its question's record when that question has already closed (a late
         # window) or, while it is open, every RECORD_REFRESH_WINDOWS windows. Checking the record's status
         # is one small read, so window-only batches do not fetch the session's events.
-        rec = server.select("qs_records", Query(eq={"session_id": sid, "question_key": batch.question_key}), columns="status")
+        rec = record_status.result() if record_status is not None else \
+            server.select("qs_records", Query(eq={"session_id": sid, "question_key": batch.question_key}), columns="status")
         if rec and (rec[0]["status"] == "closed" or batch.seq % RECORD_REFRESH_WINDOWS == 0):
             touched.add(batch.question_key)
     if touched:
