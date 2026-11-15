@@ -15,6 +15,7 @@ namespace Fnmw
             GameEvents.ClearAll();
             Services.ResetToFakes();
             Core.Ai.AiModule.Install();
+            Core.Telemetry.QsModule.Install();   // QS motion telemetry; off unless configured
             Lang.LangModule.Install();
             Audio.AudioModule.Install();
             UI.UIModule.Install();

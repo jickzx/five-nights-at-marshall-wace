@@ -40,3 +40,6 @@ crashlytics-build.properties
 /secrets.json
 /Assets/Resources/Ai/
 /Assets/Resources/Ai.meta
+# QS sender settings hold a per-session ingest token (see Docs/qs/README.md)
+/Assets/Resources/Qs/
+/Assets/Resources/Qs.meta
