@@ -1,0 +1,6 @@
+{
+    "name": "Fnmw.XR",
+    "rootNamespace": "Fnmw.XR",
+    "references": [ "Fnmw.Core", "Unity.InputSystem", "Unity.XR.Management", "UnityEngine.UI" ],
+    "autoReferenced": false
+}

@@ -83,14 +83,7 @@ namespace Fnmw.UI
         public string ObjectiveShown => _objShown;
 
         /// <summary>The thing to walk to: the one console the director has switched on, or the ship in the final chase.</summary>
-        static Interactable Target(GameState s)
-        {
-            var want = s != null && s.Phase == GamePhase.Chase ? Interactable.Kind.Ship : Interactable.Kind.Console;
-            Interactable best = null;
-            foreach (var it in Interactable.All)
-                if (it && it.Enabled && it.Type == want && (best == null || it.Index < best.Index)) best = it;
-            return best;
-        }
+        static Interactable Target(GameState s) => Interactable.CurrentObjective(s);
 
         void TickObjective(GameState s)
         {

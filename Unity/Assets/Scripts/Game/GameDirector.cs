@@ -479,10 +479,20 @@ namespace Fnmw.Game
             var b = FindBeast();
             var p = Services.Player;
             if (!b || !p) return;
-            var dir = behind ? -p.forward : p.forward; dir.y = 0; dir.Normalize();
-            var pos = p.position + dir * dist;
-            b.position = new Vector3(pos.x, p.position.y, pos.z);
-            b.rotation = Quaternion.LookRotation(-dir);
+            // the way the player looks: the body on desktop, the head in VR (they differ once the player turns in the room)
+            BeastSpot(p.position, _player ? _player.ViewYaw : p.eulerAngles.y, behind, dist, out var pos, out var rot);
+            b.SetPositionAndRotation(pos, rot);
+        }
+
+        /// <summary>Where <see cref="PlaceBeast"/> puts the beast: <paramref name="dist"/> metres along (or against)
+        /// the view yaw, on the player's level, facing the player.</summary>
+        public static void BeastSpot(Vector3 playerPos, float viewYaw, bool behind, float dist, out Vector3 pos, out Quaternion rot)
+        {
+            var look = Quaternion.Euler(0f, viewYaw, 0f) * Vector3.forward;
+            var dir = behind ? -look : look;
+            pos = playerPos + dir * dist;
+            pos.y = playerPos.y;
+            rot = Quaternion.LookRotation(-dir);
         }
 
         // ------------------------------------------------------------------ helpers

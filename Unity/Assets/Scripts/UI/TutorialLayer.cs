@@ -67,14 +67,55 @@ namespace Fnmw.UI
                 "THE REST, THEN THE SHIP. FOLLOW THE TOP LINE.") },
         };
 
+        // In a headset (XrBridge.Active) the cues that name keys say which Touch button does it instead.
+        // Everything else is the same copy. The layout is Fnmw.XR's TouchMapper.
+        static readonly Dictionary<TutorialCue, Copy> XrScript = new Dictionary<TutorialCue, Copy>
+        {
+            { TutorialCue.Move, new Copy("VISOR",
+                "[L-STICK] WALK   ·   [R-STICK] TURN",
+                "TRY BOTH NOW   ·   [L-GRIP] RUN   ·   [X] LAMP") },
+            { TutorialCue.Objective, new Copy("OBJECTIVE",
+                "WAKE THE SHIP: DECODE {TOTAL} CONSOLES.",
+                "FOLLOW THE CHEVRON ON THE GROUND. CONTROLS: LEFT WRIST.") },
+            { TutorialCue.PuzzleTiles, new Copy("THE TILES",
+                "THE TILES ARE THE WORDS. AIM AT ONE, PULL [TRIGGER].",
+                "BUILD THE BOTTOM ROW'S MEANING, IN ORDER.") },
+            { TutorialCue.PuzzleSend, new Copy("SEND",
+                "[A] SEND   ·   [B] TAKE ONE BACK",
+                "A MISFIRE CRACKS THE GLASS AND NAMES THE RULE YOU BROKE.") },
+            { TutorialCue.Quiz, new Copy("QUIZ",
+                "WHICH LANGUAGE WAS IT? AIM AT IT, PULL [TRIGGER].",
+                "NO PENALTY HERE. GUESS IF YOU MUST.") },
+        };
+
         public const string SkipText = "HOLD Q  ·  SKIP TUTORIAL";
         public const string SkipShort = "HOLD Q · SKIP";            // on the console, in the band's left column
+        public const string SkipTextXr = "HOLD Y  ·  SKIP TUTORIAL";
+        public const string SkipShortXr = "HOLD Y · SKIP";
+
+        static Copy CopyFor(TutorialCue cue)
+        {
+            if (XrBridge.Active && XrScript.TryGetValue(cue, out var xr)) return xr;
+            return Script.TryGetValue(cue, out var c) ? c : null;
+        }
 
         /// <summary>Every string the layer can emit, for the font-coverage test.</summary>
         public static IEnumerable<string> AllCopy()
         {
-            yield return SkipText; yield return SkipShort;
+            yield return SkipText; yield return SkipShort; yield return SkipTextXr; yield return SkipShortXr;
             foreach (var c in Script.Values) { yield return c.Tag; foreach (var l in c.Lines) yield return l; }
+            foreach (var c in XrScript.Values) { yield return c.Tag; foreach (var l in c.Lines) yield return l; }
+        }
+
+        /// <summary>The card's words as they will read once typed on (tests).</summary>
+        public string TextShown
+        {
+            get
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (var s in _segs) sb.Append(s.Text ? s.Text.name : s.Cap ? "[" + s.Cap.name + "]" : "");
+                return sb.ToString();
+            }
         }
 
         // ---- layout constants -----------------------------------------------------------------
@@ -142,7 +183,7 @@ namespace Fnmw.UI
             _age += dt;
             bool live = _view.Active && _age < 0.5f && Ui.TutorialAllowed;
             var cue = live ? _view.Cue : TutorialCue.None;
-            if (cue != TutorialCue.None && !Script.ContainsKey(cue)) cue = TutorialCue.None;
+            if (cue != TutorialCue.None && CopyFor(cue) == null) cue = TutorialCue.None;
             var spot = SpotFor(Ui.Front);
 
             // a cue that changed (or moved screens) flickers out before the next one boots in
@@ -164,7 +205,7 @@ namespace Fnmw.UI
             {
                 _shown = cue; _spot = spot; _cueT = 0;
                 _solvedShown = _view.Solved; _totalShown = _view.Total;
-                if (cue != TutorialCue.None) BuildCard(Script[cue], spot);
+                if (cue != TutorialCue.None) BuildCard(CopyFor(cue), spot);
             }
 
             if (_shown != TutorialCue.None)
@@ -198,7 +239,8 @@ namespace Fnmw.UI
             if (!show) return;
             // under the tag in the band's left column while the console is open; bottom right elsewhere
             bool console = Ui.Front is PuzzleScreen || Ui.Front is WorkedExampleScreen;   // both have the band's left column free under the tag
-            string text = console ? SkipShort : SkipText;
+            bool xr = XrBridge.Active;
+            string text = console ? (xr ? SkipShortXr : SkipShort) : (xr ? SkipTextXr : SkipText);
             if (_skipText.text != text) Kit.SetText(_skipText, text);
             _skipText.alignment = console ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
             Kit.Place(_skip, console ? 30 : 410, console ? 22 : 330, 200, 20);
@@ -314,7 +356,7 @@ namespace Fnmw.UI
                 if (open > i) AddText(segs, line.Substring(i, open - i), ref cursor, ref width);
                 string key = line.Substring(open + 1, close - open - 1);
                 float kw = Mathf.Max(18, FontBook.Width(key, 16) + 8);
-                var cap = Kit.Node("Cap", Root, 0, 0, kw, Line);
+                var cap = Kit.Node(key, Root, 0, 0, kw, Line);
                 Kit.Box("Fill", cap, Pal.Ash, 1, 1, kw - 2, Line - 2);
                 Kit.Frame("Frame", cap, Pal.Bone, 0, 0, kw, Line);
                 Kit.Label("Key", cap, key, 16, Pal.Bone, TextAnchor.MiddleCenter, 0, 1, kw, 16);

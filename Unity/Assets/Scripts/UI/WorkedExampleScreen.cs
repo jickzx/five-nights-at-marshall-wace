@@ -53,6 +53,18 @@ namespace Fnmw.UI
         public const string Keys = "[ENTER] NEXT   ·   [BKSP] BACK   ·   [DEL] SKIP EXAMPLE";
         public const string KeysBuild = "[DEL] SKIP EXAMPLE";
         public const string KeysDone = "NOW YOUR TURN";
+
+        // In a headset: the same lines naming the Touch buttons (Fnmw.XR's TouchMapper). A or the trigger steps
+        // on and places the next tile, B steps back or takes a tile back, holding B skips the example.
+        public const string Build1Xr = "[A] OR [TRIGGER] PLACES {WORD} ({GLOSS}).";
+        public const string Build1ShortXr = "[A] PLACES {WORD}.";
+        public const string Build2Xr = "[B] TAKES THE LAST TILE BACK.";
+        public const string BuildDone1Xr = "THAT IS THE PHRASE. [A] SENDS IT.";
+        public const string BuildDone2Xr = "WRONG ORDER? [B] TAKES THE LAST TILE BACK.";
+        public const string KeysXr = "[A] NEXT   ·   [B] BACK   ·   HOLD [B] SKIP EXAMPLE";
+        public const string KeysBuildXr = "HOLD [B] SKIP EXAMPLE";
+
+        static bool Xr => XrBridge.Active;
         public const string SkipButton = "SKIP";
 
         /// <summary>Every fixed string the screen can emit, for the font-coverage test.</summary>
@@ -64,6 +76,7 @@ namespace Fnmw.UI
                 Barrier1, Barrier2, Rows1, Rows2, Compare1, Compare2Fallback, Target1, Target2Decoys, Target2Exact,
                 Build1, Build1Short, Build2, BuildDone1, BuildDone2, Decoded1, Decoded1Short, Decoded2, Decoded2Short,
                 Keys, KeysBuild, KeysDone, SkipButton,
+                Build1Xr, Build1ShortXr, Build2Xr, BuildDone1Xr, BuildDone2Xr, KeysXr, KeysBuildXr,
             };
         }
 
@@ -404,15 +417,15 @@ namespace Fnmw.UI
                 case Step.Target: tag = TagTarget; lines.Add(Target1); lines.Add(_p.Tiles.Count > _ex.Answer.Length ? Target2Decoys : Target2Exact); break;
                 case Step.Build:
                     tag = TagBuild;
-                    if (AllPlaced) { lines.Add(BuildDone1); lines.Add(BuildDone2); }
+                    if (AllPlaced) { lines.Add(Xr ? BuildDone1Xr : BuildDone1); lines.Add(Xr ? BuildDone2Xr : BuildDone2); }
                     else
                     {
                         var t = _p.Tiles[NextTile];
                         string key = KeyFor(NextTile), word = t.Alien ?? "", gloss = (t.Gloss ?? "").Trim().ToUpperInvariant();
-                        string full = Build1.Replace("{KEY}", key).Replace("{WORD}", word).Replace("{GLOSS}", gloss);
-                        string shortLine = Build1Short.Replace("{KEY}", key).Replace("{WORD}", word);
+                        string full = (Xr ? Build1Xr : Build1).Replace("{KEY}", key).Replace("{WORD}", word).Replace("{GLOSS}", gloss);
+                        string shortLine = (Xr ? Build1ShortXr : Build1Short).Replace("{KEY}", key).Replace("{WORD}", word);
                         lines.Add(gloss.Length > 0 ? Fit(full, shortLine) : shortLine);
-                        lines.Add(Build2);
+                        lines.Add(Xr ? Build2Xr : Build2);
                     }
                     break;
                 default:
@@ -557,7 +570,7 @@ namespace Fnmw.UI
             if (_step == Step.Decoded)
                 Widgets.Cue(_foot, 6, KeysDone, Pal.Amber);
             else
-                Line(_foot, _step == Step.Build ? KeysBuild : Keys, L, 4, R - L - 60, Pal.BoneDim, ref cursor, _footSegs);
+                Line(_foot, _step == Step.Build ? (Xr ? KeysBuildXr : KeysBuild) : (Xr ? KeysXr : Keys), L, 4, R - L - 60, Pal.BoneDim, ref cursor, _footSegs);
             float px = Mathf.Round((UiRig.StageW - (StepCount * 10 - 4)) / 2f);
             for (int i = 0; i < StepCount; i++)
             {

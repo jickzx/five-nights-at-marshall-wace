@@ -1,3 +1,4 @@
+using Fnmw.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,7 @@ namespace Fnmw.World
         RawImage _image;
         Material _mat;
         Canvas _canvas;
+        Camera _presenter;
 
         public static RetroScreen Create(Transform parent)
         {
@@ -34,6 +36,7 @@ namespace Fnmw.World
             presenter.clearFlags = CameraClearFlags.SolidColor;
             presenter.backgroundColor = Color.black;
             presenter.depth = -100;
+            rs._presenter = presenter;
 
             var canvasGo = new GameObject("RetroCanvas");
             canvasGo.transform.SetParent(go.transform, false);
@@ -67,6 +70,16 @@ namespace Fnmw.World
                 _target = cam;
             }
             if (!cam) return;
+            if (XrBridge.Active)
+            {
+                // A headset cannot show a screen-space overlay: the eyes render the scene directly at full
+                // resolution. Never steal the camera's target (the XR theater may have set one) and stand down.
+                if (cam.targetTexture == _rt && _rt) cam.targetTexture = null;
+                _canvas.enabled = false;
+                if (_presenter && _presenter.enabled) _presenter.enabled = false;
+                Shader.SetGlobalVector("_FnmwSnapRes", Vector4.zero);
+                return;
+            }
             if (!On)
             {
                 cam.targetTexture = null;
