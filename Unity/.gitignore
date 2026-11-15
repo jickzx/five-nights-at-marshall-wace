@@ -38,3 +38,11 @@ crashlytics-build.properties
 
 # Quest APK output (Fnmw > Quest > Build APK)
 [Bb]uilds/
+
+# Local API keys (see Docs/ai/README.md). Never commit.
+/secrets.json
+/Assets/Resources/Ai/
+/Assets/Resources/Ai.meta
+# QS sender settings hold a per-session ingest token (see Docs/qs/README.md)
+/Assets/Resources/Qs/
+/Assets/Resources/Qs.meta
