@@ -105,10 +105,26 @@ namespace Fnmw.XR.EditorTools
             EditorUtility.SetDirty(quest); EditorUtility.SetDirty(touch); EditorUtility.SetDirty(s);
         }
 
+        /// <summary>
+        /// Compiles the headset/Touch pose source for QS telemetry into Android builds. It only chooses where poses
+        /// come from: the sender still needs qs.json and the candidate's consent before anything is sent.
+        /// </summary>
+        public const string QsXrDefine = "FNMW_QS_XR";
+
+        static void AddDefine(NamedBuildTarget target, string define)
+        {
+            var defines = PlayerSettings.GetScriptingDefineSymbols(target)
+                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(d => d.Trim()).ToList();
+            if (defines.Contains(define)) return;
+            defines.Add(define);
+            PlayerSettings.SetScriptingDefineSymbols(target, string.Join(";", defines));
+        }
+
         static void ConfigurePlayer()
         {
             var android = NamedBuildTarget.Android;
             PlayerSettings.SetApplicationIdentifier(android, AndroidId);
+            AddDefine(android, QsXrDefine);
             PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel32;   // Horizon OS (Quest 2 included) is Android 12L / API 32+
@@ -140,6 +156,19 @@ namespace Fnmw.XR.EditorTools
             if (int.TryParse(Environment.GetEnvironmentVariable("FNMW_VERSION_CODE"), out var code)) PlayerSettings.Android.bundleVersionCode = code;
         }
 
+        /// <summary>
+        /// Puts the signing settings back to "debug-signed, no keystore" after a build, so the machine-specific
+        /// keystore path and alias never get saved into ProjectSettings.asset and committed.
+        /// </summary>
+        public static void ClearSigning()
+        {
+            PlayerSettings.Android.useCustomKeystore = false;
+            PlayerSettings.Android.keystoreName = "";
+            PlayerSettings.Android.keystorePass = "";
+            PlayerSettings.Android.keyaliasName = "";
+            PlayerSettings.Android.keyaliasPass = "";
+        }
+
         [MenuItem("Fnmw/Quest/Build APK")]
         public static void BuildApk()
         {
@@ -161,6 +190,8 @@ namespace Fnmw.XR.EditorTools
                     scenes = scenes, locationPathName = ApkPath, target = BuildTarget.Android, targetGroup = BuildTargetGroup.Android,
                     options = dev ? BuildOptions.Development : BuildOptions.None,
                 });
+                ClearSigning();
+                AssetDatabase.SaveAssets();
                 if (report.summary.result != BuildResult.Succeeded)
                     throw new Exception($"build {report.summary.result}: {report.summary.totalErrors} errors");
                 Debug.Log($"[QuestSetup] built {ApkPath} ({report.summary.totalSize / (1024 * 1024)} MB). Install: adb install -r \"{ApkPath}\"");
@@ -168,6 +199,7 @@ namespace Fnmw.XR.EditorTools
             }
             catch (Exception ex)
             {
+                ClearSigning();
                 Debug.LogError("[QuestSetup] " + ex.Message);
                 if (batch) EditorApplication.Exit(1);
                 else throw;

@@ -39,6 +39,7 @@ Open `Unity/` in Unity 6000.6.9f1, then:
    - XR Plug-in Management: **OpenXR** loader for **Android**. **No** loader for **Standalone**, so the desktop build stays flat.
    - OpenXR (Android): turns on **Meta Quest Support** (Quest 2 is among its target devices) and **Oculus Touch Controller Profile**, and sets render mode to **Single Pass Instanced** (multiview).
    - Player (Android): package `com.fnmw.fivenights`, IL2CPP, ARM64, min/target API 32, Vulkan only, Linear colour, GameActivity entry point.
+   - Scripting define `FNMW_QS_XR` on Android, so QS telemetry reads the headset and Touch controllers instead of the camera. This only picks the pose source: the QS sender stays off without `qs.json`, and there is no in-game consent screen yet, so a headset build sends nothing (see `Docs/qs/README.md`).
 
    To check by hand: **Edit > Project Settings > XR Plug-in Management**. On the Android tab, *OpenXR* should be ticked. Under **> OpenXR**, on the Android tab, *Interaction Profiles* should list *Oculus Touch Controller Profile* and *OpenXR Feature Groups* should have *Meta Quest Support* ticked.
 2. **Edit > Project Settings > XR Plug-in Management > Project Validation** (Android tab): fix anything red with **Fix All**.
@@ -60,6 +61,8 @@ adb shell am start -n com.fnmw.fivenights/com.unity3d.player.UnityPlayerGameActi
 ```
 
 You can also drag the APK onto MQDH > *Device Manager* > **Apps**. To launch it in the headset, go to **Library > Applications >** the filter at the top right **> Unknown Sources > Five Nights at Marshall Wace**.
+
+**Release signing** (Meta rejects debug-signed uploads): set `FNMW_KEYSTORE`, `FNMW_KEYSTORE_PASS`, `FNMW_KEY_ALIAS` (and optionally `FNMW_KEY_PASS`, `FNMW_VERSION_CODE`) in the shell before the build. Build APK applies them for that build only and clears the keystore path and alias afterwards, so nothing machine-specific lands in `ProjectSettings.asset`. Without them the APK is debug-signed, which is fine for sideloading.
 
 Logs: `adb logcat -s Unity` (or MQDH > *Logs*). The game prints `[XR] headset detected: ...` and `[XR] VR rig installed` at boot.
 
