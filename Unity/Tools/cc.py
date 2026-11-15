@@ -5,7 +5,8 @@
     python3 Unity/Tools/cc.py Fnmw.Core Fnmw.Game
 
 It reuses the compiler arguments Unity wrote for another checkout that has been opened
-(default: the main checkout, override with FNMW_LIBRARY=<path to a Unity/Library>), swaps in
+(default: this checkout's own Library, else the main checkout's; override with
+FNMW_LIBRARY=<path to a Unity/Library>), swaps in
 this checkout's sources, and runs Unity's own csc. Output goes to a temp folder, so an open
 Editor is not disturbed. It only compiles: it does not run tests. An assembly whose asmdef
 is new since that Library was built cannot be checked and is reported as skipped.
@@ -19,7 +20,6 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)  # .../Unity
-DEFAULT_LIBRARY = "/Volumes/DeveloperStorage/GitHub/five-nights-at-marshall-wace/Unity/Library"
 DROP = ("-refout:", "-analyzer:", "/additionalfile:", "-additionalfile:", "/generatedfilesout:", "-generatedfilesout:")
 
 
@@ -52,11 +52,31 @@ def sources(folder, all_folders):
     return sorted(out)
 
 
+def editor_dags(library):
+    # Only an Editor compile has the Editor assembly; a player build's folder would lack the test assemblies.
+    return [d for d in glob.glob(os.path.join(library, "Bee/artifacts/*.dag"))
+            if os.path.exists(os.path.join(d, "Fnmw.Editor.rsp"))]
+
+
+def default_library():
+    own = os.path.join(PROJECT, "Library")
+    if editor_dags(own):
+        return own
+    try:  # the main checkout of this repository, when this is a linked worktree
+        common = subprocess.run(["git", "-C", PROJECT, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True).stdout.strip()
+        if common:
+            return os.path.join(os.path.dirname(common), "Unity", "Library")
+    except OSError:
+        pass
+    return own
+
+
 def main():
-    library = os.environ.get("FNMW_LIBRARY", DEFAULT_LIBRARY)
-    dags = glob.glob(os.path.join(library, "Bee/artifacts/*.dag"))
+    library = os.environ.get("FNMW_LIBRARY") or default_library()
+    dags = editor_dags(library)
     if not dags:
-        sys.exit("cc.py: no Bee artifacts in " + library + " (open that checkout in Unity once)")
+        sys.exit("cc.py: no Editor compile found in " + library + " (open that checkout in Unity once, or set FNMW_LIBRARY)")
     dag = max(dags, key=os.path.getmtime)
     lib_project = os.path.dirname(library)
     dotnet, csc = find_tools()
@@ -76,6 +96,7 @@ def main():
         plans[name] = (lines, deps)
 
     order, seen = [], set()
+    failed = False
 
     def visit(n):
         if n in seen or n not in plans:
@@ -90,9 +111,9 @@ def main():
             sys.exit("cc.py: unknown assembly " + n)
         if n not in plans:
             print("SKIP  " + n + " (asmdef is newer than the reference Library; compile it in Unity)")
+            failed = True  # not checked is not OK
         visit(n)
 
-    failed = False
     built = set()
     for name in order:
         lines, deps = plans[name]

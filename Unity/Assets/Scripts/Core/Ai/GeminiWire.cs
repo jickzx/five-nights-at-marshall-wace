@@ -16,7 +16,8 @@ namespace Fnmw.Core.Ai
                 sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":").Append(Quote(r.System)).Append("}]},");
             sb.Append("\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":").Append(Quote(r.Prompt ?? "")).Append("}]}],");
             sb.Append("\"generationConfig\":{");
-            sb.Append("\"temperature\":").Append(Mathf.Clamp(r.Temperature, 0f, 2f).ToString("0.###", CultureInfo.InvariantCulture));
+            float temperature = float.IsNaN(r.Temperature) ? 0.8f : Mathf.Clamp(r.Temperature, 0f, 2f);
+            sb.Append("\"temperature\":").Append(temperature.ToString("0.###", CultureInfo.InvariantCulture));
             sb.Append(",\"maxOutputTokens\":").Append(Mathf.Clamp(r.MaxOutputTokens, 16, 4096).ToString(CultureInfo.InvariantCulture));
             if (!string.IsNullOrWhiteSpace(r.SchemaJson))
                 sb.Append(",\"responseMimeType\":\"application/json\",\"responseSchema\":").Append(r.SchemaJson.Trim());

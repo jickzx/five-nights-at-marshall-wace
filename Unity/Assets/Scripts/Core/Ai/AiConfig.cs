@@ -5,8 +5,9 @@ using UnityEngine;
 namespace Fnmw.Core.Ai
 {
     /// <summary>
-    /// Where the Gemini key comes from. Environment variables win over secrets.json, which is gitignored.
-    /// A key must never be committed or shipped in a build: distributed builds set a proxy URL instead.
+    /// Where the Gemini key comes from. Environment variables win over the secrets file, which is gitignored.
+    /// A key must never be committed: this repository is public. A demo build may carry the key (see Load);
+    /// a public release sets a proxy URL instead.
     /// </summary>
     public sealed class AiConfig
     {
@@ -31,7 +32,9 @@ namespace Fnmw.Core.Ai
         /// <summary>The URL to POST a generateContent body to.</summary>
         public string Endpoint()
         {
-            string model = Uri.EscapeDataString(Model);
+            // Accept the "models/<id>" form that Google's model list prints.
+            string id = Model.StartsWith("models/", StringComparison.Ordinal) ? Model.Substring(7) : Model;
+            string model = Uri.EscapeDataString(id);
             if (UsesProxy) return ProxyUrl + (ProxyUrl.Contains("?") ? "&" : "?") + "model=" + model;
             return "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
         }
@@ -70,7 +73,8 @@ namespace Fnmw.Core.Ai
             if (env != null)
             {
                 string key = env(EnvKey), model = env(EnvModel), proxy = env(EnvProxy), off = env(EnvDisabled);
-                if (!string.IsNullOrWhiteSpace(key)) { cfg.ApiKey = key.Trim(); cfg.Source = "environment"; }
+                // An environment key means "call Gemini directly with this", so it also overrides a proxy from the file.
+                if (!string.IsNullOrWhiteSpace(key)) { cfg.ApiKey = key.Trim(); cfg.ProxyUrl = ""; cfg.Source = "environment"; }
                 if (!string.IsNullOrWhiteSpace(model)) cfg.Model = model.Trim();
                 if (!string.IsNullOrWhiteSpace(proxy)) { cfg.ProxyUrl = proxy.Trim(); cfg.Source = "environment"; }
                 if (!string.IsNullOrWhiteSpace(off)) cfg.Disabled = off.Trim() == "1" || off.Trim().ToLowerInvariant() == "true";
@@ -83,7 +87,7 @@ namespace Fnmw.Core.Ai
 
         /// <summary>
         /// Read the key file, then the environment. The file is looked for baked into the app (Resources, so a build
-        /// made on a machine that has it needs no setup), then in the Unity project folder, then in the save folder.
+        /// made on a machine that has it needs no setup), then beside the Assets or Data folder, then in the save folder.
         /// </summary>
         public static AiConfig Load()
         {

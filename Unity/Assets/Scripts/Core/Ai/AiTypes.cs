@@ -55,7 +55,7 @@ namespace Fnmw.Core.Ai
         /// <summary>True once the callback has run, or the request was cancelled.</summary>
         public bool Done { get; private set; }
 
-        /// <summary>After this the callback never runs.</summary>
+        /// <summary>After this the callback never runs. The client also calls it when a new run boots mid-request.</summary>
         public void Cancel() { Cancelled = true; Done = true; }
 
         /// <summary>For IAiText implementations: run the callback once, unless cancelled. Exceptions are logged, not thrown.</summary>
@@ -78,8 +78,10 @@ namespace Fnmw.Core.Ai
         bool Available { get; }
 
         /// <summary>
-        /// Ask for text. onDone runs exactly once on the main thread unless the handle is cancelled first.
-        /// It can run before Request returns (disabled, throttled), so do not assume it is asynchronous.
+        /// Ask for text. onDone runs exactly once on the main thread, unless the handle is cancelled first or a new
+        /// run boots while the request is in flight (the handle is then cancelled for you: check handle.Done, do
+        /// not wait on the callback). It can run before Request returns (disabled, throttled), so do not assume
+        /// it is asynchronous.
         /// </summary>
         AiHandle Request(AiRequest request, Action<AiResponse> onDone);
     }

@@ -249,5 +249,58 @@ namespace Fnmw.Tests
             Assert.IsFalse(AiText.MentionsAny("nothing here", "", null, "  "));
             Assert.IsFalse(AiText.MentionsAny(null, "x"));
         }
+
+        [Test]
+        public void MentionsAny_FindsWordsInsideUnspacedScripts()
+        {
+            Assert.IsTrue(AiText.MentionsAny("これは猫です", "猫"));
+            Assert.IsTrue(AiText.MentionsAny("والكتاب", "كتاب"));
+            Assert.IsTrue(AiText.MentionsAny("학교에 가요", "학교"));
+            Assert.IsTrue(AiText.MentionsAny("say 猫 now", "猫"));
+            Assert.IsFalse(AiText.MentionsAny("kapılar", "kapı"), "Latin-script words still need a word boundary");
+        }
+
+        [Test]
+        public void Clean_KeepsQuotesThatAreNotOneWrappingPair()
+        {
+            Assert.AreEqual("\"Run,\" I said, \"now.\"", AiText.Clean("\"Run,\" I said, \"now.\""));
+        }
+
+        [Test]
+        public void StripFences_HandlesAOneLineFence()
+        {
+            Assert.AreEqual("{\"line\":\"x\"}", AiText.StripFences("```json {\"line\":\"x\"} ```"));
+            Assert.AreEqual("{\"line\":\"x\"}", AiText.StripFences("```{\"line\":\"x\"}```"));
+        }
+
+        [Test]
+        public void Body_NeverWritesNaN_AndEscapesControlCharacters()
+        {
+            string body = GeminiWire.BuildBody(new AiRequest { Prompt = "a\u0001b 猫", Temperature = float.NaN });
+            StringAssert.DoesNotContain("NaN", body);
+            StringAssert.Contains("a\\u0001b 猫", body);
+        }
+
+        [Test]
+        public void Config_EnvironmentKeyOverridesAFileProxy()
+        {
+            var cfg = AiConfig.From("{\"aiProxyUrl\":\"https://example.test/api/ai\"}", k => k == AiConfig.EnvKey ? "envkey" : null);
+            Assert.IsFalse(cfg.UsesProxy);
+            Assert.AreEqual("envkey", cfg.ApiKey);
+        }
+
+        [Test]
+        public void Config_AcceptsTheModelsPrefix()
+        {
+            var cfg = AiConfig.From("{\"geminiApiKey\":\"k\",\"geminiModel\":\"models/m2\"}", null);
+            StringAssert.EndsWith("/v1beta/models/m2:generateContent", cfg.Endpoint());
+        }
+
+        [Test]
+        public void ExampleSecretsFile_HoldsNoKey()
+        {
+            string path = System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "secrets.example.json");
+            Assert.IsFalse(AiConfig.From(System.IO.File.ReadAllText(path), null).Usable, "the tracked example must never make AI usable");
+        }
     }
 }
