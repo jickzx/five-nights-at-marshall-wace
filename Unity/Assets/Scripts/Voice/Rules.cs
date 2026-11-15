@@ -77,7 +77,7 @@ namespace Fnmw.Voice
             var p = _pending.Value;
             if (now - p.CreatedAt > MaxWait) { _pending = null; return null; }   // a late taunt is worse than none
             if (now < p.EarliestAt || InFlight || Lines >= MaxLines || now - _lastLineAt < Cooldown) return null;
-            if (!PhaseAllows(phase) || beastGrace > 0f) return null;
+            if (!PhaseAllows(phase) || beastGrace >= 1f) return null;   // silent only on the guided console, not the eased-in rest of the run
             _pending = null;
             _lastLineAt = now;
             Lines++;

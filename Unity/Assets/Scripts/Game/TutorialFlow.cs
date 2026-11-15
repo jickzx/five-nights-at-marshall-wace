@@ -7,10 +7,12 @@ namespace Fnmw.Game
     /// The first-run tutorial as a pure state machine: which cue is live, given what the player has done.
     /// It teaches in context and only advances on the player's own actions (or a timeout, so nobody is stuck):
     ///
-    ///   Move -> Objective -> (walk) -> Console -> PuzzleRead -> PuzzleTiles -> PuzzleSend (-> Misfire -> PuzzleSend)
+    ///   (VR: Hands ->) Move -> Objective -> (walk) -> Console -> PuzzleRead -> PuzzleTiles -> PuzzleSend (-> Misfire -> PuzzleSend)
     ///   -> Reveal -> Quiz -> Beast -> NextConsole -> done
     ///
-    /// The first console is the guided one. Until it is solved the beast is held back (Grace = 1).
+    /// The first console is the guided one. Until it is solved the beast is held back (Grace = 1). After it, the
+    /// rest of a tutorial run eases the beast in rather than letting it loose at once: Grace steps down from
+    /// <see cref="RampStart"/> towards 0 console by console, and is 0 for the final run. A skipped tutorial gets no ramp.
     /// "Taught" turns true once that console is solved or the tutorial is skipped; the coach then marks the
     /// session so a restart does not show it again.
     /// </summary>
@@ -21,6 +23,10 @@ namespace Fnmw.Game
         /// <summary>VR only: degrees of right-stick turning the Move cue waits for (one 45 degree snap is enough).</summary>
         public const float TurnDegrees = 40f, MoveTimeoutXr = 35f;
         public const float ObjectiveMin = 4f, ObjectiveMax = 12f, ObjectiveNear = 7f;
+        /// <summary>VR only: the Hands cue (look down at the controllers) waits this long looking down, and gives up after HandsTimeout.</summary>
+        public const float HandsLookSeconds = 1.5f, HandsMin = 2.5f, HandsTimeout = 14f;
+        /// <summary>Grace just after the guided console. It falls linearly to 0 at the last console.</summary>
+        public const float RampStart = 0.6f;
         public const float ReadSeconds = 6f, MisfireSeconds = 4f, BeastSeconds = 7f, NextSeconds = 7f, NextNear = 8f;
 
         public struct Inputs
@@ -35,6 +41,9 @@ namespace Fnmw.Game
             public bool ExampleOpen;     // the worked example is on the console
             public bool NeedTurn;        // VR: the Move cue also wants the right stick turned (Turned degrees)
             public float Turned;         // degrees turned with the right stick since the run began
+            public bool HandsStep;       // VR: start with the Hands cue (look down at the controllers)
+            public bool LookingDown;     // VR: the head is pitched down towards the hands right now
+            public bool AnyButton;       // VR: any controller button pressed this frame (the player found them)
         }
 
         public bool Active { get; private set; }
@@ -44,16 +53,35 @@ namespace Fnmw.Game
         public float CueTime { get; private set; }
         public float SkipHold01 => Mathf.Clamp01(_hold / SkipHoldSeconds);
 
-        /// <summary>1 while the guided first console is still ahead: the beast neither evolves nor presses.</summary>
-        public float Grace => Active && !Taught ? 1f : 0f;
+        /// <summary>The beast's grace as of the last tick (see <see cref="GraceFor"/>).</summary>
+        public float Grace => GraceFor(_phase, _solved, _total);
 
-        float _hold;
-        bool _tilePicked, _misfired, _beastShown, _objectiveShown;
+        /// <summary>
+        /// 0..1, how much the beast is held back (GameState.BeastGrace). 1 while the guided first console is still
+        /// ahead: it neither evolves nor presses. Then, for the rest of a run that taught the tutorial, it eases in:
+        /// RampStart after the first console, falling to 0 by the last one. 0 in the final run, and in a run that
+        /// skipped or aborted the tutorial, or never had one.
+        /// </summary>
+        public float GraceFor(GamePhase phase, int solved, int total)
+        {
+            if (!_ramp) return 0f;
+            if (phase == GamePhase.Chase || phase == GamePhase.Dead || phase == GamePhase.Escaped) return 0f;
+            if (Active && !Taught) return 1f;
+            if (solved <= 0) return 0f;
+            if (total <= 1) return RampStart;
+            return Mathf.Clamp01(RampStart * (1f - (solved - 1f) / (total - 1f)));
+        }
+
+        float _hold, _lookedDown;
+        bool _tilePicked, _misfired, _beastShown, _objectiveShown, _handsShown, _ramp;
+        GamePhase _phase;
+        int _solved, _total;
 
         public void Begin()
         {
-            Active = true; Taught = false; Skipped = false;
-            _hold = 0; _tilePicked = false; _misfired = false; _beastShown = false; _objectiveShown = false;
+            Active = true; Taught = false; Skipped = false; _ramp = true;
+            _hold = 0; _lookedDown = 0; _tilePicked = false; _misfired = false; _beastShown = false; _objectiveShown = false; _handsShown = false;
+            _phase = GamePhase.Explore; _solved = 0; _total = 0;
             Set(TutorialCue.Move);
         }
 
@@ -61,12 +89,12 @@ namespace Fnmw.Game
         public void Skip()
         {
             if (!Active) return;
-            Skipped = true; Taught = true;
+            Skipped = true; Taught = true; _ramp = false;
             End();
         }
 
         /// <summary>A dev or skip key jumped the run around: stop teaching this run, without marking it seen.</summary>
-        public void Abort() { if (Active) End(); }
+        public void Abort() { if (Active) { _ramp = false; End(); } }
 
         public void OnTilePicked() => _tilePicked = true;
         public void OnAnswer(bool correct) { if (!correct) _misfired = true; }
@@ -74,6 +102,7 @@ namespace Fnmw.Game
         public void Tick(float dt, Inputs i)
         {
             if (!Active) return;
+            _phase = i.Phase; _solved = i.Solved; _total = i.Total;
             CueTime += dt;
 
             _hold = i.SkipHeld ? _hold + dt : 0f;
@@ -90,7 +119,7 @@ namespace Fnmw.Game
                     break;
                 case GamePhase.Reveal: if (Cue != TutorialCue.Reveal) Set(TutorialCue.Reveal); break;
                 case GamePhase.Quiz: if (Cue != TutorialCue.Quiz) Set(TutorialCue.Quiz); break;
-                case GamePhase.Explore: TickExplore(i); break;
+                case GamePhase.Explore: TickExplore(i, dt); break;
             }
             _tilePicked = false; _misfired = false;
         }
@@ -122,12 +151,18 @@ namespace Fnmw.Game
             if (_misfired && Cue != TutorialCue.Misfire) Set(TutorialCue.Misfire);
         }
 
-        void TickExplore(Inputs i)
+        void TickExplore(Inputs i, float dt)
         {
             if (!Taught)
             {
+                // VR: before anything else, find the controllers in your hands
+                if (i.HandsStep && !_handsShown && Cue == TutorialCue.Move && !i.AtConsole) { _handsShown = true; Set(TutorialCue.Hands); }
                 switch (Cue)
                 {
+                    case TutorialCue.Hands:
+                        _lookedDown = i.LookingDown ? _lookedDown + dt : 0f;
+                        if ((CueTime > HandsMin && (_lookedDown >= HandsLookSeconds || i.AnyButton)) || CueTime > HandsTimeout || i.AtConsole) Set(TutorialCue.Move);
+                        break;
                     case TutorialCue.Move:
                         if (MovePractised(i) || CueTime > (i.NeedTurn ? MoveTimeoutXr : MoveTimeout) || i.AtConsole) { _objectiveShown = true; Set(TutorialCue.Objective); }
                         break;

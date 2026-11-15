@@ -421,7 +421,27 @@ namespace Fnmw.XR
                 _turner.Smooth = !_turner.Smooth;
                 PlayerPrefs.SetInt(SmoothTurnPref, _turner.Smooth ? 1 : 0);
             }
-            if (!_theater) { ShowButtons(); RefreshHelp(); }
+            if (!_theater)
+            {
+                GuideButtons();
+                ShowButtons();
+                RefreshHelp();
+                if (_eye) { _leftModel?.FaceLabels(_eye.position); _rightModel?.FaceLabels(_eye.position); }
+            }
+        }
+
+        int _guideKey = -1;
+
+        /// <summary>The tutorial step's buttons pulse on the controllers in the hands (XrHelp.TutorialHighlights).</summary>
+        void GuideButtons()
+        {
+            var c = Context;
+            int key = (int)XrBridge.TutorialCue * 16 + (int)c;
+            if (key == _guideKey) return;
+            _guideKey = key;
+            var keys = XrHelp.TutorialHighlights(XrBridge.TutorialCue, c);
+            _leftModel?.Guide(keys);
+            _rightModel?.Guide(keys);
         }
 
         /// <summary>
