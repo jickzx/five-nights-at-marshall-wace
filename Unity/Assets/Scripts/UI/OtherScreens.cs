@@ -6,53 +6,6 @@ using UnityEngine.UI;
 
 namespace Fnmw.UI
 {
-    /// <summary>Title: the name on dead glass, a line of writing nobody can read yet, and the tide at the bottom.</summary>
-    internal sealed class TitleScreen : UiScreen
-    {
-        Action _onStart;
-        readonly List<RawImage> _glyphs = new List<RawImage>();
-        RectTransform _cue;
-        float _swapT;
-        int _seed = 7;
-
-        public TitleScreen(GameUI ui) : base(ui, "Title") { }
-        public override GlassMode Glass => GlassMode.Title;
-
-        public void Show(Action onStart)
-        {
-            Open();
-            _onStart = onStart;
-            _glyphs.Clear();
-            Kit.Label("Over", Root, "F I V E   N I G H T S   A T", 16, Pal.RustHot, TextAnchor.MiddleCenter, 20, 84, 600, 16);
-            Kit.Label("Name", Root, "MARSHALL WACE", 48, Pal.Bone, TextAnchor.MiddleCenter, 20, 106, 600, 48);
-            Kit.Box("Rule", Root, Pal.Rust, 164, 166, 312, 1);
-            const int n = 9;
-            float x = (UiRig.StageW - (n * 24 + (n - 1) * 8)) / 2f;
-            for (int i = 0; i < n; i++)
-            {
-                _glyphs.Add(Kit.Pic("Glyph", Root, GlyphGen.Texture(_seed++ * 7919, (ScriptFamily)(i % 7), 24), Pal.Rust, x, 180, 24, 24));
-                x += 32;
-            }
-            Kit.Label("Line", Root, "Read the dead tongue. Wake the ship. The tide is rising.", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 216, 600, 16);
-            _cue = Widgets.Cue(Root, 258, "BEGIN", Pal.Bone);
-        }
-
-        protected override void OnTick(float dt, UiInput input)
-        {
-            // the unreadable line keeps rewriting itself
-            _swapT += dt;
-            if (_swapT > 0.28f && _glyphs.Count > 0)
-            {
-                _swapT = 0;
-                int i = UnityEngine.Random.Range(0, _glyphs.Count);
-                _glyphs[i].texture = GlyphGen.Texture(_seed++ * 7919, (ScriptFamily)(_seed % 7), 24);
-                _glyphs[i].color = UnityEngine.Random.value < 0.2f ? Pal.Blood : Pal.Rust;
-            }
-            if (_cue) _cue.gameObject.SetActive(Kit.Blink(T, 1.2f));
-            if (T > 0.25f && (input.Confirm || input.Click)) { var cb = _onStart; _onStart = null; cb?.Invoke(); }
-        }
-    }
-
     /// <summary>
     /// The visor while roaming. Almost nothing is written on it: a prompt when something can be used,
     /// the ship's power cells, and claw marks that appear as the beast changes. Threat itself is drawn
@@ -60,14 +13,18 @@ namespace Fnmw.UI
     /// </summary>
     internal sealed class HudLayer : UiScreen
     {
-        RectTransform _prompt, _power;
-        Text _promptText;
-        Image _promptFrame, _promptFill;
+        RectTransform _prompt, _power, _objective;
+        Text _promptText, _objText, _powerLabel, _clawLabel;
+        Image _promptFrame, _promptFill, _rail, _railTick, _marker;
         readonly List<Image> _cells = new List<Image>();
         readonly List<Image> _claws = new List<Image>();
-        string _promptShown;
+        string _promptShown, _objShown;
         int _solved = -1, _total = -1, _stage = 1;
         float _cellFlash, _clawT = 9f;
+
+        public const string PowerLabel = "SHIP POWER";
+        public const string ChaseObjective = "RUN TO THE SHIP";
+        const float RailHalf = 70f, RailDegrees = 70f;
 
         public HudLayer(GameUI ui) : base(ui, "Hud") { }
         public override GlassMode Glass => GlassMode.Visor;
@@ -82,6 +39,7 @@ namespace Fnmw.UI
             _promptText = Kit.Label("Text", _prompt, "", 16, Pal.Bone, TextAnchor.MiddleCenter, 0, 6, 100, 16);
             _prompt.gameObject.SetActive(false);
             _power = Kit.Node("Power", Root, 30, 312, 200, 23);
+            _powerLabel = Kit.Label("PowerLabel", Root, PowerLabel, 16, Pal.BoneDim.A(0.8f), TextAnchor.MiddleLeft, 30, 316, 120, 16);
             for (int i = 0; i < 3; i++)
             {
                 var claw = Kit.Box("Claw", Root, Pal.Blood, 520 + i * 18, 30, 4, 58);
@@ -89,7 +47,19 @@ namespace Fnmw.UI
                 claw.enabled = false;
                 _claws.Add(claw);
             }
-            _promptShown = null; _solved = -1; _total = -1;
+            _clawLabel = Kit.Label("ClawLabel", Root, "", 16, Pal.Blood, TextAnchor.MiddleRight, 380, 96, 220, 16);
+            _clawLabel.enabled = false;
+
+            // where to go: a bearing rail at the top of the visor with the target's line and distance under it
+            _objective = Kit.Node("Objective", Root, 0, 0, UiRig.StageW, 48);
+            _rail = Kit.Box("Rail", _objective, Pal.Rust.A(0.8f), 320 - RailHalf, 14, RailHalf * 2, 1);
+            Kit.Box("RailEnd", _objective, Pal.Rust.A(0.8f), 320 - RailHalf, 11, 1, 7);
+            Kit.Box("RailEnd", _objective, Pal.Rust.A(0.8f), 320 + RailHalf - 1, 11, 1, 7);
+            _railTick = Kit.Box("Centre", _objective, Pal.Rust, 320, 12, 1, 5);
+            _marker = Kit.Box("Marker", _objective, Pal.Bone, 318, 10, 3, 9);
+            _objText = Kit.Label("Text", _objective, "", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 22, 600, 16);
+            _objective.gameObject.SetActive(false);
+            _promptShown = null; _objShown = null; _solved = -1; _total = -1;
         }
 
         public void SetPrompt(string text)
@@ -110,9 +80,59 @@ namespace Fnmw.UI
 
         public void StageChanged(int stage) { _stage = stage; _clawT = 0; }
 
+        public string ObjectiveShown => _objShown;
+
+        /// <summary>The thing to walk to: the one console the director has switched on, or the ship in the final chase.</summary>
+        static Interactable Target(GameState s)
+        {
+            var want = s != null && s.Phase == GamePhase.Chase ? Interactable.Kind.Ship : Interactable.Kind.Console;
+            Interactable best = null;
+            foreach (var it in Interactable.All)
+                if (it && it.Enabled && it.Type == want && (best == null || it.Index < best.Index)) best = it;
+            return best;
+        }
+
+        void TickObjective(GameState s)
+        {
+            var target = Target(s);
+            bool show = target != null;
+            if (_objective.gameObject.activeSelf != show) _objective.gameObject.SetActive(show);
+            if (!show) { _objShown = null; return; }
+
+            bool chase = s != null && s.Phase == GamePhase.Chase;
+            int total = s != null ? s.TotalPuzzles : 0, next = s != null ? s.PuzzlesSolved + 1 : 1;
+            string what = chase ? ChaseObjective : "CONSOLE " + Mathf.Clamp(next, 1, Mathf.Max(1, total)) + "/" + total;
+            var player = Services.Player;
+            string text = what;
+            bool bearing = false; float angle = 0f;
+            if (player)
+            {
+                Vector3 to = target.transform.position - player.position; to.y = 0;
+                int metres = Mathf.RoundToInt(to.magnitude);
+                text = what + "  \u00B7  " + metres + " M";
+                var cam = Camera.main;
+                if (cam && to.sqrMagnitude > 0.01f)
+                {
+                    Vector3 fwd = cam.transform.forward; fwd.y = 0;
+                    if (fwd.sqrMagnitude > 1e-4f) { bearing = true; angle = Vector3.SignedAngle(fwd, to, Vector3.up); }
+                }
+            }
+            if (text != _objShown) { _objShown = text; Kit.SetText(_objText, text); }
+            _objText.color = chase ? Pal.Bone : Pal.BoneDim;
+
+            // the marker slides along the rail with the target's bearing; off the ends it pins and blinks
+            _rail.enabled = _railTick.enabled = _marker.enabled = bearing;
+            if (!bearing) return;
+            float t = Mathf.Clamp(angle / RailDegrees, -1f, 1f);
+            Kit.Place(_marker.rectTransform, Mathf.Round(320 + t * (RailHalf - 2)) - 1, 10, 3, 9);
+            bool behind = Mathf.Abs(angle) > RailDegrees;
+            _marker.color = behind ? (Kit.Blink(T, 3f) ? Pal.Bone : Pal.Rust) : Pal.Bone;
+        }
+
         protected override void OnTick(float dt, UiInput input)
         {
             var s = Ui.State ?? Services.State;
+            TickObjective(s);
             if (s != null && (s.PuzzlesSolved != _solved || s.TotalPuzzles != _total))
             {
                 if (_solved >= 0 && s.PuzzlesSolved > _solved) _cellFlash = 1f;
@@ -120,7 +140,9 @@ namespace Fnmw.UI
                 Kit.Clear(_power); _cells.Clear();
                 Kit.Box("Back", _power, Pal.Void.A(0.6f), 0, 0, Widgets.PowerWidth(_total) + 12, 23);
                 Widgets.Power(_power, 6, 4, _solved, _total, Pal.Bone, _cells);
+                Kit.Move(_powerLabel.rectTransform, 30 + Widgets.PowerWidth(_total) + 20, 316);
             }
+            _powerLabel.color = Color.Lerp(Pal.BoneDim.A(0.8f), Pal.Amber, _cellFlash);
             _cellFlash = Mathf.MoveTowards(_cellFlash, 0, dt * 0.6f);
             if (_solved > 0 && _solved <= _cells.Count)
                 _cells[_solved - 1].color = Color.Lerp(Pal.Bone, Pal.Amber, _cellFlash * Mathf.PingPong(T * 6f, 1f));
@@ -128,6 +150,14 @@ namespace Fnmw.UI
             if (_promptFrame) _promptFrame.color = Pal.Bone.A(0.55f + 0.45f * Mathf.PingPong(T * 1.6f, 1f));
 
             _clawT += dt;
+            // a fresh set of claws says what it means, once, then fades
+            bool naming = _stage > 1 && _clawT < 5f;
+            if (_clawLabel.enabled != naming) _clawLabel.enabled = naming;
+            if (naming)
+            {
+                Kit.SetText(_clawLabel, "THE BEAST EVOLVES  \u00B7  STAGE " + _stage + " OF 3");
+                _clawLabel.color = Pal.Blood.A(Kit.Ramp(_clawT, 0.3f, 0.3f) * (1f - Kit.Ramp(_clawT, 4f, 1f)));
+            }
             for (int i = 0; i < _claws.Count; i++)
             {
                 bool on = i < _stage - 1;
@@ -235,7 +265,7 @@ namespace Fnmw.UI
             y += 38;
             if (roomy)
             {
-                Fade(Kit.Label("Sub", Root, "The ship tears free of the blood sea.", 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
+                Fade(Kit.Label("Sub", Root, TitleCopy.EscapeLine, 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
                 y += 22;
             }
             if (state != null)

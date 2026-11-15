@@ -103,6 +103,19 @@ namespace Fnmw.UI
         /// <summary>Height of a <see cref="Word"/> cell: glyph, a pixel, then the caption.</summary>
         public const int WordH = GlyphPx + 1 + 16;
 
+        public static float KeycapWidth(string key) => Mathf.Max(18, FontBook.Width(key, 16) + 8);
+
+        /// <summary>A key drawn as a keycap: bone frame, ash fill, the key's name. 18 px tall.</summary>
+        public static RectTransform Keycap(Transform parent, string key, float x, float y)
+        {
+            float kw = KeycapWidth(key);
+            var cap = Kit.Node("Cap", parent, x, y, kw, 18);
+            Kit.Box("Fill", cap, Pal.Ash, 1, 1, kw - 2, 16);
+            Kit.Frame("Frame", cap, Pal.Bone, 0, 0, kw, 18);
+            Kit.Label("Key", cap, key, 16, Pal.Bone, TextAnchor.MiddleCenter, 0, 1, kw, 16);
+            return cap;
+        }
+
         static readonly HashSet<string> Small = new HashSet<string> { "the", "a", "an", "is", "are", "of", "for", "to", "in", "my", "it", "this" };
 
         /// <summary>The words of a meaning that carry it, if every one of them has a picture; otherwise null.</summary>

@@ -23,6 +23,14 @@ namespace Fnmw.UI
         public float Curve { get; private set; }
         public float Pulse { get; private set; }
         public float Dread { get; private set; }     // smoothed threat after the current mode has damped it
+        /// <summary>Dread as the glass draws it over text. On the console, reveal and quiz it is capped
+        /// so static, flicker and tearing never make the puzzle hard to read; the heartbeat keeps the full value.</summary>
+        public float GlassDread { get; private set; }
+        /// <summary>Highest dread the reading screens (console, reveal, quiz) show as noise.</summary>
+        public const float ReadableDread = 0.3f;
+        /// <summary>Off restores the old uncapped look (for before/after captures).</summary>
+        public static bool LegibilityCap = true;
+        public bool Reading => Mode == GlassMode.Console || Mode == GlassMode.Decode;
         public float WhiteTarget, InkTarget;
         public float Clock { get; private set; }
 
@@ -62,9 +70,9 @@ namespace Fnmw.UI
         {
             switch (Mode)
             {
-                case GlassMode.Title: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.55f; tide = 0.17f; calm = 0.4f; break;
+                case GlassMode.Title: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.55f; tide = 0.05f; calm = 0.4f; break;
                 case GlassMode.Visor: backplate = 0; curve = 0.05f; scan = 0.14f; glow = 0.45f; vignette = 0.22f; tide = 0; calm = 0; break;
-                case GlassMode.Console: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.45f; tide = 0.02f + 0.17f * _threat; calm = 0; break;
+                case GlassMode.Console: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.45f; tide = 0.02f + 0.17f * (LegibilityCap ? Mathf.Min(_threat, ReadableDread) : _threat); calm = 0; break;
                 case GlassMode.Decode: backplate = 1; curve = 0.14f; scan = 0.16f; glow = 0.7f; vignette = 0.35f; tide = 0; calm = 0.8f; break;
                 case GlassMode.Death: backplate = 0; curve = 0.05f; scan = 0.05f; glow = 0.2f; vignette = 0.2f; tide = 0; calm = 0.6f; break;
                 case GlassMode.Escape: backplate = 1; curve = 0.10f; scan = 0.12f; glow = 0.6f; vignette = 0.3f; tide = 0; calm = 1f; break;
@@ -145,6 +153,8 @@ namespace Fnmw.UI
             _ink = Mathf.MoveTowards(_ink, InkTarget, dt / 2.5f);
 
             Dread = _threat * (1f - 0.8f * _calm);
+            GlassDread = LegibilityCap && Reading ? Mathf.Min(Dread, ReadableDread) : Dread;
+            float gd = GlassDread;
 
             // heartbeat: lub-dub, 54 to 150 bpm
             _beat = Mathf.Repeat(_beat + dt * Mathf.Lerp(54f, 150f, _threat) / 60f, 1f);
@@ -167,23 +177,24 @@ namespace Fnmw.UI
             if (_glitchIn <= 0) { _glitchIn = 0.8f + Rand() * 2.4f; _glitchFor = Dread > 0.3f ? 0.06f + Rand() * 0.12f : 0f; }
             _glitchFor = Mathf.Max(0, _glitchFor - dt);
             float fit = _glitchFor > 0 ? 1f : 0f;
-            _dropout = Mode == GlassMode.Console && Dread > 0.5f ? fit * 0.5f : 0f;
+            _dropout = Mode == GlassMode.Console && gd > 0.5f ? fit * 0.5f : 0f;
+            float fitTear = LegibilityCap && Reading ? 0.15f : 0.6f;
 
             if (!_mat) return;
-            var shake = new Vector2(Rand() - 0.5f, Rand() - 0.5f) * (_shake * 0.03f + Dread * Dread * 0.0025f);
+            var shake = new Vector2(Rand() - 0.5f, Rand() - 0.5f) * (_shake * 0.03f + gd * gd * 0.0025f);
             _mat.SetFloat("_T", Clock);
             _mat.SetFloat("_Curve", Curve);
             _mat.SetFloat("_Backplate", _backplate);
             _mat.SetFloat("_Scan", _scan);
             _mat.SetFloat("_Glow", _glow);
-            _mat.SetFloat("_Threat", Dread);
+            _mat.SetFloat("_Threat", gd);           // also drives the roll-bar wobble, so it is capped too
             _mat.SetFloat("_Pulse", Pulse);
-            _mat.SetFloat("_Vignette", _vignette + 0.8f * Dread);
-            _mat.SetFloat("_Static", (0.002f + 0.3f * Dread * Dread) * (1f - 0.9f * _calm));
+            _mat.SetFloat("_Vignette", _vignette + 0.8f * gd);
+            _mat.SetFloat("_Static", (0.002f + 0.3f * gd * gd) * (1f - 0.9f * _calm));
             _mat.SetFloat("_Burst", _burst * 0.8f);
-            _mat.SetFloat("_Flicker", (0.03f + 0.4f * Dread) * (1f - 0.7f * _calm));
-            _mat.SetFloat("_Aberr", 0.002f + 0.012f * Dread + _shake * 0.02f + fit * 0.01f);
-            _mat.SetFloat("_Tear", Mathf.Clamp01(_tear + fit * 0.6f));
+            _mat.SetFloat("_Flicker", (0.03f + 0.4f * gd) * (1f - 0.7f * _calm));
+            _mat.SetFloat("_Aberr", 0.002f + 0.012f * gd + _shake * 0.02f + fit * 0.01f);
+            _mat.SetFloat("_Tear", Mathf.Clamp01(_tear + fit * fitTear));
             _mat.SetFloat("_Dropout", _dropout);
             _mat.SetFloat("_Tide", Mathf.Max(0, _tide + (_tide > 0.01f ? _splash + Pulse * 0.006f * Dread : 0)));
             _mat.SetFloat("_Wash", _washFront);
@@ -193,7 +204,7 @@ namespace Fnmw.UI
             _mat.SetFloat("_White", Kit.Ease(_white));
             _mat.SetFloat("_Ink", _ink);
             _mat.SetVector("_Shake", shake);
-            _mat.SetColor("_Plate", Mode == GlassMode.Decode ? Pal.WarmDark : Mode == GlassMode.Escape ? Pal.Indigo : Pal.Soot);
+            _mat.SetColor("_Plate", Mode == GlassMode.Decode ? Pal.WarmDark : Mode == GlassMode.Escape ? Pal.Indigo : Mode == GlassMode.Title ? Pal.Abyss : Pal.Soot);
         }
 
         public float White => _white;

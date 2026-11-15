@@ -21,8 +21,12 @@ namespace Fnmw.Monster.Beast
     public class BeastBrain : IBeastBrain
     {
         public const float FogEdge = 24f;
-        /// <summary>Seconds per stage at aggression ~0.5. Tunable by the game loop.</summary>
-        public static float StageSeconds = 75f;
+        /// <summary>Seconds per stage at aggression ~0.5. Tunable by the game loop.
+        /// 110 s: a first-time player (aggression ~0.45) meets stage 2 around the second console and
+        /// stage 3 around the third, instead of stage 3 before the second (it was 75 s).</summary>
+        public static float StageSeconds = 110f;
+        /// <summary>Seconds to grow to stage 3 once the ship is powered and the final run begins.</summary>
+        public const float FinalRunEvolveSeconds = 3f;
         public const float LungeSpeed = 10f;
         public const float CatchDistance = 1.6f;
 
@@ -33,7 +37,7 @@ namespace Fnmw.Monster.Beast
         public string Why { get; private set; } = "";
         public float CalmLeft => _calm;
 
-        float _modeTime, _calm, _watchedFor, _orbitClock, _lungeStop;
+        float _modeTime, _calm, _watchedFor, _orbitClock, _lungeStop, _grace;
         bool _pendingLunge, _pendingRetreat;
 
         /// <summary>Feed the result of every answer (the module wires GameEvents.AnswerSubmitted).</summary>
@@ -47,7 +51,8 @@ namespace Fnmw.Monster.Beast
             else
             {
                 _pendingLunge = true; _pendingRetreat = false;
-                Evolution = Mathf.Min(2f, Evolution + 0.3f + 0.3f * aggression);
+                // during the tutorial console (grace) a misfire still shows its cost, but cannot cost a stage
+                Evolution = Mathf.Min(2f, Evolution + (0.3f + 0.3f * aggression) * (1f - 0.6f * _grace));
             }
         }
 
@@ -57,7 +62,11 @@ namespace Fnmw.Monster.Beast
         public BeastIntent Think(BeastPerception p, float dt)
         {
             bool active = p.Phase != GamePhase.Title && p.Phase != GamePhase.Escaped && p.Phase != GamePhase.Dead;
-            if (active) Evolution = Mathf.Min(2f, Evolution + dt / StageSeconds * (0.4f + 1.2f * p.Aggression));
+            _grace = Mathf.Clamp01(p.Grace);
+            p.Aggression *= 1f - 0.7f * _grace;   // the tutorial holds it back: keeps its distance at the console
+            if (active) Evolution = Mathf.Min(2f, Evolution + (1f - _grace) * dt / StageSeconds * (0.4f + 1.2f * p.Aggression));
+            // the ship is powered: the final run is always against the hunter (only stage 3 hunts)
+            if (p.Phase == GamePhase.Chase) Evolution = Mathf.Min(2f, Evolution + dt * 2f / FinalRunEvolveSeconds);
             _orbitClock += dt;
             _modeTime += dt;
             if (_calm > 0) _calm -= dt;
@@ -159,8 +168,8 @@ namespace Fnmw.Monster.Beast
             {
                 SetMode(BeastMode.Approach);
                 float r = stage == 1 ? Mathf.Lerp(12f, 6f, aggr) : Mathf.Lerp(9f, 3.5f, aggr);
-                if (_calm > 0) r = Mathf.Max(r, FogEdge - 4f);
-                Why = _calm > 0 ? "Keeping its distance while you work" : "Creeping up behind you while you work the console";
+                if (_calm > 0 || _grace > 0.5f) r = Mathf.Max(r, FogEdge - 4f);   // grace: the tutorial console is read in peace
+                Why = _calm > 0 || _grace > 0.5f ? "Keeping its distance while you work" : "Creeping up behind you while you work the console";
                 return Orbit(player, me, behind, r, 0.8f + 1.4f * aggr, stage);
             }
 

@@ -84,7 +84,7 @@ namespace Fnmw.UI
             var head = Section("Head");
             Kit.Label("Tongue", head, (_p.AlienName ?? world?.AlienName ?? "UNKNOWN TONGUE").ToUpperInvariant(), 16, Pal.RustHot, TextAnchor.MiddleLeft, L, 14, 300, 16);
             int total = state != null ? state.TotalPuzzles : 0, solved = state != null ? state.PuzzlesSolved : 0;
-            Widgets.Power(head, R - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
+            Widgets.Power(head, R - 140 - Widgets.PowerWidth(total), 14, solved, total, Pal.Bone);
             Kit.Box("Rule", head, Pal.Rust, L, 36, R - L, 1);
 
             _lay = PuzzleLayout.For(_p);
@@ -215,6 +215,7 @@ namespace Fnmw.UI
             _cursor = tileIndex;
             _tiles[tileIndex].Flash = 1f;
             RefreshSlots(); RefreshTiles();
+            GameEvents.RaiseTilePicked(_p.Tiles[tileIndex]);
             // the newest glyph writes itself on, stroke by stroke
             _writeShape = GlyphGen.Build(_p.Tiles[tileIndex].GlyphSeed, _fam);
             if (!_writeTex) _writeTex = GlyphGen.NewTexture(Widgets.GlyphPx);
@@ -236,6 +237,7 @@ namespace Fnmw.UI
             if (!Interactive) return;
             _picks.Clear(); _writeT = 1;
             RefreshSlots();
+            GameEvents.RaiseTilesCleared();
         }
 
         public void Submit()

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Fnmw.Core;
+using Fnmw.Game.Intro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -23,13 +24,20 @@ namespace Fnmw.Game
         public Interactable CurrentConsole => S.PuzzlesSolved < _route.Count ? _route[S.PuzzlesSolved] : null;
         public LangPuzzle CurrentPuzzle => _puzzle;
         public bool CutscenePlaying { get; private set; }
+        /// <summary>The opening cutscene is running (still GamePhase.Title; Explore starts when it hands over).</summary>
+        public bool IntroPlaying => _intro && !_intro.Arrived;
+        public IntroCutscene Intro => _intro;
+        /// <summary>The tutorial's worked example is on the console (phase Puzzle, no real puzzle yet).</summary>
+        public bool ExampleOpen { get; private set; }
 
         readonly List<Interactable> _route = new List<Interactable>();
         Interactable _ship;
         LangPuzzle _puzzle;
         float _puzzleShownAt;
+        bool _revealPending;   // a right answer is in; the reveal follows in a moment
         bool _forceDeath;
         PlayerController _player;
+        IntroCutscene _intro;
 
         GameState S => Services.State;
 
@@ -105,13 +113,36 @@ namespace Fnmw.Game
 
         // ------------------------------------------------------------------ phases
 
+        /// <summary>The title screen's start callback. Plays the opening cutscene (when enabled), then Explore.</summary>
         public void BeginExplore()
+        {
+            if (S.Phase != GamePhase.Title || IntroPlaying) return;
+            Services.UI.HideAll();
+            if (IntroCutscene.ShouldPlay)
+            {
+                _intro = gameObject.AddComponent<IntroCutscene>();
+                _intro.Play(StartExplore);
+                return;
+            }
+            StartExplore();
+        }
+
+        /// <summary>Skip keys and scripts: straight to Explore, cutting the opening short if it is running.</summary>
+        void EnterExploreNow()
+        {
+            if (S.Phase != GamePhase.Title) return;
+            if (IntroPlaying) _intro.Finish();
+            else { Services.UI.HideAll(); StartExplore(); }
+        }
+
+        void StartExplore()
         {
             if (S.Phase != GamePhase.Title) return;
             Services.UI.HideAll();
             S.SetPhase(GamePhase.Explore);
             Stinger("begin");
             WakeNextConsole();
+            if (TutorialCoach.Instance) TutorialCoach.Instance.BeginIfWanted();
         }
 
         void WakeNextConsole()
@@ -150,6 +181,17 @@ namespace Fnmw.Game
 
         void OpenPuzzle()
         {
+            // the first console of a tutorial run starts with a solved example, then hands over the real puzzle
+            var example = TutorialCoach.Instance ? TutorialCoach.Instance.TakeExample() : null;
+            if (example != null && !ExampleOpen)
+            {
+                ExampleOpen = true;
+                S.SetPhase(GamePhase.Puzzle);
+                Stinger("console_on");
+                Services.UI.ShowPrompt(null);
+                Guard(() => Services.UI.ShowWorkedExample(example, EndWorkedExample), "UI.ShowWorkedExample");
+                return;
+            }
             S.CurrentPuzzleIndex = Mathf.Min(S.PuzzlesSolved, S.World.Puzzles.Count - 1);
             float difficulty = 0.3f;
             Guard(() => difficulty = Services.Difficulty.Difficulty, "Difficulty");
@@ -164,17 +206,29 @@ namespace Fnmw.Game
             Services.UI.ShowPuzzle(_puzzle, Submit);
         }
 
+        /// <summary>The worked example is finished or skipped: put the real first puzzle on the console.</summary>
+        public void EndWorkedExample()
+        {
+            if (!ExampleOpen) return;
+            ExampleOpen = false;
+            if (TutorialCoach.Instance) TutorialCoach.Instance.ExampleDone = true;
+            if (S.Phase == GamePhase.Puzzle) OpenPuzzle();
+        }
+
         /// <summary>Step away from the console (Esc/Tab). It stays lit; come back to it.</summary>
         public void AbandonPuzzle()
         {
-            if (S.Phase != GamePhase.Puzzle) return;
+            if (S.Phase != GamePhase.Puzzle || _revealPending) return;   // solved: the reveal is coming, and it lights the next console
+            ExampleOpen = false;   // an unfinished example plays again next time
             Services.UI.HideAll();
             S.SetPhase(GamePhase.Explore);
         }
 
         public void Submit(string[] tileIds)
         {
-            if (S.Phase != GamePhase.Puzzle || _puzzle == null) return;
+            // The console stays up for a beat after a right answer: a second Enter (or a click on SEND) in that
+            // beat used to solve the next console too, skipping it and starting the final run early.
+            if (S.Phase != GamePhase.Puzzle || _puzzle == null || ExampleOpen || _revealPending) return;
             AnswerResult result;
             try { result = Services.Language.Check(S.World, _puzzle.Id, tileIds); }
             catch (Exception ex) { Debug.LogException(ex); result = new AnswerResult { Correct = false, MissedConcept = "unknown", Feedback = "The console sputters." }; }
@@ -194,6 +248,7 @@ namespace Fnmw.Game
                 return;
             }
             Stinger("correct");
+            _revealPending = true;
             SolveCurrentConsole();
             StartCoroutine(After(1.1f, ShowReveal));
         }
@@ -208,6 +263,7 @@ namespace Fnmw.Game
 
         void ShowReveal()
         {
+            _revealPending = false;
             if (S.Phase != GamePhase.Puzzle) return;
             S.SetPhase(GamePhase.Reveal);
             RevealInfo r = null;
@@ -250,6 +306,28 @@ namespace Fnmw.Game
             S.SetPhase(GamePhase.Chase);
             if (_ship) _ship.Enabled = true;
             Stinger("beast_roar");
+            GiveHeadStart();
+        }
+
+        /// <summary>Metres between you and the beast when the final run begins. It hunts at stage 3
+        /// (~2.6-4.6 m/s); you walk at 3.4 and run at 5.6, so running gets you out and dawdling does not.</summary>
+        public const float FinalRunHeadStart = 22f;
+
+        /// <summary>The ship is powered and the beast becomes the hunter: start it behind you, away from the ship,
+        /// not wherever it happened to be lurking (it could be between you and the ramp, or a lunge away).</summary>
+        void GiveHeadStart()
+        {
+            var b = FindBeast(); var p = Services.Player;
+            if (!b || !p) return;
+            Vector3 away = _ship ? p.position - _ship.transform.position : -p.forward;
+            away.y = 0;
+            if (away.sqrMagnitude < 0.01f) away = -p.forward;
+            away.Normalize();
+            var flat = b.position - p.position; flat.y = 0;
+            if (flat.magnitude >= FinalRunHeadStart && Vector3.Dot(flat.normalized, away) > 0.5f) return;   // already well behind
+            var pos = p.position + away * FinalRunHeadStart;
+            b.position = new Vector3(pos.x, p.position.y, pos.z);
+            b.rotation = Quaternion.LookRotation(-away);
         }
 
         public void BoardShip()
@@ -303,11 +381,13 @@ namespace Fnmw.Game
         public void SkipTo(GamePhase phase)
         {
             if (CutscenePlaying && phase != GamePhase.Title) return;
+            if (phase != GamePhase.Title && phase != GamePhase.Explore && TutorialCoach.Instance) TutorialCoach.Instance.Abort();
+            ExampleOpen = false;
             switch (phase)
             {
                 case GamePhase.Title: Restart(); break;
                 case GamePhase.Explore:
-                    if (S.Phase == GamePhase.Title) BeginExplore();
+                    if (S.Phase == GamePhase.Title) EnterExploreNow();
                     else if (!S.IsOver) { Services.UI.HideAll(); S.SetPhase(RoamPhase); }
                     break;
                 case GamePhase.Puzzle:
@@ -334,7 +414,7 @@ namespace Fnmw.Game
                     MarkConsolesSolved();
                     if (_player && _route.Count > 0) WarpNear(_route[_route.Count - 1].transform.position, 4f);
                     BeginFinalChase();
-                    PlaceBeast(behind: true, 14f);
+                    PlaceBeast(behind: true, 14f);   // the skip key keeps its closer, scarier start
                     break;
                 case GamePhase.Escaped:
                     if (S.Phase != GamePhase.Chase) SkipTo(GamePhase.Chase);
@@ -342,7 +422,7 @@ namespace Fnmw.Game
                     BoardShip();
                     break;
                 case GamePhase.Dead:
-                    if (S.Phase == GamePhase.Title) BeginExplore();
+                    if (S.Phase == GamePhase.Title) EnterExploreNow();
                     Services.UI.HideAll();
                     if (S.Phase != GamePhase.Explore && S.Phase != GamePhase.Chase) S.SetPhase(RoamPhase);
                     PlaceBeast(behind: false, 2.2f);

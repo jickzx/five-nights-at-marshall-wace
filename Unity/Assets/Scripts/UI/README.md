@@ -26,7 +26,8 @@ Screens pick a `GlassMode` (Title, Visor, Console, Decode, Death, Escape) and fi
 | `Pictograms.cs` | 13x13 pictures for meanings ("open eye"); unknown words fall back to text |
 | `PuzzleScreen.cs` | the console |
 | `DecodeScreen.cs` | reveal, quiz and payoff (one screen, so the decoded phrase stays in view) |
-| `OtherScreens.cs` | title, HUD, death, escape |
+| `TitleScreen.cs` | the title: TrES-2b under a black hole, past the wormhole, all procedural; every opening line lives in `TitleCopy` |
+| `OtherScreens.cs` | HUD, death, escape |
 | `Lore.cs` | reveal text helpers, the "now you know" facts, the run journal |
 | `Rtl.cs` | Arabic joining and right-to-left ordering for the legacy text renderer |
 | `Kit.cs` | palette, fonts, small uGUI factory |
@@ -52,7 +53,7 @@ Screens pick a `GlassMode` (Title, Visor, Console, Decode, Death, Escape) and fi
 ## Controls
 
 Number keys place a tile, arrows and Space move and place, Backspace takes back one tile,
-Delete or Esc clears, Enter sends. Number keys or arrows and Enter answer the quiz. Enter, Space
+Delete clears, Enter sends, Esc or Tab steps away from the console. Number keys or arrows and Enter answer the quiz. Enter, Space
 or a click continues. The mouse works everywhere (tiles, SEND, quiz options).
 
 ## Fonts
