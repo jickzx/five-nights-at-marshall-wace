@@ -12,6 +12,25 @@ namespace Fnmw.Monster.Beast
     {
         // Heights of the art thread's models (manifest.json); placeholders and wrong-unit imports are scaled to these.
         static readonly float[] StageHeight = { 2.35f, 2.9f, 3.55f };
+        // In a headset the beast is seen at true scale, and the desktop heights read as a building at arm's length.
+        // There every stage is fitted exactly to these (still well over the player's 1.8 m), whatever the import.
+        static readonly float[] XrStageHeight = { 2.05f, 2.35f, 2.7f };
+
+        /// <summary>The height a stage's model is fitted to: the art heights on desktop, the VR heights in a headset.</summary>
+        public static float TargetHeight(int stage, bool xr) => (xr ? XrStageHeight : StageHeight)[Mathf.Clamp(stage - 1, 0, 2)];
+
+        /// <summary>
+        /// Scale factor for a model measured <paramref name="measured"/> tall to come out <paramref name="want"/> tall.
+        /// Desktop (<paramref name="exact"/> false) only corrects wrong import units (off by more than 0.6x-1.6x) and
+        /// otherwise trusts the art; VR fits exactly. 1 when nothing should change.
+        /// </summary>
+        public static float FitScale(float measured, float want, bool exact)
+        {
+            if (measured <= 0.01f || want <= 0f) return 1f;
+            float ratio = want / measured;
+            if (exact) return Mathf.Abs(ratio - 1f) < 0.005f ? 1f : ratio;
+            return ratio < 0.6f || ratio > 1.6f ? ratio : 1f;
+        }
 
         public static BeastController Instance { get; private set; }
         public BeastIntent LastIntent { get; private set; }
@@ -147,7 +166,7 @@ namespace Fnmw.Monster.Beast
 
         bool IsWatched(Camera cam)
         {
-            Vector3 chest = transform.position + Vector3.up * StageHeight[Mathf.Clamp(_modelStage - 1, 0, 2)] * 0.6f;
+            Vector3 chest = transform.position + Vector3.up * TargetHeight(_modelStage, XrBridge.Active) * 0.6f;
             Vector3 vp = cam.WorldToViewportPoint(chest);
             if (vp.z <= 0 || vp.x < 0.05f || vp.x > 0.95f || vp.y < 0.02f || vp.y > 0.98f) return false;
             float visible = RenderSettings.fog && RenderSettings.fogMode != FogMode.Linear
@@ -191,7 +210,9 @@ namespace Fnmw.Monster.Beast
             var label = _model.transform.Find("label");
             if (label) label.gameObject.SetActive(false); // the beast is not a signpost
             bool art = ModelLoader.HasArt(name);
-            NormaliseHeight(_model, StageHeight[Mathf.Clamp(stage - 1, 0, 2)]);
+            // Fitted on the model (a child), before the animator records its base scale, so the procedural poses
+            // scale around the fitted size and AnimateEffects' spawn pop (on this root) multiplies on top of it.
+            FitHeight(_model, TargetHeight(stage, XrBridge.Active), XrBridge.Active);
             if (!art) AddEyes(_model);   // real models have their own faces
             else PlaceGlow(_model);
             transform.rotation = rot;
@@ -200,12 +221,15 @@ namespace Fnmw.Monster.Beast
             _modelStage = stage;
         }
 
-        void NormaliseHeight(GameObject model, float want)
+        /// <summary>Scale a freshly loaded model (under an unscaled, unrotated root) to <paramref name="want"/> metres tall.</summary>
+        public static void FitHeight(GameObject model, float want, bool exact)
         {
             var b = Bounds(model);
-            if (b.size.y <= 0.01f) return;
-            float ratio = want / b.size.y;
-            if (ratio < 0.6f || ratio > 1.6f) model.transform.localScale *= ratio; // wrong import units
+            // measured in the root's own units: the root may still be mid spawn-pop from an earlier evolution
+            var parent = model.transform.parent;
+            float rootScale = parent ? Mathf.Max(0.001f, parent.lossyScale.y) : 1f;
+            float k = FitScale(b.size.y / rootScale, want, exact);
+            if (k != 1f) model.transform.localScale *= k;
         }
 
         void AddEyes(GameObject model)

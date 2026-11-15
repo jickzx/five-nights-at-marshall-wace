@@ -20,7 +20,7 @@ namespace Fnmw.Game
         /// <summary>Set by the director once the example has been walked through (or skipped).</summary>
         public bool ExampleDone;
 
-        float _moved, _looked, _lastYaw, _lastPitch;
+        float _moved, _looked, _lastYaw, _lastPitch, _turn0;
         Vector3 _lastPos;
         bool _tracking;
         PlayerController _player;
@@ -48,6 +48,7 @@ namespace Fnmw.Game
             if (!TutorialSession.WantsTutorial) return;
             Flow.Begin();
             _moved = 0; _looked = 0; _tracking = false;
+            _turn0 = XrBridge.StickTurnDegrees;
             ExampleDone = false;
             var t0 = Time.realtimeSinceStartup;
             var s = Services.State;
@@ -93,6 +94,8 @@ namespace Fnmw.Game
                     Phase = s.Phase, Moved = _moved, Looked = _looked, ConsoleDistance = dist, AtConsole = at,
                     Solved = s.PuzzlesSolved, Total = s.TotalPuzzles, SkipHeld = kb != null && kb.qKey.isPressed || XrBridge.SkipHeld,
                     ExampleOpen = d && d.ExampleOpen,
+                    // in a headset the body turns with the right stick, not the head: practise it once
+                    NeedTurn = XrBridge.Active, Turned = XrBridge.StickTurnDegrees - _turn0,
                 });
                 if (!Flow.Active && d && d.ExampleOpen) d.EndWorkedExample();   // skipped mid-example: straight to the real puzzle
                 if (Flow.Taught && !TutorialSession.Seen || Flow.Taught && TutorialSession.ReplayRequested)
@@ -104,6 +107,7 @@ namespace Fnmw.Game
                 if (!Flow.Active) Debug.Log("[Tutorial] finished");
             }
             s.BeastGrace = Flow.Grace;
+            XrBridge.TutorialActive = Flow.Active;
             if (s.IsOver) return;
             try { Services.UI.ShowTutorial(Flow.View(s.PuzzlesSolved, s.TotalPuzzles)); }
             catch (System.Exception ex) { Debug.LogException(ex); }

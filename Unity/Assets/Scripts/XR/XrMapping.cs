@@ -98,3 +98,160 @@ namespace Fnmw.XR
         }
     }
 }
+
+namespace Fnmw.XR
+{
+    /// <summary>
+    /// Where the theater screen goes when a cutscene starts. Everything is in tracking space (the space the
+    /// headset reports its pose in, under the theater's CameraOffset): the screen is put straight ahead of the
+    /// way the face points at that moment, at eye level, wherever the player stands or faces in their room.
+    /// Pure, so tests drive it with any room pose.
+    /// </summary>
+    public static class TheaterLayout
+    {
+        /// <summary>Metres from the eyes to the screen.</summary>
+        public const float Distance = 3.4f;
+        /// <summary>Screen size, metres (16:9, about 70 degrees wide at Distance).</summary>
+        public static readonly Vector2 Size = new Vector2(4.8f, 2.7f);
+
+        /// <summary>The way the face points, flattened onto the floor. Looking straight down or up falls back to
+        /// the top (or bottom) of the head, which still points where the face was turned.</summary>
+        public static Vector3 Facing(Quaternion headRot)
+        {
+            Vector3 f = headRot * Vector3.forward; f.y = 0;
+            if (f.sqrMagnitude < 1e-4f) { f = headRot * (Vector3.up * -Mathf.Sign((headRot * Vector3.forward).y)); f.y = 0; }
+            if (f.sqrMagnitude < 1e-6f) return Vector3.forward;
+            return f.normalized;
+        }
+
+        /// <summary>
+        /// Screen pose for a head at <paramref name="headPos"/> / <paramref name="headRot"/> (tracking space).
+        /// The quad faces the viewer (its +Z points away from them, the way a Unity quad shows its face).
+        /// Height is the head's own (the offset already puts the eyes at the game's eye height); with no
+        /// tracked height yet it uses <paramref name="eyeHeight"/>.
+        /// </summary>
+        public static void Screen(Vector3 headPos, Quaternion headRot, float eyeHeight, out Vector3 pos, out Quaternion rot)
+        {
+            Vector3 f = Facing(headRot);
+            float y = headPos.y > 0.2f ? headPos.y : eyeHeight;
+            pos = new Vector3(headPos.x, y, headPos.z) + f * Distance;
+            rot = Quaternion.LookRotation(f, Vector3.up);
+        }
+    }
+
+    /// <summary>
+    /// One button that means one thing when tapped and another when held: the tap fires on release (only if it
+    /// was let go before the threshold), the hold fires once when the threshold is reached. So holding never
+    /// sets off the tap action first (holding Y to skip the tutorial must not walk away from the console).
+    /// </summary>
+    public sealed class HoldTap
+    {
+        public readonly float Threshold;
+        float _held;
+        bool _down, _fired;
+
+        public bool Tap { get; private set; }     // this frame: released before the threshold
+        public bool Hold { get; private set; }    // this frame: just reached the threshold
+        public bool Down => _down;
+        public float Held => _down ? _held : 0f;
+        /// <summary>0..1 towards the hold, for on-controller feedback.</summary>
+        public float Progress => _down && !_fired ? Mathf.Clamp01(_held / Threshold) : 0f;
+
+        public HoldTap(float threshold) { Threshold = threshold; }
+
+        public void Tick(bool down, float dt)
+        {
+            Tap = Hold = false;
+            if (down)
+            {
+                if (!_down) { _down = true; _held = 0f; _fired = false; return; }
+                _held += dt;
+                if (!_fired && _held >= Threshold) { _fired = true; Hold = true; }
+                return;
+            }
+            if (_down && !_fired) Tap = true;
+            _down = false; _held = 0f; _fired = false;
+        }
+
+        public void Reset() { _down = false; _held = 0f; _fired = false; Tap = Hold = false; }
+    }
+
+    /// <summary>The raw Touch controller state for one frame.</summary>
+    public struct TouchFrame
+    {
+        public Vector2 LeftStick, RightStick;
+        public bool A, B, X, Y;                 // held
+        public bool RightTrigger, LeftTrigger;  // held
+        public bool LeftGrip, Menu;             // held
+        /// <summary>The right controller's laser is on the UI glass this frame.</summary>
+        public bool PointerOnGlass;
+    }
+
+    /// <summary>What the game should see this frame (copied onto XrBridge by the rig).</summary>
+    public struct MappedInput
+    {
+        public Vector2 Move;
+        public bool Run, Interact, Flashlight, Leave, SkipHeld;
+        public bool Enter, Space, Back, Clear, Replay, Click;
+        public bool Left, Right, Up, Down;
+    }
+
+    /// <summary>
+    /// The Touch layout, as one pure mapping so tests can press buttons by hand:
+    /// <code>
+    ///   right trigger  aim / select / place (clicks the glass under the laser; off the glass it places the
+    ///                  tile under the stick cursor / continues); uses the console while roaming
+    ///   A              send / confirm (Enter); uses the console while roaming
+    ///   B              tap: undo / back (Backspace)      hold: clear the tiles / skip the worked example (Delete)
+    ///   left stick     walk (and steps the screen cursor, as does the right stick)
+    ///   left grip      run
+    ///   right stick    turn (snap or smooth; click switches)
+    ///   X              lamp (F)
+    ///   Y              tap: leave the console / skip the intro (Esc), replay tutorial on the title (T)
+    ///                  hold: skip the tutorial (hold Q)
+    ///   left trigger   nothing (it used to send, and fired by accident while gripping)
+    ///   menu           also leaves the console / skips the intro
+    /// </code>
+    /// </summary>
+    public sealed class TouchMapper
+    {
+        /// <summary>Seconds a hold takes (B clear, Y skip). A tap is a release before this.</summary>
+        public const float HoldSeconds = 0.5f;
+
+        public readonly HoldTap B = new HoldTap(HoldSeconds);
+        public readonly HoldTap Y = new HoldTap(HoldSeconds);
+        readonly StickRepeater _arrows = new StickRepeater();
+        bool _a, _x, _trig, _menu;
+
+        public MappedInput Tick(in TouchFrame f, float dt)
+        {
+            var m = new MappedInput();
+            bool a = f.A && !_a, x = f.X && !_x, trig = f.RightTrigger && !_trig, menu = f.Menu && !_menu;
+            _a = f.A; _x = f.X; _trig = f.RightTrigger; _menu = f.Menu;
+            B.Tick(f.B, dt);
+            Y.Tick(f.Y, dt);
+
+            // roaming
+            m.Move = f.LeftStick.sqrMagnitude < 0.02f ? Vector2.zero : f.LeftStick;
+            m.Run = f.LeftGrip;
+            m.Interact = a || trig;
+            m.Flashlight = x;
+            m.Leave = Y.Tap || menu;
+            // Y held: the tutorial's own hold-to-skip timer (0.8 s, longer than a tap) fills while it is down.
+            // A tap (released inside HoldSeconds) leaves the console instead; a longer hold never does.
+            m.SkipHeld = Y.Down;
+
+            // screens
+            m.Enter = a;
+            m.Click = trig && f.PointerOnGlass;
+            m.Space = trig && !f.PointerOnGlass;   // never both: a click already places the tile under the laser
+            m.Back = B.Tap;
+            m.Clear = B.Hold;
+            m.Replay = Y.Tap;
+            var stick = f.RightStick.sqrMagnitude >= f.LeftStick.sqrMagnitude ? f.RightStick : f.LeftStick;
+            _arrows.Tick(stick, dt);
+            m.Left = _arrows.Left; m.Right = _arrows.Right; m.Up = _arrows.Up; m.Down = _arrows.Down;
+            return m;
+        }
+    }
+}

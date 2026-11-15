@@ -18,6 +18,8 @@ namespace Fnmw.Game
     {
         public const float SkipHoldSeconds = 0.8f;
         public const float MoveMetres = 3f, LookDegrees = 30f, MoveTimeout = 20f;
+        /// <summary>VR only: degrees of right-stick turning the Move cue waits for (one 45 degree snap is enough).</summary>
+        public const float TurnDegrees = 40f, MoveTimeoutXr = 35f;
         public const float ObjectiveMin = 4f, ObjectiveMax = 12f, ObjectiveNear = 7f;
         public const float ReadSeconds = 6f, MisfireSeconds = 4f, BeastSeconds = 7f, NextSeconds = 7f, NextNear = 8f;
 
@@ -31,6 +33,8 @@ namespace Fnmw.Game
             public int Solved, Total;
             public bool SkipHeld;
             public bool ExampleOpen;     // the worked example is on the console
+            public bool NeedTurn;        // VR: the Move cue also wants the right stick turned (Turned degrees)
+            public float Turned;         // degrees turned with the right stick since the run began
         }
 
         public bool Active { get; private set; }
@@ -125,7 +129,7 @@ namespace Fnmw.Game
                 switch (Cue)
                 {
                     case TutorialCue.Move:
-                        if ((i.Moved >= MoveMetres && i.Looked >= LookDegrees) || CueTime > MoveTimeout || i.AtConsole) { _objectiveShown = true; Set(TutorialCue.Objective); }
+                        if (MovePractised(i) || CueTime > (i.NeedTurn ? MoveTimeoutXr : MoveTimeout) || i.AtConsole) { _objectiveShown = true; Set(TutorialCue.Objective); }
                         break;
                     case TutorialCue.Objective:
                         if (i.AtConsole) Set(TutorialCue.Console);
@@ -154,6 +158,10 @@ namespace Fnmw.Game
             if (Cue == TutorialCue.NextConsole && (CueTime > NextSeconds || i.ConsoleDistance < NextNear || i.Solved >= i.Total)) { End(); return; }
             if (Cue != TutorialCue.NextConsole) End();
         }
+
+        /// <summary>Walked a few metres and looked around; in VR, also turned with the right stick.</summary>
+        static bool MovePractised(Inputs i) =>
+            i.Moved >= MoveMetres && i.Looked >= LookDegrees && (!i.NeedTurn || i.Turned >= TurnDegrees);
 
         void Set(TutorialCue c) { Cue = c; CueTime = 0f; }
 

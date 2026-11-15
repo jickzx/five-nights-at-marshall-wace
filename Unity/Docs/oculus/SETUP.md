@@ -72,29 +72,45 @@ Logs: `adb logcat -s Unity` (or MQDH > *Logs*). The game prints `[XR] headset de
 | Run | Shift | Hold left grip |
 | Turn | Mouse | Right stick: 45° snap by default. Click the right stick to switch to smooth turning (remembered) |
 | Use console / board ship | E | A or right trigger |
-| Flashlight | F | B |
-| Leave the console | Esc / Tab | Menu button (left ☰) |
-| Skip the intro | Space / Esc / Enter | A, X or menu |
-| Skip the tutorial | Hold Q | Hold the left stick down (click and hold) |
-| Point at tiles, answers, buttons | Mouse | Aim the right controller (laser), right trigger clicks |
+| Flashlight (lamp) | F | X |
+| Leave the console | Esc / Tab | Tap Y (the left menu button also works) |
+| Skip the intro | Space / Esc / Enter | A, right trigger, or tap Y |
+| Skip the tutorial | Hold Q | Hold Y (the bar fills; it skips at 0.8 s) |
+| Point at tiles, answers, buttons | Mouse | Aim the right controller (laser) |
+| Select / place the tile under the laser | Click | Right trigger |
 | Move the tile / answer cursor | Arrow keys | Either stick |
-| Place the tile under the cursor / continue | Space | A |
-| Send the answer / confirm | Enter | X (or left trigger) |
-| Undo the last tile / back | Backspace | B |
-| Clear the tiles / skip the worked example | Delete | Y |
-| Pick tile or answer N | 1-9, 0 | Laser + trigger, or stick + A |
-| Title: start / replay tutorial | Enter / T | A / Y |
-| Restart after an ending | Enter / click | A, X or trigger |
+| Place the tile under the cursor / continue | Space | Right trigger with the laser off the screen |
+| Send the answer / confirm / next | Enter | A |
+| Undo the last tile / back | Backspace | Tap B |
+| Clear the tiles / skip the worked example | Delete | Hold B (0.5 s) |
+| Pick tile or answer N | 1-9, 0 | Laser + trigger, or stick + trigger/A |
+| Title: start / replay tutorial | Enter / T | A (or trigger) / tap Y |
+| Restart after an ending | Enter / click | A or trigger |
+| Left trigger | – | Nothing (it used to send, and fired by accident) |
 
-A card on the left controller lists these controls in the headset. The on-screen text still names the keyboard keys (`[ENTER]`, `HOLD Q`), and the card shows which button does each one. The world prompts say "Press A".
+**Tap or hold.** B and Y each do two things. A *tap* fires when you let go, and only if you let go within 0.5 s. A *hold* never fires the tap first, so holding Y to skip the tutorial at the console does not walk you away from it, and holding B to clear never undoes a tile on the way. A held button fills towards amber on the controller model.
+
+**Mapping changes from the first Quest build (PR #17), and why.** Send moved from X / left trigger to **A**, because the left trigger sat under the fingers holding the grip and sent answers by accident. Place moved from A to the **right trigger**, which is also the laser's click. The lamp moved from B to **X**, so B is only undo / clear. Clear moved from Y to **hold B**, and leave moved from the menu button to **tap Y**, with skip tutorial on **hold Y** (it was a held left-stick click). That frees the Y conflict between "replay tutorial" and "skip worked example".
+
+**The controller guide in the headset.** Both controllers are drawn as Touch-like models. Every button lights and sinks while you press it (the trigger swings with the pull, the sticks tilt), and a short label beside each button says what it does *right now*: USE / LAMP / WALK / RUN while roaming, PLACE / SEND / UNDO · HOLD CLEAR / LEAVE at a console, START / TUTORIAL on the title. A card over the left wrist (turn your wrist up) repeats the current controls in at most five large lines. In VR the on-screen copy names Touch buttons instead of keys: the tutorial, the worked example, the console's footer, the title's replay key, the A keycap in place of the Enter icon, and the intro's skip hint. The desktop build keeps the keyboard copy.
+
+**Tutorial in VR.** The first cue teaches the left stick walk and the right stick turn. It waits until you have walked a few metres *and* turned with the stick at least once (one snap is enough), or 35 s, whichever comes first. Head-looking alone does not count, because in VR the body only turns with the stick. The objective cue points at the ground chevron and the wrist card.
 
 ## 6. What changes in VR, and why
 
 - **Camera.** Head tracking drives the view. Height is calibrated so your eyes sit at the game's 1.6 m eye height, whether you stand or sit, and it recalibrates when you recenter (hold the Meta button). Walking in your room moves the character, which still collides. There is no head bob in VR (comfort).
 - **No PS1 low-res pass in VR.** On desktop, World's RetroScreen draws the camera into a 240-line texture shown on a screen-space overlay. A headset never shows overlay canvases, so in VR the eyes render the scene directly at full resolution. Vertex snapping is off too.
 - **UI.** The same UI texture with the same CRT glass hangs in front of you at about 1.9 m, 2.4 m wide. While you explore, it follows your head closely (like a visor). On the title, console, decode, quiz and end screens it follows lazily, so it stays put while you read.
-- **Cutscenes** (the wormhole intro, death, escape) move a camera on their own. In VR they play on a 4.8 m screen in a dark room ("theater") instead of moving your head for you. Their fades and captions are drawn into that picture.
+- **Cutscenes** (the wormhole intro, death, escape) move a camera on their own. In VR they play on a 4.8 m screen in a dark room ("theater") instead of moving your head for you. Their fades and captions are drawn into that picture. **The screen comes up straight in front of wherever your headset faces when the cutscene starts**, at eye level, however you have turned or walked in your room (it was fixed down the room's forward axis, so a turned player saw it to the side or behind). It realigns if you recenter while it is up.
+- **Death scare.** The beast first appears in the world, in your own tracked view: for about a second it stands 1.35 m in front of your face, turned to you, with a red pulse. Nothing moves your head. Then the rest of the ending plays on the theater screen in front of that same view. No extra sound plays: the catch roar and the death stinger are the only audio, as on desktop.
+- **Beast size.** In a headset the beast is fitted exactly to **2.05 / 2.35 / 2.7 m** for stages 1 / 2 / 3. That is still taller than the 1.8 m player, but it no longer reads as a building at arm's length. Desktop keeps its art heights (2.35 / 2.9 / 3.55 m, corrected only for wrong import units). The fit scales the model itself before the animator records its base scale, so the procedural poses and the spawn "pop" scale around the fitted size.
+- **Ground guide.** While you roam (and on the final run to the ship), a dim chevron lies on the ground about 1.9 m ahead, pointing to the same target as the visor's objective line (the lit console, or the ship). It sits on the real surface, tilted with slopes and ignoring pillar tops and walls. It fades out from 5.5 m to 2.6 m from the target, and it is hidden at consoles, on screens, in cutscenes and after death.
+- **The beast "in front" for the skip keys** (dev / demo) goes where your head looks, not where the body faces.
 - **Comfort.** Snap turning is on by default, and a dark vignette closes in while you move with the stick. The game pauses (time and audio) while the Quest system menu has focus.
+
+### Verified so far, and what still needs a headset
+
+EditMode tests cover: theater placement at turned and sideways-displaced room poses, both on the pure layout and on the real rig driven frame by frame (intro, death after the in-world beat, realigning on the next cutscene); the Touch mapping, including tap/hold timing for B and Y and the dead left trigger; the guide on flat ground, slopes, beside pillars and over a void, and its target policy; beast heights and fitting under a mid-pop root; the scare pose; the VR turn practice; and the VR copy on the tutorial and console. A headset is still needed to judge: the controller models' proportions against your real hands (they are approximations built from primitives), the readability of the labels and the wrist card, the scare's timing and distance for comfort, and the chevron's brightness in the fog.
 
 ## Troubleshooting
 

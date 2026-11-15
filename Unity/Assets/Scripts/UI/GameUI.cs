@@ -197,6 +197,10 @@ namespace Fnmw.UI
 
         public string PromptShown => _hud.PromptShown;
         public string TutorialCueShown => _tutorial.CueShown;
+        /// <summary>The tutorial card's words ([KEY] for keycaps), for tests.</summary>
+        public string TutorialTextShown => _tutorial.TextShown;
+        /// <summary>The console's footer line while no feedback is showing, for tests.</summary>
+        public string PuzzleHint => PuzzleScreen.Hint;
         public int PuzzlePicks => _puzzle.PickCount;
         /// <summary>The worked example's step ("Barrier" … "Decoded"), for tests and automated play; "None" when it is not up.</summary>
         public string ExampleStep => _modal == _example ? _example.Current.ToString() : "None";

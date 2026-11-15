@@ -10,10 +10,19 @@ namespace Fnmw.Game
     /// tilts slowly up into the falling blood, then cuts to a low shot of a kneeling silhouette with its arms
     /// open against a glowing red sky, and the red burns out to white. About fourteen seconds.
     /// The World's Atmosphere yields fog and sky to this script during the Dead phase.
+    ///
+    /// In a headset the camera is never flown on the player's face. The scare itself plays in the world first:
+    /// for a moment the beast stands over the player, straight ahead of wherever the headset faces, while the
+    /// head stays tracked (no forced camera motion). Then the rest of the ending plays on the theater screen,
+    /// which comes up in front of that same view (Fnmw.XR). No extra sound: the catch already roared.
     /// </summary>
     public class DeathCutscene : MonoBehaviour
     {
         public const float Length = 14f;
+        /// <summary>VR: how long the scare stays in the world before the ending moves to the theater.</summary>
+        public const float XrScareSeconds = 1.1f;
+        /// <summary>VR: metres from the eyes to the beast during the in-world scare (the beast is 2-2.7 m tall).</summary>
+        public const float XrScareDistance = 1.35f;
         static readonly Color DeepRed = new Color(0.42f, 0.02f, 0.02f);
         static readonly Color GlowRed = new Color(0.95f, 0.16f, 0.08f);
         static readonly Color White = new Color(1f, 0.97f, 0.94f);
@@ -34,6 +43,7 @@ namespace Fnmw.Game
             if (!cam || !playerT) { yield return new WaitForSeconds(1f); _onDone?.Invoke(); yield break; }
             var fade = ScreenFade.Create(transform);
             var beast = GameDirector.FindBeast();
+            if (XrBridge.Active) yield return InWorldScare(cam, playerT, beast, fade);
 
             Vector3 feet = playerT.position;
             Vector3 eye0 = cam.position;
@@ -140,6 +150,48 @@ namespace Fnmw.Game
                 yield return null;
             }
             if (figure) { } // stays kneeling
+        }
+
+        void OnDisable() { if (XrBridge.Active) XrBridge.HoldTheater = false; }
+
+        /// <summary>
+        /// Where the beast stands for the VR scare: on the player's ground, <see cref="XrScareDistance"/> ahead of
+        /// the head along the way the face points (not the body: in VR they differ), turned to face the head.
+        /// </summary>
+        public static void ScarePose(Vector3 headPos, Vector3 headForward, Vector3 bodyForward, float groundY, out Vector3 pos, out Quaternion rot)
+        {
+            Vector3 f = headForward; f.y = 0;
+            if (f.sqrMagnitude < 1e-4f) { f = bodyForward; f.y = 0; }
+            if (f.sqrMagnitude < 1e-4f) f = Vector3.forward;
+            f.Normalize();
+            pos = headPos + f * XrScareDistance;
+            pos.y = groundY;
+            rot = Quaternion.LookRotation(-f);
+        }
+
+        /// <summary>VR: the beast looms in front of the tracked view with a red pulse, then the theater takes over.</summary>
+        IEnumerator InWorldScare(Transform cam, Transform playerT, Transform beast, ScreenFade fade)
+        {
+            XrBridge.HoldTheater = true;
+            if (beast)
+            {
+                ScarePose(cam.position, cam.forward, playerT.forward, playerT.position.y, out var p, out var r);
+                beast.SetPositionAndRotation(p, r);
+            }
+            for (float t = 0f; t < XrScareSeconds; t += Time.deltaTime)
+            {
+                fade.Set(new Color(0.6f, 0f, 0f), 0.4f * Mathf.Max(0f, 1f - t / XrScareSeconds));
+                if (beast)
+                {
+                    // it keeps its eyes on the player if they flinch away
+                    var to = cam.position - beast.position; to.y = 0;
+                    if (to.sqrMagnitude > 0.01f) beast.rotation = Quaternion.Slerp(beast.rotation, Quaternion.LookRotation(to), 1f - Mathf.Exp(-Time.deltaTime * 6f));
+                }
+                yield return null;
+            }
+            fade.Set(new Color(0.6f, 0f, 0f), 0f);
+            XrBridge.HoldTheater = false;
+            yield return null;   // the XR rig moves the view to the theater (in front of the head) at the end of this frame
         }
 
         static float BeastHeight(Transform beast)
