@@ -235,6 +235,7 @@ namespace Fnmw.UI
         RectTransform _sky, _cue, _ship;
         Image _trail;
         Text _debrief;
+        Image _debriefBack;   // dark panel: the account sits on the bright horizon of the sky
         float _debriefAt;
         readonly List<Image> _stars = new List<Image>();
         readonly List<Graphic> _fadeIn = new List<Graphic>();
@@ -279,6 +280,7 @@ namespace Fnmw.UI
             _onRestart = onRestart;
             _stars.Clear(); _fadeIn.Clear(); _fadeAt.Clear();
             _debrief = null;
+            _debriefBack = null;
             _debriefTop = DebriefTop(debrief);
             float bottom = _debriefTop - 4;
 
@@ -369,14 +371,22 @@ namespace Fnmw.UI
         /// <summary>The run's account above the cue. Can arrive or change while the screen is up; a change fades in again.</summary>
         public void SetDebrief(string text)
         {
-            if (string.IsNullOrEmpty(text)) { if (_debrief) _debrief.text = ""; return; }
+            if (string.IsNullOrEmpty(text))
+            {
+                if (_debrief) _debrief.text = "";
+                if (_debriefBack) _debriefBack.enabled = false;
+                return;
+            }
             int lines = Mathf.Max(1, Kit.Lines(text, 16, DebriefW));
             float h = lines * DebriefPitch;
             // never above the band the list left free: an account longer than the band grows down toward the cue instead
             float top = Mathf.Max(DebriefBottom - h, _debriefTop);
+            if (!_debriefBack) _debriefBack = Kit.Box("DebriefBack", Root, Pal.Indigo.A(0.78f), 0, 0, 1, 1);
+            _debriefBack.enabled = true;
+            Kit.Place(_debriefBack.rectTransform, DebriefX - 8, top - 4, DebriefW + 16, h + 8);
             if (!_debrief)
             {
-                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Dawn, TextAnchor.UpperLeft, DebriefX, top, DebriefW, h, wrap: true);
+                _debrief = Kit.Label("Debrief", Root, text, 16, Pal.Ivory, TextAnchor.UpperLeft, DebriefX, top, DebriefW, h, wrap: true);
                 Kit.Pitch(_debrief, DebriefPitch);
             }
             else
@@ -387,6 +397,7 @@ namespace Fnmw.UI
             }
             _debriefAt = Mathf.Max(_debriefAt, T);
             _debrief.canvasRenderer.SetAlpha(0);
+            _debriefBack.canvasRenderer.SetAlpha(0);
         }
 
         public string DebriefText => _debrief && _debrief.text.Length > 0 ? _debrief.text : null;
@@ -408,6 +419,7 @@ namespace Fnmw.UI
             for (int i = 0; i < _fadeIn.Count; i++)
                 if (_fadeIn[i]) _fadeIn[i].canvasRenderer.SetAlpha(Kit.Ramp(T, _fadeAt[i], 0.6f));
             if (_debrief) _debrief.canvasRenderer.SetAlpha(Kit.Ramp(T, _debriefAt, 0.6f));
+            if (_debriefBack) _debriefBack.canvasRenderer.SetAlpha(Kit.Ramp(T, _debriefAt, 0.6f));
             for (int i = 0; i < _stars.Count; i++)
                 _stars[i].color = Pal.Dawn.A(0.35f + 0.65f * Mathf.Abs(Mathf.Sin(T * (0.4f + (i % 5) * 0.17f) + i)));
             // the ship climbs slowly, for as long as you watch
