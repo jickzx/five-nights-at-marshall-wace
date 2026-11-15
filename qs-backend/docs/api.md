@@ -7,7 +7,8 @@ Two kinds of caller:
 | Caller | Credential | Header |
 |---|---|---|
 | Employer dashboard | Supabase Auth access token of a signed-in employer user | `Authorization: Bearer <jwt>` |
-| Headset | Per-session ingest token from `POST /v1/sessions` (shown once) | `X-QS-Ingest-Token: qsi_…` |
+| Headset enrollment | Device key from `POST /v1/devices` (shown once) | `X-QS-Device-Key: qsd_…` |
+| Headset ingest | Per-session ingest token returned by session creation | `X-QS-Ingest-Token: qsi_…` |
 
 Employer reads and writes are executed **as that employer** against Postgres, so row-level security decides what exists for them. Anything they cannot see returns 404.
 
@@ -23,6 +24,9 @@ The consent statement the headset must show, its version and its SHA-256.
 ```
 
 ## Headset
+
+### `POST /v1/device-sessions` → 201
+With `X-QS-Device-Key`, create a pseudonymous candidate and session for the enrolled employer and question set. The response includes a session and a one-time ingest token. The device key cannot read employer data.
 
 ### `POST /v1/ingest/{session_id}/consent` → 201
 ```json
@@ -61,6 +65,7 @@ One motion window and/or game events. Sent every 0.5 s by the Unity sender.
 | `question_key` | `^[A-Za-z0-9_.:-]{1,64}$`, the question on screen at the window's end, or null. |
 | `samples.t` | 1–600 timestamps in seconds; every device array must have the same length. |
 | `head/left/right` | Each optional. `pos` (m), `rot` (x, y, z, w), `vel` (m/s, optional), `angvel` (rad/s, optional, accepted but unused), `tracked`. |
+| `audio` | Optional on-device breathing features: `breath_rate_bpm`, `breath_regularity`, `breath_amp`, `deep_breaths`, and `since_last_breath_s`. Raw audio is not sent. |
 | `events` | ≤200. `id` is a client UUID (repeats ignored). `type` is one of the list below. `payload` ≤2 KB JSON. |
 
 Event types: `session_start`, `calibration_start`, `calibration_end`, `question_shown`, `tile_placed`, `tile_removed`, `answer_cleared`, `answer_submitted` (`payload.correct`; `payload.final: true` when the answer cannot be retried, which closes the question even if wrong), `answer_wrong_fx`, `hint_used`, `monster_appeared`, `monster_stage`, `monster_lunge`, `jumpscare`, `chase_start`, `chase_end`, `death`, `question_abandoned`, `session_end`, `tracking_lost`, `tracking_restored`.
@@ -76,6 +81,9 @@ Errors: 401 bad token, 403 no consent, 409 session ended, 413 body over 1 MB, 42
 | `GET /v1/me` | Your user id and employer memberships (with role). |
 | `POST /v1/question-sets` | Register a question set: `{"name": "...", "questions": [{"key": "p1", "prompt": "...", "position": 0}]}`. Keys are what the game sends as `question_key`. `employer_id` is needed only if you belong to several employers. |
 | `GET /v1/question-sets` | Your question sets with their questions. |
+| `POST /v1/devices` | Owner enrolls a device with `name`, `question_set_id`, and optional `employer_id`; the device key is returned once. |
+| `GET /v1/devices` | List enrolled devices. |
+| `DELETE /v1/devices/{id}` | Owner revokes a device key. |
 | `POST /v1/candidates` | `{"pseudonym": "C-…" (optional, generated otherwise), "identity": {"display_name", "email", "external_ref"} (optional, owners only)}`. Returns the pseudonymous candidate; the identity is stored separately and never returned. |
 | `POST /v1/sessions` | `{"candidate_id", "question_set_id"}` → `{"session": {...}, "ingest_token": "qsi_…"}`. The token is shown once; configure it on the headset. |
 | `GET /v1/sessions?status=live&limit=100` | Your sessions, newest first, with `candidate_pseudonym`. |
@@ -85,7 +93,7 @@ Errors: 401 bad token, 403 no consent, 409 session ended, 413 body over 1 MB, 42
 | `GET /v1/sessions/{id}/events` | The session's game events. |
 | `GET /v1/candidates/{id}/summary` | Per-candidate roll-up of every session (observations, no score). |
 | `POST /v1/sessions/{id}/summary?refresh=false` | Ask Gemini for the evidence-cited summary. Returns the stored one if it exists (`cached: true`); `refresh=true` calls Gemini again if the stored one is over 2 minutes old. Always 200: `status` is `ok`, `unavailable` (with `reason`: not configured, 402 credits, 429, timeout…) or `rejected` (nothing passed the checks). |
-| `GET /v1/sessions/{id}/summary` | The last successful summary, or 404. |
+| `GET /v1/sessions/{id}/summary` | The last stored summary, or 404. |
 | `DELETE /v1/candidates/{id}` | Owners only. Deletes the candidate and everything derived from them; returns counts. |
 
 ## Realtime contract (for dashboards)
