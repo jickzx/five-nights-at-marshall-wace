@@ -6,53 +6,6 @@ using UnityEngine.UI;
 
 namespace Fnmw.UI
 {
-    /// <summary>Title: the name on dead glass, a line of writing nobody can read yet, and the tide at the bottom.</summary>
-    internal sealed class TitleScreen : UiScreen
-    {
-        Action _onStart;
-        readonly List<RawImage> _glyphs = new List<RawImage>();
-        RectTransform _cue;
-        float _swapT;
-        int _seed = 7;
-
-        public TitleScreen(GameUI ui) : base(ui, "Title") { }
-        public override GlassMode Glass => GlassMode.Title;
-
-        public void Show(Action onStart)
-        {
-            Open();
-            _onStart = onStart;
-            _glyphs.Clear();
-            Kit.Label("Over", Root, "F I V E   N I G H T S   A T", 16, Pal.RustHot, TextAnchor.MiddleCenter, 20, 84, 600, 16);
-            Kit.Label("Name", Root, "MARSHALL WACE", 48, Pal.Bone, TextAnchor.MiddleCenter, 20, 106, 600, 48);
-            Kit.Box("Rule", Root, Pal.Rust, 164, 166, 312, 1);
-            const int n = 9;
-            float x = (UiRig.StageW - (n * 24 + (n - 1) * 8)) / 2f;
-            for (int i = 0; i < n; i++)
-            {
-                _glyphs.Add(Kit.Pic("Glyph", Root, GlyphGen.Texture(_seed++ * 7919, (ScriptFamily)(i % 7), 24), Pal.Rust, x, 180, 24, 24));
-                x += 32;
-            }
-            Kit.Label("Line", Root, "Read the dead tongue. Wake the ship. The tide is rising.", 16, Pal.BoneDim, TextAnchor.MiddleCenter, 20, 216, 600, 16);
-            _cue = Widgets.Cue(Root, 258, "BEGIN", Pal.Bone);
-        }
-
-        protected override void OnTick(float dt, UiInput input)
-        {
-            // the unreadable line keeps rewriting itself
-            _swapT += dt;
-            if (_swapT > 0.28f && _glyphs.Count > 0)
-            {
-                _swapT = 0;
-                int i = UnityEngine.Random.Range(0, _glyphs.Count);
-                _glyphs[i].texture = GlyphGen.Texture(_seed++ * 7919, (ScriptFamily)(_seed % 7), 24);
-                _glyphs[i].color = UnityEngine.Random.value < 0.2f ? Pal.Blood : Pal.Rust;
-            }
-            if (_cue) _cue.gameObject.SetActive(Kit.Blink(T, 1.2f));
-            if (T > 0.25f && (input.Confirm || input.Click)) { var cb = _onStart; _onStart = null; cb?.Invoke(); }
-        }
-    }
-
     /// <summary>
     /// The visor while roaming. Almost nothing is written on it: a prompt when something can be used,
     /// the ship's power cells, and claw marks that appear as the beast changes. Threat itself is drawn
@@ -235,7 +188,7 @@ namespace Fnmw.UI
             y += 38;
             if (roomy)
             {
-                Fade(Kit.Label("Sub", Root, "The ship tears free of the blood sea.", 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
+                Fade(Kit.Label("Sub", Root, TitleCopy.EscapeLine, 16, Pal.Dawn, TextAnchor.MiddleLeft, 44, y, 420, 16), 1.1f);
                 y += 22;
             }
             if (state != null)

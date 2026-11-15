@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Fnmw.Core;
+using Fnmw.Game.Intro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -23,6 +24,9 @@ namespace Fnmw.Game
         public Interactable CurrentConsole => S.PuzzlesSolved < _route.Count ? _route[S.PuzzlesSolved] : null;
         public LangPuzzle CurrentPuzzle => _puzzle;
         public bool CutscenePlaying { get; private set; }
+        /// <summary>The opening cutscene is running (still GamePhase.Title; Explore starts when it hands over).</summary>
+        public bool IntroPlaying => _intro && !_intro.Arrived;
+        public IntroCutscene Intro => _intro;
 
         readonly List<Interactable> _route = new List<Interactable>();
         Interactable _ship;
@@ -30,6 +34,7 @@ namespace Fnmw.Game
         float _puzzleShownAt;
         bool _forceDeath;
         PlayerController _player;
+        IntroCutscene _intro;
 
         GameState S => Services.State;
 
@@ -105,7 +110,29 @@ namespace Fnmw.Game
 
         // ------------------------------------------------------------------ phases
 
+        /// <summary>The title screen's start callback. Plays the opening cutscene (when enabled), then Explore.</summary>
         public void BeginExplore()
+        {
+            if (S.Phase != GamePhase.Title || IntroPlaying) return;
+            Services.UI.HideAll();
+            if (IntroCutscene.ShouldPlay)
+            {
+                _intro = gameObject.AddComponent<IntroCutscene>();
+                _intro.Play(StartExplore);
+                return;
+            }
+            StartExplore();
+        }
+
+        /// <summary>Skip keys and scripts: straight to Explore, cutting the opening short if it is running.</summary>
+        void EnterExploreNow()
+        {
+            if (S.Phase != GamePhase.Title) return;
+            if (IntroPlaying) _intro.Finish();
+            else { Services.UI.HideAll(); StartExplore(); }
+        }
+
+        void StartExplore()
         {
             if (S.Phase != GamePhase.Title) return;
             Services.UI.HideAll();
@@ -307,7 +334,7 @@ namespace Fnmw.Game
             {
                 case GamePhase.Title: Restart(); break;
                 case GamePhase.Explore:
-                    if (S.Phase == GamePhase.Title) BeginExplore();
+                    if (S.Phase == GamePhase.Title) EnterExploreNow();
                     else if (!S.IsOver) { Services.UI.HideAll(); S.SetPhase(RoamPhase); }
                     break;
                 case GamePhase.Puzzle:
@@ -342,7 +369,7 @@ namespace Fnmw.Game
                     BoardShip();
                     break;
                 case GamePhase.Dead:
-                    if (S.Phase == GamePhase.Title) BeginExplore();
+                    if (S.Phase == GamePhase.Title) EnterExploreNow();
                     Services.UI.HideAll();
                     if (S.Phase != GamePhase.Explore && S.Phase != GamePhase.Chase) S.SetPhase(RoamPhase);
                     PlaceBeast(behind: false, 2.2f);

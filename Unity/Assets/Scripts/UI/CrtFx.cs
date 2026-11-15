@@ -62,7 +62,7 @@ namespace Fnmw.UI
         {
             switch (Mode)
             {
-                case GlassMode.Title: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.55f; tide = 0.17f; calm = 0.4f; break;
+                case GlassMode.Title: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.55f; tide = 0.05f; calm = 0.4f; break;
                 case GlassMode.Visor: backplate = 0; curve = 0.05f; scan = 0.14f; glow = 0.45f; vignette = 0.22f; tide = 0; calm = 0; break;
                 case GlassMode.Console: backplate = 1; curve = 0.14f; scan = 0.30f; glow = 0.55f; vignette = 0.45f; tide = 0.02f + 0.17f * _threat; calm = 0; break;
                 case GlassMode.Decode: backplate = 1; curve = 0.14f; scan = 0.16f; glow = 0.7f; vignette = 0.35f; tide = 0; calm = 0.8f; break;
@@ -193,7 +193,7 @@ namespace Fnmw.UI
             _mat.SetFloat("_White", Kit.Ease(_white));
             _mat.SetFloat("_Ink", _ink);
             _mat.SetVector("_Shake", shake);
-            _mat.SetColor("_Plate", Mode == GlassMode.Decode ? Pal.WarmDark : Mode == GlassMode.Escape ? Pal.Indigo : Pal.Soot);
+            _mat.SetColor("_Plate", Mode == GlassMode.Decode ? Pal.WarmDark : Mode == GlassMode.Escape ? Pal.Indigo : Mode == GlassMode.Title ? Pal.Abyss : Pal.Soot);
         }
 
         public float White => _white;
