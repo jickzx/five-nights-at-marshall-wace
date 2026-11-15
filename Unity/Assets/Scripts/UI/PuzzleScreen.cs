@@ -230,6 +230,7 @@ namespace Fnmw.UI
             _cursor = tileIndex;
             _tiles[tileIndex].Flash = 1f;
             RefreshSlots(); RefreshTiles();
+            GameEvents.RaiseTilePicked(_p.Tiles[tileIndex]);
             // the newest glyph writes itself on, stroke by stroke
             _writeShape = GlyphGen.Build(_p.Tiles[tileIndex].GlyphSeed, _fam);
             if (!_writeTex) _writeTex = GlyphGen.NewTexture(Widgets.GlyphPx);
@@ -251,6 +252,7 @@ namespace Fnmw.UI
             if (!Interactive) return;
             _picks.Clear(); _writeT = 1;
             RefreshSlots();
+            GameEvents.RaiseTilesCleared();
         }
 
         public void Submit()

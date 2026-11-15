@@ -52,7 +52,7 @@ Screens pick a `GlassMode` (Title, Visor, Console, Decode, Death, Escape) and fi
 ## Controls
 
 Number keys place a tile, arrows and Space move and place, Backspace takes back one tile,
-Delete or Esc clears, Enter sends. Number keys or arrows and Enter answer the quiz. Enter, Space
+Delete clears, Enter sends, Esc or Tab steps away from the console. Number keys or arrows and Enter answer the quiz. Enter, Space
 or a click continues. The mouse works everywhere (tiles, SEND, quiz options).
 
 ## Fonts

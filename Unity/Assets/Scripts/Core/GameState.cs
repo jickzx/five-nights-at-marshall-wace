@@ -22,6 +22,8 @@ namespace Fnmw.Core
         public int Seed;
         public LanguageWorld World;      // generated at game start
         public int CurrentPuzzleIndex = -1;
+        /// <summary>0..1, set by the Game thread: 1 holds the beast back (no evolution, no pressing) while the tutorial teaches.</summary>
+        public float BeastGrace;
         public float SeaLevel;           // world-space height of the blood surface; World writes it, rises over the run
         public float ShipPower => TotalPuzzles > 0 ? Mathf.Clamp01((float)PuzzlesSolved / TotalPuzzles) : 0f; // 0..1
 
