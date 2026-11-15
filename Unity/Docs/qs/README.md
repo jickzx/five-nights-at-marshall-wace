@@ -14,6 +14,8 @@ The endpoint must be `https://`; `http://` is accepted only for localhost and LA
 
 Nothing is recorded until the candidate agrees. On install the sender fetches the statement from `GET /v1/consent`. The game must then show `QsTelemetry.Instance.ConsentStatement` once its state is `AwaitingConsent`, and call `QsTelemetry.Instance.Consent(true)` or `Consent(false)` with the candidate's answer. **That screen is not built yet**: until it is, the sender waits and sends nothing. The server stores the hash of the exact text shown, and rejects motion for any session without consent.
 
+**Hackathon demo vs real telemetry.** The QS page's demo mode (labelled "Demo data · synthetic session" on the page) replays a synthetic session from a fixture and needs no consent screen, because no person and no headset is involved. Real headset telemetry stays disabled: the game never calls `Consent(true)` on anyone's behalf, nothing fakes or pre-fills consent, and with no consent screen in the game a headset build (even one with `qs.json` and `FNMW_QS_XR`) waits in `AwaitingConsent` and sends no motion. Building that screen is the step that turns real telemetry on.
+
 After consent, the first `calibrationSeconds` (default 20) are the calm calibration period that becomes the person's own baseline. Keep play quiet during it (a lobby, the intro).
 
 ## What it sends
@@ -36,7 +38,7 @@ Game code can log anything else with `QsTelemetry.Instance.Log(type, questionKey
 ## Pose sources
 
 - `CameraPoseSource` (default, every build): head pose from the main camera; controllers are reported untracked, so the backend computes head features only.
-- `XrPoseSource`: headset and Touch controllers through `UnityEngine.XR.InputDevices` (position, rotation, tracking flag, and velocity when the runtime reports it). Compiled only with the `FNMW_QS_XR` scripting define, so this branch builds without any XR package. The Quest branch (`feat/oculus-quest`) should add `FNMW_QS_XR` to the Android player's scripting defines; `QsModule` then picks it whenever an XR head device is present.
+- `XrPoseSource`: headset and Touch controllers through `UnityEngine.XR.InputDevices` (position, rotation, tracking flag, and velocity when the runtime reports it). Compiled only with the `FNMW_QS_XR` scripting define, so this branch builds without any XR package. `Fnmw > Quest > Configure project for Quest` adds `FNMW_QS_XR` to the Android player's scripting defines (and it is committed in `ProjectSettings.asset`); `QsModule` then picks this source whenever an XR head device is present. It only chooses the pose source: consent and `qs.json` still gate sending.
 
 ## Network behaviour
 
