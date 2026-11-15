@@ -118,7 +118,7 @@ namespace Fnmw.Core.Telemetry
 
         /// <summary>One ingest batch: a motion window (when frames is non-empty) plus any pending events.</summary>
         public static string Batch(int seq, string questionKey, double tStart, double tEnd, float rateHz,
-                                   IList<QsFrame> frames, bool includeHands, IList<QsEvent> events)
+                                   IList<QsFrame> frames, bool includeHands, IList<QsEvent> events, string audioJson = null)
         {
             var sb = new StringBuilder(256 + frames.Count * (includeHands ? 260 : 90));
             sb.Append('{');
@@ -140,6 +140,7 @@ namespace Fnmw.Core.Telemetry
                     Device(sb, "right", frames, f => f.Right);
                 }
                 sb.Append("},");
+                if (!string.IsNullOrEmpty(audioJson)) sb.Append("\"audio\":").Append(audioJson).Append(',');
             }
             Events(sb, events);
             return sb.Append('}').ToString();
@@ -148,6 +149,26 @@ namespace Fnmw.Core.Telemetry
         public static string Consent(string version, string statementSha256, string deviceModel, string appVersion) =>
             "{\"consent_version\":" + Str(version) + ",\"statement_sha256\":" + Str(statementSha256) +
             ",\"accepted\":true,\"client\":" + Payload(("device", deviceModel), ("app", appVersion)) + "}";
+
+        [Serializable] class DeviceSessionReply { public string session_id; public string ingest_token; public string candidate_pseudonym; }
+
+        /// <summary>Parse POST /v1/device-sessions. Returns false when the reply is not usable.</summary>
+        public static bool TryReadDeviceSession(string json, out string sessionId, out string ingestToken, out string pseudonym)
+        {
+            sessionId = ingestToken = pseudonym = null;
+            if (string.IsNullOrWhiteSpace(json)) return false;
+            try
+            {
+                var r = JsonUtility.FromJson<DeviceSessionReply>(json);
+                if (r == null || !Guid.TryParse(r.session_id, out _) || string.IsNullOrEmpty(r.ingest_token)) return false;
+                sessionId = r.session_id; ingestToken = r.ingest_token; pseudonym = r.candidate_pseudonym;
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
+        public static string DeviceSessionRequest(string deviceModel, string appVersion) =>
+            "{\"client\":" + Payload(("device", deviceModel), ("app", appVersion)) + "}";
 
         [Serializable] class ConsentText { public string consent_version; public string statement; public string statement_sha256; }
 

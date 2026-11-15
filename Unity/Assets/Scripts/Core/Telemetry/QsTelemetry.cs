@@ -11,10 +11,15 @@ namespace Fnmw.Core.Telemetry
     /// Samples head and controller poses every frame and posts them to the QS ingest API in windows
     /// (default 1 s windows, one every 0.5 s), together with the game events that give the motion meaning.
     ///
-    /// Nothing is recorded until the candidate consents: call <see cref="Consent"/> from the consent screen after
-    /// showing <see cref="ConsentStatement"/> (fetched from the server, so the text the person reads is the text
-    /// whose hash is stored). The first <see cref="QsConfig.CalibrationSeconds"/> after consent are the calm
-    /// calibration window the backend uses as the person's own baseline.
+    /// Nothing is recorded until the candidate consents: the UI's consent screen (Fnmw.UI ConsentScreen) shows
+    /// <see cref="ConsentStatement"/> (fetched from the server, so the text the person reads is the text whose hash is
+    /// stored) and calls <see cref="Consent"/>. With a device key, accepting first asks the API for a fresh
+    /// pseudonymous session (<c>POST /v1/device-sessions</c>); then the consent is posted and recording starts. The
+    /// first <see cref="QsConfig.CalibrationSeconds"/> after consent are the calm calibration window the backend uses
+    /// as the person's own baseline. Each run of the game (a scene load) gets its own consent and session.
+    ///
+    /// With the microphone allowed (qs.json, on by default) and the statement naming it, the mic is opened after
+    /// consent and reduced on the device to breathing features (<see cref="QsBreath"/>); raw audio is never sent.
     ///
     /// The game never waits on this: requests run in a coroutine, one at a time, and a failure only costs data.
     /// Batches wait in a short queue (MaxQueuedBatches, about 2 s) while a request is in flight; beyond that the
@@ -23,7 +28,7 @@ namespace Fnmw.Core.Telemetry
     /// </summary>
     public sealed class QsTelemetry : MonoBehaviour
     {
-        public enum State { Idle, FetchingConsent, AwaitingConsent, SendingConsent, Recording, Stopped }
+        public enum State { Idle, FetchingConsent, AwaitingConsent, StartingSession, SendingConsent, Recording, Stopped }
 
         public static QsTelemetry Instance { get; private set; }
 
@@ -32,12 +37,20 @@ namespace Fnmw.Core.Telemetry
         public string LastError { get; private set; }
         public int WindowsSent { get; private set; }
         public int WindowsDropped { get; private set; }
+        /// <summary>The pseudonym the server gave this run's session (device mode), for the log only.</summary>
+        public string Pseudonym { get; private set; }
+        public string MicStatus => _mic != null ? _mic.Status : "off";
+        /// <summary>The consent screen should be shown now.</summary>
+        public bool WantsConsent => Current == State.AwaitingConsent && !string.IsNullOrEmpty(ConsentStatement);
 
         QsConfig _config;
         IQsPoseSource _source;
         readonly QsFrameBuffer _buffer = new QsFrameBuffer(4.0);
         readonly List<QsEvent> _pending = new List<QsEvent>();
         string _consentVersion, _consentSha;
+        string _sessionId, _ingestToken;
+        QsMic _mic;
+        bool _micAllowed;
         double _clockOrigin;
         double _nextSend;
         double _calibrationEnd = double.NaN;
@@ -51,7 +64,7 @@ namespace Fnmw.Core.Telemetry
         const int MaxPendingEvents = 500;
         const int MaxQueuedBatches = 4;
 
-        sealed class Batch { public int Seq; public string Question; public double TStart, TEnd; public float Rate; public List<QsFrame> Frames; public List<QsEvent> Events; }
+        sealed class Batch { public int Seq; public string Question; public double TStart, TEnd; public float Rate; public List<QsFrame> Frames; public List<QsEvent> Events; public string Audio; }
         readonly Queue<Batch> _queue = new Queue<Batch>();
 
         public static QsTelemetry Create(QsConfig config, IQsPoseSource source)
@@ -61,6 +74,8 @@ namespace Fnmw.Core.Telemetry
             var t = go.AddComponent<QsTelemetry>();
             t._config = config;
             t._source = source;
+            t._sessionId = config.SessionId;
+            t._ingestToken = config.IngestToken;
             Instance = t;
             return t;
         }
@@ -73,6 +88,7 @@ namespace Fnmw.Core.Telemetry
         void OnDestroy()
         {
             Unsubscribe();
+            _mic?.Stop();
             if (Instance == this) Instance = null;
         }
 
@@ -91,6 +107,37 @@ namespace Fnmw.Core.Telemetry
         {
             if (Current != State.AwaitingConsent) return;
             if (!accepted) { Stop("candidate declined consent"); return; }
+            if (_config.UsesDevice)
+            {
+                Current = State.StartingSession;
+                StartCoroutine(StartDeviceSession());
+                return;
+            }
+            Current = State.SendingConsent;
+            StartCoroutine(SendConsent());
+        }
+
+        IEnumerator StartDeviceSession()
+        {
+            var www = new UnityWebRequest(_config.DeviceSessionUrl, UnityWebRequest.kHttpVerbPOST)
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(QsWire.DeviceSessionRequest(SystemInfo.deviceModel, Application.version))),
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = 15,
+            };
+            www.SetRequestHeader("Content-Type", "application/json");
+            www.SetRequestHeader("X-QS-Device-Key", _config.DeviceKey);
+            using (www)
+            {
+                yield return www.SendWebRequest();
+                if (www.responseCode != 201 || !QsWire.TryReadDeviceSession(www.downloadHandler.text, out _sessionId, out _ingestToken, out var pseudo))
+                {
+                    Stop("could not start a session for this device (HTTP " + www.responseCode + ")");
+                    yield break;
+                }
+                Pseudonym = pseudo;
+            }
+            Debug.Log("[QS] device session started for candidate " + Pseudonym);
             Current = State.SendingConsent;
             StartCoroutine(SendConsent());
         }
@@ -115,7 +162,7 @@ namespace Fnmw.Core.Telemetry
         IEnumerator SendConsent()
         {
             string body = QsWire.Consent(_consentVersion, _consentSha, SystemInfo.deviceModel, Application.version);
-            using (var www = Post(_config.ConsentUrl, body))
+            using (var www = Post(_config.IngestUrlFor(_sessionId) + "/consent", body))
             {
                 yield return www.SendWebRequest();
                 if (www.responseCode != 201)
@@ -138,7 +185,10 @@ namespace Fnmw.Core.Telemetry
             Log("session_start", null, QsWire.Payload(("device", SystemInfo.deviceModel), ("source", _source.Name)), 0);
             Log("calibration_start", null, null, 0);
             Subscribe();
-            Debug.Log("[QS] recording: source " + _source.Name + ", calibration " + _config.CalibrationSeconds + " s");
+            // Breathing only under a statement that names the microphone, and only if qs.json allows it.
+            _micAllowed = _config.Microphone && ConsentStatement != null && ConsentStatement.IndexOf("microphone", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (_micAllowed) { _mic = new QsMic(); _mic.TryStart(); }
+            Debug.Log("[QS] recording: source " + _source.Name + ", calibration " + _config.CalibrationSeconds + " s, microphone " + MicStatus);
         }
 
         void Stop(string why)
@@ -147,6 +197,7 @@ namespace Fnmw.Core.Telemetry
             Current = State.Stopped;
             LastError = why;
             Unsubscribe();
+            _mic?.Stop();
             Debug.Log("[QS] stopped: " + why);
         }
 
@@ -158,6 +209,11 @@ namespace Fnmw.Core.Telemetry
             double now = Now;
             _buffer.Add(_source.Sample(now));
             _framesSinceSend++;
+            if (_mic != null)
+            {
+                if (!_mic.Running && !_mic.Refused) _mic.TryStart();   // waits for the Android permission answer
+                _mic.Pump();
+            }
 
             if (!double.IsNaN(_calibrationEnd) && now >= _calibrationEnd)
             {
@@ -178,7 +234,13 @@ namespace Fnmw.Core.Telemetry
             var events = new List<QsEvent>(_pending);
             _pending.Clear();
             if (frames.Count == 0 && events.Count == 0) return;
-            _queue.Enqueue(new Batch { Seq = _seq, Question = _question, TStart = tStart, TEnd = tEnd, Rate = rate, Frames = frames, Events = events });
+            string audio = null;
+            if (_mic != null && _mic.Running && frames.Count > 0)
+            {
+                var b = _mic.Breath.Features(_config.HopSeconds);
+                if (b.Any) audio = b.ToJson();
+            }
+            _queue.Enqueue(new Batch { Seq = _seq, Question = _question, TStart = tStart, TEnd = tEnd, Rate = rate, Frames = frames, Events = events, Audio = audio });
             if (frames.Count > 0) _seq++;
             while (_queue.Count > MaxQueuedBatches)
             {
@@ -194,7 +256,7 @@ namespace Fnmw.Core.Telemetry
         {
             if (_inFlight || _queue.Count == 0 || Current != State.Recording) return;
             var b = _queue.Dequeue();
-            string body = QsWire.Batch(b.Seq, b.Question, b.TStart, b.TEnd, b.Rate, b.Frames, _source.HasControllers, b.Events);
+            string body = QsWire.Batch(b.Seq, b.Question, b.TStart, b.TEnd, b.Rate, b.Frames, _source.HasControllers, b.Events, b.Audio);
             bool ending = b.Events.Exists(e => e.Type == "session_end");
             StartCoroutine(Send(body, b.Frames.Count > 0, b.Events, ending));
         }
@@ -202,7 +264,7 @@ namespace Fnmw.Core.Telemetry
         IEnumerator Send(string body, bool hasWindow, List<QsEvent> events, bool ending)
         {
             _inFlight = true;
-            using (var www = Post(_config.IngestUrl, body))
+            using (var www = Post(_config.IngestUrlFor(_sessionId), body))
             {
                 yield return www.SendWebRequest();
                 _inFlight = false;
@@ -236,7 +298,7 @@ namespace Fnmw.Core.Telemetry
                 timeout = 10,
             };
             www.SetRequestHeader("Content-Type", "application/json");
-            www.SetRequestHeader("X-QS-Ingest-Token", _config.IngestToken);
+            www.SetRequestHeader("X-QS-Ingest-Token", _ingestToken ?? "");
             return www;
         }
 
@@ -263,6 +325,10 @@ namespace Fnmw.Core.Telemetry
             GameEvents.QuizAnswered += OnQuiz;
             GameEvents.TilePicked += OnTile;
             GameEvents.TilesCleared += OnCleared;
+            GameEvents.TileRemoved += OnTileRemoved;
+            GameEvents.HintRequested += OnHint;
+            GameEvents.BeastLunged += OnLunge;
+            GameEvents.Jumpscare += OnJumpscare;
             GameEvents.BeastStageChanged += OnStage;
             GameEvents.PhaseChanged += OnPhase;
             GameEvents.PlayerCaught += OnCaught;
@@ -277,6 +343,10 @@ namespace Fnmw.Core.Telemetry
             GameEvents.QuizAnswered -= OnQuiz;
             GameEvents.TilePicked -= OnTile;
             GameEvents.TilesCleared -= OnCleared;
+            GameEvents.TileRemoved -= OnTileRemoved;
+            GameEvents.HintRequested -= OnHint;
+            GameEvents.BeastLunged -= OnLunge;
+            GameEvents.Jumpscare -= OnJumpscare;
             GameEvents.BeastStageChanged -= OnStage;
             GameEvents.PhaseChanged -= OnPhase;
             GameEvents.PlayerCaught -= OnCaught;
@@ -292,6 +362,10 @@ namespace Fnmw.Core.Telemetry
 
         void OnTile(Tile t) => Log("tile_placed", _question);
         void OnCleared() => Log("answer_cleared", _question);
+        void OnTileRemoved() => Log("tile_removed", _question);
+        void OnHint(int puzzleId) => Log("hint_used", QsWire.PuzzleKey(puzzleId));
+        void OnLunge() => Log("monster_lunge", _question);
+        void OnJumpscare() => Log("jumpscare", _question);
 
         void OnAnswer(AnswerEvent e)
         {

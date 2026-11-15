@@ -105,7 +105,7 @@ namespace Fnmw.Monster.Beast
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(face), 1f - Mathf.Exp(-Time.deltaTime * (mode == BeastMode.Frozen ? 2f : 8f)));
 
-            if (mode == BeastMode.Lunge && _lastMode != BeastMode.Lunge) { Services.Audio.PlayStinger("beast_roar"); _flash = 1f; }
+            if (mode == BeastMode.Lunge && _lastMode != BeastMode.Lunge) { Services.Audio.PlayStinger("beast_roar"); _flash = 1f; GameEvents.RaiseBeastLunged(); }
             _lastMode = mode;
             _anim.Set(PoseFor(mode, intent), intent.Speed / 6f);
 

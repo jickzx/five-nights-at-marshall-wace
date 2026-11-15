@@ -46,6 +46,14 @@ namespace Fnmw.Core
         public static event Action<Tile> TilePicked;
         /// <summary>UI raises this when the player clears their placed tiles.</summary>
         public static event Action TilesCleared;
+        /// <summary>UI raises this when the player takes back the last tile (Backspace / B).</summary>
+        public static event Action TileRemoved;
+        /// <summary>UI raises this when the player asks the ship for a hint on the open console (puzzle id).</summary>
+        public static event Action<int> HintRequested;
+        /// <summary>Monster raises this when the beast starts a lunge at the player.</summary>
+        public static event Action BeastLunged;
+        /// <summary>Game raises this when the death scare starts (the beast fills the view).</summary>
+        public static event Action Jumpscare;
 
         public static void RaisePhaseChanged(GamePhase from, GamePhase to) => Safe(() => PhaseChanged?.Invoke(from, to));
         public static void RaisePuzzleStarted(LangPuzzle p) => Safe(() => PuzzleStarted?.Invoke(p));
@@ -59,6 +67,10 @@ namespace Fnmw.Core
         public static void RaiseFootstep(FootstepEvent e) => Safe(() => Footstep?.Invoke(e));
         public static void RaiseTilePicked(Tile t) => Safe(() => TilePicked?.Invoke(t));
         public static void RaiseTilesCleared() => Safe(() => TilesCleared?.Invoke());
+        public static void RaiseTileRemoved() => Safe(() => TileRemoved?.Invoke());
+        public static void RaiseHintRequested(int puzzleId) => Safe(() => HintRequested?.Invoke(puzzleId));
+        public static void RaiseBeastLunged() => Safe(() => BeastLunged?.Invoke());
+        public static void RaiseJumpscare() => Safe(() => Jumpscare?.Invoke());
 
         /// <summary>Drop all subscribers. Called by GameBootstrap on start and by tests.</summary>
         public static void ClearAll()
@@ -66,6 +78,7 @@ namespace Fnmw.Core
             PhaseChanged = null; PuzzleStarted = null; AnswerSubmitted = null; QuizAnswered = null;
             BeastStageChanged = null; ThreatChanged = null; ConsoleActivated = null;
             PlayerCaught = null; Escaped = null; Footstep = null; TilePicked = null; TilesCleared = null;
+            TileRemoved = null; HintRequested = null; BeastLunged = null; Jumpscare = null;
         }
 
         static void Safe(Action a)

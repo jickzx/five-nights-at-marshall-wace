@@ -7,6 +7,7 @@ import math
 
 import numpy as np
 
+from . import audio as A
 from .features import DeviceTrack
 
 
@@ -160,10 +161,44 @@ def demo_script() -> tuple[list[tuple[float, str, str | None, dict | None]], lis
     return ev, phases
 
 
+# Breathing over the scripted session: (t0, t1, breaths/min, loudness). Loudness 0 is a held breath.
+# Calm at calibration, a little faster while stuck on p2, held through the monster scare on p3 and fast
+# after it, settling on p4, and a gasp-and-pant when the monster lunges on p5.
+BREATH_SCRIPT = [
+    (0.0, 26.0, 13.0, 1.0),
+    (26.0, 40.0, 13.5, 1.0),
+    (40.0, 76.0, 17.0, 1.1),
+    (76.0, 84.2, 14.0, 1.0),
+    (84.2, 92.0, 14.0, 0.0),
+    (92.0, 100.0, 27.0, 1.7),
+    (100.0, 124.0, 20.0, 1.25),
+    (124.0, 134.0, 18.0, 1.1),
+    (134.0, 140.0, 32.0, 2.0),
+]
+SIGHS = [99.0, 121.5]
+
+
+def breath_envelope(end: float, seed: int = 7, intensity: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
+    """The headset's 50 Hz breath-sound envelope for the scripted session (qs/audio.py does the rest)."""
+    t = np.arange(0.0, end + 1.0, 1.0 / A.ENV_FS)
+    rate = np.full(len(t), 13.0)
+    amp = np.ones(len(t))
+    for a, b, r, l in BREATH_SCRIPT:
+        m = (t >= a) & (t < b)
+        calm_rate = BREATH_SCRIPT[0][2]
+        rate[m] = calm_rate + (r - calm_rate) * (intensity if a >= 26.0 else 1.0)
+        amp[m] = l if l == 0 else 1.0 + (l - 1.0) * (intensity if a >= 26.0 else 1.0)
+    # rate changes glide over ~2 s rather than jumping
+    k = int(2 * A.ENV_FS)
+    rate = np.convolve(np.pad(rate, (k, k), mode="edge"), np.ones(2 * k + 1) / (2 * k + 1), mode="same")[k:-k]
+    return t, A.synth_envelope(t, rate, amp, seed=seed, sigh_at=SIGHS)
+
+
 def simulate_batches(seed: int = 7, rate_hz: float = 72.0, window_s: float = 1.0, hop_s: float = 0.5,
-                     jitter_s: float = 0.0008, intensity: float = 1.0) -> list[dict]:
+                     jitter_s: float = 0.0008, intensity: float = 1.0, audio: bool = True) -> list[dict]:
     """The batches a headset would send for ``demo_script``: one window every ``hop_s`` with the events
-    that happened since the previous send. Same JSON shape as the Unity sender (see docs/api.md)."""
+    that happened since the previous send, and (``audio``) the breathing features the headset computes from its
+    microphone. Same JSON shape as the Unity sender (see docs/api.md)."""
     rng = np.random.default_rng(seed)
     perf = Performer(seed)
     events, phases = demo_script()
@@ -183,6 +218,7 @@ def simulate_batches(seed: int = 7, rate_hz: float = 72.0, window_s: float = 1.0
                     setattr(perf, k, v * scale)
         frames.append(perf.motion(float(t)))
     ids = [_eid(rng) for _ in events]
+    env_t, env = breath_envelope(end + hop_s, seed=seed, intensity=intensity) if audio else (None, None)
 
     def question_at(t: float) -> str | None:
         current = None
@@ -212,6 +248,9 @@ def simulate_batches(seed: int = 7, rate_hz: float = 72.0, window_s: float = 1.0
                 "left": {"pos": r([frames[i]["left_pos"] for i in idx])},
                 "right": {"pos": r([frames[i]["right_pos"] for i in idx])},
             }
+        if audio:
+            n = int(np.searchsorted(env_t, t1))
+            batch["audio"] = A.breath_features(env[max(0, n - int(A.HISTORY_S * A.ENV_FS)):n], A.ENV_FS, hop_s)
         for (te, typ, key, payload), eid in zip(events, ids):
             if sent_until < te <= t1:
                 batch["events"].append({"id": eid, "t": te, "type": typ, "question_key": key, "payload": payload})

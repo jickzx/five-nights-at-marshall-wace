@@ -12,24 +12,27 @@ import numpy as np
 from . import features as F
 from .auth import hash_token, new_ingest_token, token_matches
 from .db import Db, DbError, Principal, Query, now_iso
-from .models import CandidateIn, ConsentIn, IngestBatch, QuestionSetIn, SessionIn
+from . import states as S
+from .models import CandidateIn, ConsentIn, DeviceIn, DeviceSessionIn, IngestBatch, QuestionSetIn, SessionIn
 from .realtime import Broadcaster, employer_topic, session_topic
 
-CONSENT_STATEMENT = """QS motion data consent (version {version})
+CONSENT_STATEMENT = """QS assessment data (version {version})
 
-While you play this assessment, the headset records how your head and hands move and what you do in the game
-(questions shown, answers, hints). It turns that into measurements per question, such as how much your hands
-moved in the 4-12 Hz band compared with your own calm calibration at the start.
+While you play, this headset measures how your head and hands move, how you breathe (from the microphone)
+and what you do in the game. Your employer sees these measurements, and possible states read from them such
+as "signs of stress", under a pseudonymous id, not your name.
 
-- The employer that invited you sees these measurements under a pseudonymous id. Your name is kept separately
-  and only the employer's account owners can see it.
-- Raw motion samples are processed and discarded; only per-second measurements are stored.
-- The measurements describe movement. They are not a diagnosis and are not, on their own, a hiring decision.
-  Movement can change for many ordinary reasons, including medical ones.
-- You can stop at any time by taking off the headset or choosing "withdraw", and you can ask the employer to
-  delete your data. Deletion removes every measurement and event recorded for you.
+- Raw audio never leaves the headset: it is turned into breathing numbers on the device and discarded.
+- Raw motion is turned into per-second measurements on our server and discarded.
+- Possible states are probabilities, not diagnoses, and not a hiring decision. Movement and breathing
+  change for many ordinary reasons, including medical ones.
+- Stop at any time by taking the headset off. Ask the employer to delete your data whenever you like.
 
-Choose "I agree" to start, or "No thanks" to play without QS recording."""
+Agree to start, or decline to play without any recording."""
+
+# Consent versions whose statement names the microphone. A session consented under any other (older) version
+# never has audio features stored, even if a headset sends them.
+AUDIO_CONSENT_VERSIONS = frozenset({"qs-consent-2026-11-mic"})
 
 
 class ServiceError(Exception):
@@ -227,8 +230,10 @@ def withdraw_consent(server: Db, session: dict, broadcaster: Broadcaster) -> dic
     return {"withdrawn": len(rows)}
 
 
-def _has_consent(server: Db, session_id: str) -> bool:
-    return bool(server.select("qs_consents", Query(eq={"session_id": session_id}, is_null={"withdrawn_at": True}, limit=1)))
+def _active_consent(server: Db, session_id: str) -> dict | None:
+    rows = server.select("qs_consents", Query(eq={"session_id": session_id}, is_null={"withdrawn_at": True},
+                                              order="granted_at", desc=True, limit=1))
+    return rows[0] if rows else None
 
 
 def _track(dev, t: np.ndarray) -> F.DeviceTrack | None:
@@ -241,24 +246,33 @@ def _track(dev, t: np.ndarray) -> F.DeviceTrack | None:
 
 RECORD_REFRESH_WINDOWS = 4   # an open question's record is refreshed from motion every 4 windows (2 s)
 
-LIVE_FIELDS = ("head_ang_speed_mean", "head_yaw_scan_rate", "left_tremor_rms", "right_tremor_rms",
+LIVE_FIELDS = ("head_ang_speed_mean", "head_ang_speed_peak", "head_yaw_scan_rate", "left_tremor_rms", "right_tremor_rms",
                "left_hand_speed_mean", "right_hand_speed_mean", "left_restless_rms", "right_restless_rms",
-               "head_coverage", "left_coverage", "right_coverage")
+               "head_coverage", "left_coverage", "right_coverage",
+               "audio_breath_rate_bpm", "audio_breath_amp", "audio_deep_breaths", "audio_since_last_breath_s",
+               "audio_voice_fraction")
+
+# How far back a window looks for the game stimulus it may be reacting to (startle, freezing after a scare).
+STATE_LOOKBACK_S = S.FREEZE_AFTER_STARTLE_S + 2.0
 
 
 def live_window(row: dict) -> dict:
     """The compact form of a window sent over Realtime and used by the dashboard's live traces."""
     f = row["features"]
     return {"seq": row["seq"], "t_start": row["t_start"], "t_end": row["t_end"], "question_key": row.get("question_key"),
-            "features": {k: f.get(k) for k in LIVE_FIELDS}, "rel": row.get("rel"), "freeze": row.get("freeze")}
+            "features": {k: f.get(k) for k in LIVE_FIELDS}, "rel": row.get("rel"), "freeze": row.get("freeze"),
+            "states": row.get("states") or []}
 
 
 def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcaster) -> dict:
     sid, emp = session["id"], session["employer_id"]
     if session.get("status") == "ended":
         raise ServiceError(409, "session has ended")
-    if not _has_consent(server, sid):
+    consent = _active_consent(server, sid)
+    if not consent:
         raise ServiceError(403, "no consent recorded for this session; ingest refused")
+    # Audio only under a consent statement that named the microphone; older consents never cover it.
+    audio_ok = batch.audio is not None and consent.get("consent_version") in AUDIO_CONSENT_VERSIONS
 
     messages: list[dict] = []
     if session.get("status") == "created":
@@ -276,14 +290,24 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         if t1 < t0:
             raise ServiceError(422, "t_end is before t_start")
         feats = F.window_features(t0, t1, _track(s.head, t), _track(s.left, t), _track(s.right, t),
-                                  nominal_fs=batch.rate_hz or 0.0)
+                                  nominal_fs=batch.rate_hz or 0.0,
+                                  audio=batch.audio.model_dump() if audio_ok else None)
         baseline = session.get("baseline")
+        rel = F.relative_to_baseline(feats, baseline) if baseline else None
+        freeze = F.is_freeze(feats, baseline) if baseline else None
+        window_states: list[dict] = []
+        if baseline:
+            # the stimuli this window may be reacting to: the batch's own events plus the last few seconds'
+            recent = server.select("qs_events", Query(eq={"session_id": sid}, in_={"type": sorted(F.STARTLE_EVENTS)},
+                                                      gte={"t": t0 - STATE_LOOKBACK_S}, lte={"t": t1}, limit=50))
+            recent += [{"t": e.t, "type": e.type} for e in batch.events if e.type in F.STARTLE_EVENTS]
+            window_states = S.compact(S.window_states({**feats, "question_key": batch.question_key}, rel, baseline,
+                                                      recent, freeze))
         row = {"session_id": sid, "employer_id": emp, "seq": batch.seq, "t_start": t0, "t_end": t1,
-               "question_key": batch.question_key, "features": feats,
-               "rel": F.relative_to_baseline(feats, baseline) if baseline else None}
+               "question_key": batch.question_key, "features": feats, "rel": rel, "states": window_states}
         window_rows = server.insert("qs_motion_windows", [row], on_conflict="session_id,seq", ignore_duplicates=True)
         for w in window_rows:
-            w["freeze"] = F.is_freeze(w["features"], baseline) if baseline else None
+            w["freeze"] = freeze
             messages.append({"topic": session_topic(sid), "event": "window", "payload": live_window(w)})
 
     # ---- events
@@ -340,13 +364,15 @@ def ingest(server: Db, session: dict, batch: IngestBatch, broadcaster: Broadcast
         records_updated = _refresh_records(server, session, sorted(touched), events_all(), spans, messages,
                                            now_t=max([e["t"] for e in events_all()] + [w["t_end"] for w in window_rows]))
 
-    if any(e["type"] == "session_end" for e in new_events):
+    ended = any(e["type"] == "session_end" for e in new_events)
+    if ended:
         server.update("qs_sessions", {"status": "ended", "ended_at": now_iso()}, Query(eq={"id": sid}))
         messages.append({"topic": employer_topic(emp), "event": "session", "payload": {"session_id": sid, "status": "ended"}})
 
     broadcaster.send(messages)
     return {"windows_accepted": len(window_rows), "events_accepted": len(new_events),
-            "events_duplicate": len(batch.events) - len(new_events), "records_updated": records_updated}
+            "events_duplicate": len(batch.events) - len(new_events), "records_updated": records_updated,
+            "audio_accepted": bool(audio_ok and window_rows), "session_ended": ended}
 
 
 def _question_ids(server: Db, session: dict) -> dict[str, str]:
@@ -390,6 +416,52 @@ def get_summary(user: Db, session_id: str) -> dict | None:
 SUMMARY_COOLDOWN_S = 120
 
 
+def _summary_inputs(db: Db, session: dict) -> tuple[dict, list[dict]]:
+    rows = db.select("qs_records", Query(eq={"session_id": session["id"]}))
+    records = [r["record"] for r in sorted(rows, key=lambda r: (r["record"].get("t_shown") is None, r["record"].get("t_shown")))]
+    questions = {}
+    if session.get("question_set_id"):
+        questions = {q["key"]: q.get("prompt") for q in db.select("qs_questions", Query(eq={"question_set_id": session["question_set_id"]}))}
+    from .gemini import build_facts
+    return build_facts(session.get("candidate_pseudonym") or "candidate", records, session.get("baseline"), questions), records
+
+
+def _store_summary(server: Db, session: dict, result: dict, keep_ok: bool) -> None:
+    """Store the outcome. A failed attempt is stored too (so the page can say why), but never over a good one."""
+    if result["status"] != "ok" and keep_ok:
+        old = server.select("qs_summaries", Query(eq={"session_id": session["id"]}), columns="status")
+        if old and old[0]["status"] == "ok":
+            return
+    server.insert("qs_summaries", [{"session_id": session["id"], "employer_id": session["employer_id"],
+                                    "model": result.get("model"), "status": result["status"],
+                                    "summary": result.get("summary"), "error": result.get("reason"),
+                                    "created_at": now_iso()}], on_conflict="session_id", upsert=True)
+
+
+def auto_summary(server: Db, session_id: str, summarizer, broadcaster: Broadcaster) -> dict | None:
+    """Write the summary when a session ends (run after the ingest response). Never raises: a summary is
+    optional, and a failure is stored with its reason so the employer page can show it."""
+    try:
+        rows = server.select("qs_sessions", Query(eq={"id": session_id}))
+        if not rows:
+            return None
+        session = rows[0]
+        cand = server.select("qs_candidates", Query(eq={"id": session["candidate_id"]}), columns="pseudonym")
+        session["candidate_pseudonym"] = cand[0]["pseudonym"] if cand else None
+        facts, records = _summary_inputs(server, session)
+        if not records:
+            return None
+        result = summarizer(facts, records)
+        _store_summary(server, session, result, keep_ok=True)
+        broadcaster.send([{"topic": session_topic(session_id), "event": "summary",
+                           "payload": {k: result.get(k) for k in ("status", "reason", "summary", "model")}}])
+        return result
+    except Exception:   # noqa: BLE001 - background work must not crash the worker
+        import logging
+        logging.getLogger("qs.service").exception("auto summary failed for %s", session_id)
+        return None
+
+
 def make_summary(user: Db, server: Db, session_id: str, summarizer, refresh: bool = False) -> dict:
     """Authorise through the employer's own view, then call the summarizer and cache the result.
 
@@ -406,18 +478,86 @@ def make_summary(user: Db, server: Db, session_id: str, summarizer, refresh: boo
         if not refresh or age < SUMMARY_COOLDOWN_S:
             return {"status": "ok", "reason": None, "summary": cached[0]["summary"], "model": cached[0].get("model"),
                     "cached": True, "dropped": []}
-    records = [r["record"] for r in get_records(user, session_id)]
+    facts, records = _summary_inputs(user, session)
     if not records:
         raise ServiceError(409, "no QS records yet for this session")
-    questions = {}
-    if session.get("question_set_id"):
-        questions = {q["key"]: q.get("prompt") for q in user.select("qs_questions", Query(eq={"question_set_id": session["question_set_id"]}))}
-    from .gemini import build_facts
-    facts = build_facts(session.get("candidate_pseudonym") or "candidate", records, session.get("baseline"), questions)
     result = summarizer(facts, records)
-    if result["status"] == "ok":
-        server.insert("qs_summaries", [{"session_id": session_id, "employer_id": session["employer_id"],
-                                        "model": result.get("model"), "status": "ok", "summary": result["summary"],
-                                        "error": None, "created_at": now_iso()}],
-                      on_conflict="session_id", upsert=True)
+    _store_summary(server, session, result, keep_ok=True)
     return result
+
+
+# ---------------------------------------------------------------- devices -------------------------------
+
+DEVICE_COLUMNS = "id,employer_id,question_set_id,name,created_by,created_at,last_used_at,revoked_at"
+DEVICE_SESSIONS_PER_10_MIN = 30   # a headset starts one session per run; more than this is misuse
+
+
+def new_device_key() -> str:
+    return "qsd_" + secrets.token_urlsafe(32)
+
+
+def _owner_of(user: Db, principal: Principal, employer_id: str) -> None:
+    roles = {str(m["employer_id"]): m["role"] for m in employer_memberships(user, principal)}
+    if roles.get(employer_id) != "owner":
+        raise ServiceError(403, "only employer owners may manage devices")
+
+
+def create_device(user: Db, server: Db, principal: Principal, body: DeviceIn) -> dict:
+    employer_id = resolve_employer(user, principal, body.employer_id)
+    _owner_of(user, principal, employer_id)
+    qset = user.select("qs_question_sets", Query(eq={"id": str(body.question_set_id)}))
+    if not qset or str(qset[0]["employer_id"]) != employer_id:
+        raise ServiceError(404, "question set not found")
+    key = new_device_key()
+    row = server.insert("qs_devices", [{"employer_id": employer_id, "question_set_id": str(body.question_set_id),
+                                        "name": body.name, "key_hash": hash_token(key), "created_by": principal.user_id}])[0]
+    row.pop("key_hash", None)
+    return {"device": row, "device_key": key,
+            "note": "The device key is shown once. Put it in the headset build's qs.json; it can only start sessions."}
+
+
+def list_devices(user: Db) -> list[dict]:
+    return user.select("qs_devices", Query(order="created_at", desc=True), columns=DEVICE_COLUMNS)
+
+
+def revoke_device(user: Db, server: Db, principal: Principal, device_id: str) -> dict:
+    rows = user.select("qs_devices", Query(eq={"id": device_id}), columns=DEVICE_COLUMNS)
+    if not rows:
+        raise ServiceError(404, "device not found")
+    _owner_of(user, principal, str(rows[0]["employer_id"]))
+    server.update("qs_devices", {"revoked_at": now_iso()}, Query(eq={"id": device_id}))
+    return {"revoked": device_id}
+
+
+def device_session(server: Db, device_key: str, body: DeviceSessionIn | None = None) -> dict:
+    """The one thing a device key can do: start a new pseudonymous candidate and session for its employer and
+    question set. Returns the session id and its ingest token. Reads nothing else and returns nothing else."""
+    if not device_key or not device_key.startswith("qsd_"):
+        raise ServiceError(401, "missing or invalid device key")
+    rows = server.select("qs_devices", Query(eq={"key_hash": hash_token(device_key)}, limit=1))
+    if not rows or rows[0].get("revoked_at") or not token_matches(device_key, rows[0]["key_hash"]):
+        raise ServiceError(401, "missing or invalid device key")
+    dev = rows[0]
+    from datetime import datetime, timedelta, timezone
+    since = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    recent = server.select("qs_sessions", Query(eq={"device_id": dev["id"]}, gte={"created_at": since}, limit=DEVICE_SESSIONS_PER_10_MIN + 1),
+                           columns="id")
+    if len(recent) > DEVICE_SESSIONS_PER_10_MIN:
+        raise ServiceError(429, "too many sessions from this device; try again in a few minutes")
+    emp = str(dev["employer_id"])
+    cand = None
+    for _ in range(5):   # pseudonym collisions are rare (16M space); retry a few times
+        try:
+            cand = server.insert("qs_candidates", [{"employer_id": emp, "pseudonym": "C-" + secrets.token_hex(3).upper()}])[0]
+            break
+        except DbError as ex:
+            if ex.status != 409:
+                raise
+    if cand is None:
+        raise ServiceError(503, "could not allocate a pseudonym")
+    session = server.insert("qs_sessions", [{"employer_id": emp, "candidate_id": cand["id"],
+                                             "question_set_id": dev.get("question_set_id"), "device_id": dev["id"]}])[0]
+    token = new_ingest_token()
+    server.insert("qs_session_tokens", [{"session_id": session["id"], "token_hash": hash_token(token)}])
+    server.update("qs_devices", {"last_used_at": now_iso()}, Query(eq={"id": dev["id"]}))
+    return {"session_id": session["id"], "ingest_token": token, "candidate_pseudonym": cand["pseudonym"]}

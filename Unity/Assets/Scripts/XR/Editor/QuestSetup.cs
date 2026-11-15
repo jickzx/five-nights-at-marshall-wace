@@ -135,6 +135,8 @@ namespace Fnmw.XR.EditorTools
             PlayerSettings.colorSpace = ColorSpace.Linear;
             // Meta's store/release-channel validator rejects anything else
             PlayerSettings.Android.preferredInstallLocation = AndroidPreferredInstallLocation.Auto;
+            // QS telemetry posts to the API from the headset; RECORD_AUDIO is added by QsAndroidManifest.
+            PlayerSettings.Android.forceInternetPermission = true;
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
         }
 

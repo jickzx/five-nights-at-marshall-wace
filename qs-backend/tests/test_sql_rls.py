@@ -105,7 +105,7 @@ def test_every_qs_table_has_rls_enabled(db):
     uri, _ = db
     with psycopg.connect(uri) as c:
         rows = c.execute("select relname, relrowsecurity from pg_class where relname like 'qs\\_%' and relkind = 'r'").fetchall()
-    assert len(rows) == 13
+    assert len(rows) == 14
     assert all(rls for _, rls in rows), rows
 
 
@@ -191,3 +191,67 @@ def test_delete_candidate_is_owner_only_and_removes_everything(db):
                          (f"qs:session:{ids['a']['session']}",)).fetchone()[0] == 0
         # Employer B untouched.
         assert c.execute("select count(*) from qs_sessions where id = %s", (ids["b"]["session"],)).fetchone()[0] == 1
+
+
+# ---- enrolled devices (20261115120000_qs_devices_states.sql)
+
+@pytest.fixture(scope="module")
+def devices(db):
+    uri, ids = db
+    out = {}
+    with psycopg.connect(uri, autocommit=True) as c:
+        for tag in ("a", "b"):
+            qs = c.execute("insert into qs_question_sets (employer_id, name) values (%s, 'set') returning id",
+                           (ids[tag]["employer"],)).fetchone()[0]
+            dev = c.execute("insert into qs_devices (employer_id, question_set_id, name, key_hash) values (%s,%s,'Quest',%s) returning id",
+                            (ids[tag]["employer"], qs, (tag * 64)[:64].replace(tag, "c" if tag == "a" else "d"))).fetchone()[0]
+            out[tag] = {"device": str(dev), "question_set": str(qs)}
+    return out
+
+
+def test_devices_owner_reads_everything_but_the_key_hash(db, devices):
+    uri, ids = db
+    with as_user(uri, A_USER) as c:
+        rows = c.execute("select id, name, question_set_id, revoked_at from qs_devices").fetchall()
+        assert [str(r[0]) for r in rows] == [devices["a"]["device"]]
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("select key_hash from qs_devices").fetchall()
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("select * from qs_devices").fetchall()
+
+
+def test_devices_hidden_from_viewers_other_employers_and_anon(db, devices):
+    uri, _ = db
+    for user in (A_VIEWER, B_USER):
+        with as_user(uri, user) as c:
+            ids = [str(r[0]) for r in c.execute("select id from qs_devices").fetchall()]
+            assert devices["a"]["device"] not in ids
+    with psycopg.connect(uri) as c:
+        c.execute("set role anon")
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            c.execute("select id from qs_devices").fetchall()
+
+
+def test_no_client_role_can_write_devices(db, devices):
+    uri, ids = db
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("insert into qs_devices (employer_id, question_set_id, name, key_hash) values (%s,%s,'x',%s)",
+                  (ids["a"]["employer"], devices["a"]["question_set"], "e" * 64))
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("update qs_devices set revoked_at = null")
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("delete from qs_devices")
+
+
+def test_employer_cannot_claim_a_session_came_from_a_device(db, devices):
+    uri, ids = db
+    with as_user(uri, A_USER) as c, pytest.raises(psycopg.errors.InsufficientPrivilege):
+        c.execute("insert into qs_sessions (employer_id, candidate_id, device_id) values (%s,%s,%s)",
+                  (ids["a"]["employer"], ids["a"]["candidate"], devices["a"]["device"]))
+
+
+def test_device_of_one_employer_cannot_back_another_employers_session(db, devices):
+    uri, ids = db
+    with psycopg.connect(uri, autocommit=True) as c, pytest.raises(psycopg.errors.ForeignKeyViolation):
+        c.execute("insert into qs_sessions (employer_id, candidate_id, device_id) values (%s,%s,%s)",
+                  (ids["b"]["employer"], ids["b"]["candidate"], devices["a"]["device"]))

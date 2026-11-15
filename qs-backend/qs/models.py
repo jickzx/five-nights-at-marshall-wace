@@ -72,6 +72,17 @@ class EventIn(Strict):
         return v
 
 
+class AudioFeatures(Strict):
+    """Breathing features the headset computed from its microphone over the last ~15 s (qs/audio.py).
+    Numbers only: there is deliberately no field that could carry audio samples."""
+    breath_rate_bpm: Optional[float] = Field(default=None, ge=0, le=120)
+    breath_regularity: Optional[float] = Field(default=None, ge=-1, le=1)
+    breath_amp: Optional[float] = Field(default=None, ge=0, le=10)
+    deep_breaths: Optional[int] = Field(default=None, ge=0, le=20)
+    since_last_breath_s: Optional[float] = Field(default=None, ge=0, le=600)
+    voice_fraction: Optional[float] = Field(default=None, ge=0, le=1)
+
+
 class IngestBatch(Strict):
     """What the headset posts a few times a second: one motion window and/or some game events."""
     seq: Optional[int] = Field(default=None, ge=0, le=10_000_000)   # window number; required with samples
@@ -80,6 +91,7 @@ class IngestBatch(Strict):
     t_end: Optional[float] = None
     rate_hz: Optional[float] = Field(default=None, gt=0, le=1000)
     samples: Optional[Samples] = None
+    audio: Optional[AudioFeatures] = None      # only used when the session's consent covers the microphone
     events: list[EventIn] = Field(default_factory=list, max_length=MAX_EVENTS)
 
     @model_validator(mode="after")
@@ -132,3 +144,22 @@ class CandidateIn(Strict):
 class SessionIn(Strict):
     candidate_id: UUID
     question_set_id: Optional[UUID] = None
+
+
+class DeviceIn(Strict):
+    """An enrolled headset. Its key can do one thing: start a new pseudonymous session for this employer
+    and question set (POST /v1/device-sessions)."""
+    employer_id: Optional[UUID] = None
+    name: str = Field(min_length=1, max_length=100)
+    question_set_id: UUID
+
+
+class DeviceSessionIn(Strict):
+    client: Optional[dict[str, Any]] = None
+
+    @field_validator("client")
+    @classmethod
+    def _small(cls, v):
+        if v is not None and len(json.dumps(v)) > MAX_PAYLOAD_BYTES:
+            raise ValueError("client info too large")
+        return v

@@ -6,7 +6,15 @@ namespace Fnmw.Core.Telemetry
     /// <summary>
     /// QS sender settings. Off unless explicitly enabled. Read from a gitignored
     /// <c>Assets/Resources/Qs/qs.json</c> (same pattern as the Gemini key) and overridden by environment variables.
-    /// The ingest token is a per-session credential: never commit it.
+    ///
+    /// Two ways to say which session to send to:
+    /// <list type="bullet">
+    /// <item><b>Device key</b> (normal for a headset): an enrolled device's key (<c>qsd_…</c>, from
+    /// <c>POST /v1/devices</c>). After each consent the sender asks <c>POST /v1/device-sessions</c> for a fresh
+    /// pseudonymous session, so nobody types a token per candidate. The key can do nothing else.</item>
+    /// <item><b>Fixed session</b> (testing): a session id and its ingest token.</item>
+    /// </list>
+    /// Both keys and tokens are credentials: never commit them.
     /// </summary>
     public sealed class QsConfig
     {
@@ -14,12 +22,17 @@ namespace Fnmw.Core.Telemetry
         public const string EnvUrl = "FNMW_QS_URL";
         public const string EnvSession = "FNMW_QS_SESSION";
         public const string EnvToken = "FNMW_QS_TOKEN";
+        public const string EnvDeviceKey = "FNMW_QS_DEVICE_KEY";
+        public const string EnvMicrophone = "FNMW_QS_MICROPHONE";
         public const string ResourcePath = "Qs/qs";
 
         public bool Enabled;
         public string EndpointUrl = "";
         public string SessionId = "";
         public string IngestToken = "";
+        public string DeviceKey = "";
+        /// <summary>Breathing from the microphone, after consent. On unless qs.json says <c>"microphone": false</c>.</summary>
+        public bool Microphone = true;
         public float WindowSeconds = 1f;
         public float HopSeconds = 0.5f;
         /// <summary>Calm period after consent used as the person's own baseline. The game should keep play quiet here.</summary>
@@ -35,18 +48,23 @@ namespace Fnmw.Core.Telemetry
                 if (!Enabled) return "disabled";
                 if (string.IsNullOrEmpty(EndpointUrl)) return "no endpoint URL";
                 if (!SecureOrLocal(EndpointUrl)) return "endpoint must be https (http is allowed only for localhost and LAN addresses)";
-                if (!Guid.TryParse(SessionId, out _)) return "session id is not a UUID";
+                if (UsesDevice) return null;
+                if (!Guid.TryParse(SessionId, out _)) return "no device key, and the session id is not a UUID";
                 if (string.IsNullOrEmpty(IngestToken)) return "no ingest token";
                 return null;
             }
         }
 
         public bool Usable => Problem == null;
+        /// <summary>A device key is set: sessions are started by the headset itself.</summary>
+        public bool UsesDevice => !string.IsNullOrEmpty(DeviceKey) && DeviceKey.StartsWith("qsd_");
 
         string Base => EndpointUrl.TrimEnd('/');
-        public string IngestUrl => Base + "/v1/ingest/" + SessionId;
+        public string IngestUrlFor(string sessionId) => Base + "/v1/ingest/" + sessionId;
+        public string IngestUrl => IngestUrlFor(SessionId);
         public string ConsentUrl => IngestUrl + "/consent";
         public string ConsentTextUrl => Base + "/v1/consent";
+        public string DeviceSessionUrl => Base + "/v1/device-sessions";
 
         public static bool SecureOrLocal(string url)
         {
@@ -60,10 +78,12 @@ namespace Fnmw.Core.Telemetry
         [Serializable]
         class FileShape
         {
-            public bool enabled;
+            public bool enabled = true;      // a qs.json is itself the opt-in; "enabled": false turns it off
             public string endpointUrl;
             public string sessionId;
             public string ingestToken;
+            public string deviceKey;
+            public bool microphone = true;   // JsonUtility keeps this default when the field is absent
             public float windowSeconds;
             public float hopSeconds;
             public float calibrationSeconds;
@@ -84,6 +104,8 @@ namespace Fnmw.Core.Telemetry
                         if (!string.IsNullOrWhiteSpace(f.endpointUrl)) cfg.EndpointUrl = f.endpointUrl.Trim();
                         if (!string.IsNullOrWhiteSpace(f.sessionId)) cfg.SessionId = f.sessionId.Trim();
                         if (!string.IsNullOrWhiteSpace(f.ingestToken)) cfg.IngestToken = f.ingestToken.Trim();
+                        if (!string.IsNullOrWhiteSpace(f.deviceKey)) cfg.DeviceKey = f.deviceKey.Trim();
+                        cfg.Microphone = f.microphone;
                         if (f.windowSeconds > 0) cfg.WindowSeconds = f.windowSeconds;
                         if (f.hopSeconds > 0) cfg.HopSeconds = f.hopSeconds;
                         if (f.calibrationSeconds > 0) cfg.CalibrationSeconds = f.calibrationSeconds;
@@ -98,6 +120,9 @@ namespace Fnmw.Core.Telemetry
             if (env != null)
             {
                 string on = env(EnvEnabled), url = env(EnvUrl), sid = env(EnvSession), tok = env(EnvToken);
+                string dev = env(EnvDeviceKey), mic = env(EnvMicrophone);
+                if (!string.IsNullOrWhiteSpace(dev)) cfg.DeviceKey = dev.Trim();
+                if (!string.IsNullOrWhiteSpace(mic)) cfg.Microphone = mic.Trim() == "1" || mic.Trim().ToLowerInvariant() == "true";
                 if (!string.IsNullOrWhiteSpace(on)) { cfg.Enabled = on.Trim() == "1" || on.Trim().ToLowerInvariant() == "true"; cfg.Source = "environment"; }
                 if (!string.IsNullOrWhiteSpace(url)) cfg.EndpointUrl = url.Trim();
                 if (!string.IsNullOrWhiteSpace(sid)) cfg.SessionId = sid.Trim();

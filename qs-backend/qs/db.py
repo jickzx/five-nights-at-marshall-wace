@@ -174,14 +174,17 @@ UNIQUE = {
     "qs_events": [("id",), ("session_id", "client_event_id")],
     "qs_records": [("session_id", "question_key")],
     "qs_summaries": [("session_id",)],
+    "qs_devices": [("id",), ("key_hash",)],
 }
-UUID_ID = {"qs_employers", "qs_question_sets", "qs_questions", "qs_candidates", "qs_sessions", "qs_consents"}
+UUID_ID = {"qs_employers", "qs_question_sets", "qs_questions", "qs_candidates", "qs_sessions", "qs_consents", "qs_devices"}
 SERIAL_ID = {"qs_motion_windows", "qs_events"}
 # What an employer (authenticated role) may do, per table, as in the SQL policies.
 MEMBER_READ = {"qs_question_sets", "qs_questions", "qs_candidates", "qs_sessions", "qs_consents",
                "qs_motion_windows", "qs_events", "qs_records", "qs_summaries"}
 MEMBER_INSERT = {"qs_question_sets", "qs_questions", "qs_candidates", "qs_sessions"}
 OWNER_RW = {"qs_candidate_identities"}
+OWNER_READ = {"qs_devices"}            # owners read devices, but never the key_hash column; only the server writes
+HIDDEN_COLUMNS = {"qs_devices": {"key_hash"}}
 SERVER_ONLY = {"qs_session_tokens"}
 
 
@@ -249,7 +252,7 @@ class MemoryDb:
             return str(row["id"]) in self._member_ids()
         if table == "qs_employer_members":
             return str(row["user_id"]) == self.p.user_id
-        if table in OWNER_RW:
+        if table in OWNER_RW or table in OWNER_READ:
             return str(row["employer_id"]) in self._member_ids(owner_only=True)
         if table in MEMBER_READ:
             return str(row["employer_id"]) in self._member_ids()
@@ -260,7 +263,8 @@ class MemoryDb:
             return
         allowed = (table in MEMBER_INSERT and str(row.get("employer_id")) in self._member_ids()) or \
                   (table in OWNER_RW and str(row.get("employer_id")) in self._member_ids(owner_only=True))
-        if table == "qs_sessions" and (row.get("status", "created") != "created" or row.get("baseline") is not None):
+        if table == "qs_sessions" and (row.get("status", "created") != "created" or row.get("baseline") is not None
+                                       or row.get("device_id") is not None):
             allowed = False
         if not allowed:
             raise DbError(403, "new row violates row-level security policy", "42501")
@@ -272,6 +276,10 @@ class MemoryDb:
         refs = []
         if table in ("qs_sessions",):
             refs.append(("qs_candidates", "id", row.get("candidate_id")))
+            if row.get("device_id"):
+                refs.append(("qs_devices", "id", row.get("device_id")))
+        if table == "qs_devices" and row.get("question_set_id"):
+            refs.append(("qs_question_sets", "id", row.get("question_set_id")))
             if row.get("question_set_id"):
                 refs.append(("qs_question_sets", "id", row.get("question_set_id")))
         if table == "qs_candidate_identities":
@@ -290,8 +298,15 @@ class MemoryDb:
         """Same paging contract as PostgrestDb: at most PAGE rows per underlying request."""
         with self.s.lock:
             rows = [copy.deepcopy(r) for r in self.s.tables[table] if self._visible(table, r) and _match(r, q)]
+        if self.p is not None and table in HIDDEN_COLUMNS:
+            hidden = HIDDEN_COLUMNS[table]
+            if columns == "*" or hidden & set(columns.split(",")):
+                raise DbError(403, f"permission denied for table {table}", "42501")   # column grant, as in SQL
         if q and q.order:
             rows.sort(key=lambda r: (r.get(q.order) is None, r.get(q.order)), reverse=q.desc)
+        if columns != "*":
+            cols = [c.strip() for c in columns.split(",")]
+            rows = [{c: r.get(c) for c in cols} for r in rows]
         want = q.limit if q and q.limit is not None else None
         out: list[dict] = []
         while True:

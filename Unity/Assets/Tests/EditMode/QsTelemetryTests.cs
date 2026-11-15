@@ -53,7 +53,7 @@ namespace Fnmw.Tests
         public void Config_RejectsBadSessionAndClampsTiming()
         {
             var c = QsConfig.From("{\"enabled\":true,\"endpointUrl\":\"https://x\",\"sessionId\":\"nope\",\"ingestToken\":\"t\",\"hopSeconds\":9,\"windowSeconds\":1}", null);
-            Assert.AreEqual("session id is not a UUID", c.Problem);
+            Assert.AreEqual("no device key, and the session id is not a UUID", c.Problem);
             Assert.LessOrEqual(c.HopSeconds, c.WindowSeconds);
         }
 
@@ -160,6 +160,97 @@ namespace Fnmw.Tests
                 Assert.IsFalse(src.HasControllers);
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        // ---- device key, microphone, breathing (QS v2) ----
+
+        [Test]
+        public void Config_QsJsonWithDeviceKeyIsOnWithoutAFlag()
+        {
+            var c = QsConfig.From("{\"endpointUrl\":\"https://qs.example\",\"deviceKey\":\"qsd_abc\"}", null);
+            Assert.IsTrue(c.Enabled && c.Usable && c.UsesDevice && c.Microphone);
+            Assert.AreEqual("https://qs.example/v1/device-sessions", c.DeviceSessionUrl);
+            Assert.AreEqual("https://qs.example/v1/ingest/" + Sid, c.IngestUrlFor(Sid));
+            Assert.IsFalse(QsConfig.From("{\"enabled\":false,\"endpointUrl\":\"https://x\",\"deviceKey\":\"qsd_abc\"}", null).Usable);
+            Assert.IsFalse(QsConfig.From("{\"endpointUrl\":\"https://x\",\"deviceKey\":\"qsd_a\",\"microphone\":false}", null).Microphone);
+            var e = QsConfig.From(null, Env(QsConfig.EnvEnabled, "1", QsConfig.EnvUrl, "https://x", QsConfig.EnvDeviceKey, "qsd_env"));
+            Assert.IsTrue(e.Usable && e.UsesDevice);
+        }
+
+        [Test]
+        public void Wire_ReadsDeviceSessionReply()
+        {
+            Assert.IsTrue(QsWire.TryReadDeviceSession("{\"session_id\":\"" + Sid + "\",\"ingest_token\":\"qsi_x\",\"candidate_pseudonym\":\"C-ABC123\"}",
+                out var sid, out var tok, out var pseudo));
+            Assert.AreEqual(Sid, sid); Assert.AreEqual("qsi_x", tok); Assert.AreEqual("C-ABC123", pseudo);
+            Assert.IsFalse(QsWire.TryReadDeviceSession("{\"detail\":\"nope\"}", out _, out _, out _));
+        }
+
+        [Test]
+        public void Wire_BatchCarriesAudioNumbersOnly()
+        {
+            var frames = new List<QsFrame> { new QsFrame { T = 1, Head = new QsPose { Tracked = true, Rotation = Quaternion.identity } } };
+            var audio = new QsBreathFeatures { RateBpm = 14.2, Amp = 0.017, DeepBreaths = 1, SinceLastBreathS = 1.5, VoiceFraction = 0 }.ToJson();
+            string json = QsWire.Batch(3, "p1", 0, 1, 72, frames, false, new List<QsEvent>(), audio);
+            StringAssert.Contains("\"audio\":{\"breath_rate_bpm\":14.2,", json);
+            StringAssert.Contains("\"deep_breaths\":1", json);
+            StringAssert.Contains("\"breath_regularity\":null", json);
+            StringAssert.DoesNotContain("audio", QsWire.Batch(3, "p1", 0, 1, 72, frames, false, new List<QsEvent>()));
+        }
+
+        static double[] Envelope(double seconds, Func<double, double> rateBpm, Func<double, double> amp, int seed = 1)
+        {
+            // mirrors qs.audio.synth_envelope: a loud exhale and a quieter inhale per breath, plus a little noise
+            var rng = new System.Random(seed);
+            int n = (int)(seconds * QsBreath.EnvFs);
+            var env = new double[n];
+            double phase = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double t = i / QsBreath.EnvFs;
+                phase += rateBpm(t) / 60.0 / QsBreath.EnvFs;
+                double f = phase - Math.Floor(phase);
+                double ex = f < 0.45 ? Math.Pow(Math.Sin(Math.PI * f / 0.45), 2) : 0;
+                double inh = f >= 0.55 && f < 0.9 ? 0.55 * Math.Pow(Math.Sin(Math.PI * (f - 0.55) / 0.35), 2) : 0;
+                env[i] = Math.Abs(0.02 * amp(t) * (ex + inh) + 0.002 * (1 + 0.3 * (rng.NextDouble() * 2 - 1)));
+            }
+            return env;
+        }
+
+        [TestCase(9.0)]
+        [TestCase(14.0)]
+        [TestCase(24.0)]
+        [TestCase(36.0)]
+        public void Breath_RecoversTheRate(double bpm)
+        {
+            var f = QsBreath.Compute(Envelope(15, _ => bpm, _ => 1), QsBreath.EnvFs, 0.5);
+            Assert.IsTrue(f.RateBpm.HasValue);
+            Assert.AreEqual(bpm, f.RateBpm.Value, bpm * 0.05);
+        }
+
+        [Test]
+        public void Breath_HoldWithdrawsTheRate()
+        {
+            var f = QsBreath.Compute(Envelope(15, _ => 14, t => t > 6 ? 0 : 1), QsBreath.EnvFs, 0.5);
+            Assert.IsFalse(f.RateBpm.HasValue);
+            Assert.Greater(f.SinceLastBreathS.Value, 8.0);
+        }
+
+        [Test]
+        public void Breath_FromRawSamples_NeverKeepsThem()
+        {
+            var b = new QsBreath(16000);
+            var env = Envelope(15, _ => 15, _ => 1);
+            var rng = new System.Random(3);
+            var chunk = new float[320];
+            foreach (var e in env)
+            {
+                for (int i = 0; i < chunk.Length; i++) chunk[i] = (float)(e * 1.7 * (rng.NextDouble() * 2 - 1) * 1.73);
+                b.Push(chunk, chunk.Length);
+            }
+            Assert.AreEqual(env.Length, b.EnvelopeCount);   // one RMS value per 20 ms: the samples themselves are gone
+            var f = b.Features();
+            Assert.AreEqual(15, f.RateBpm.Value, 0.75);
         }
     }
 }
