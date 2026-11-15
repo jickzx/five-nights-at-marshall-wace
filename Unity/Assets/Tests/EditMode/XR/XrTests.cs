@@ -105,12 +105,18 @@ namespace Fnmw.XR.Tests
         }
 
         [Test]
-        public void ControlCard_ListsEveryAction()
+        public void ControlCard_NamesTheButtonsForEachContext()
         {
-            string card = XrRig.ControlCardText(false);
-            foreach (var word in new[] { "Walk", "Run", "Turn", "Use", "Light", "Send", "Undo", "Clear", "Esc", "Skip tutorial", "snap" })
-                StringAssert.Contains(word, card);
-            StringAssert.Contains("smooth", XrRig.ControlCardText(true));
+            string roam = XrHelp.Card(XrContext.Roam, false, false);
+            foreach (var word in new[] { "walk", "run", "turn", "use", "lamp", "snap" }) StringAssert.Contains(word, roam);
+            StringAssert.Contains("smooth", XrHelp.Card(XrContext.Roam, true, false));
+            StringAssert.Contains("skip tutorial", XrHelp.Card(XrContext.Roam, false, true));
+            string console = XrHelp.Card(XrContext.Console, false, false);
+            foreach (var word in new[] { "place", "send", "undo", "hold B", "clear", "leave" }) StringAssert.Contains(word, console);
+            StringAssert.DoesNotContain("X ", console, "X does nothing on the console any more");
+            StringAssert.Contains("replay tutorial", XrHelp.Card(XrContext.Title, false, false));
+            foreach (XrContext c in System.Enum.GetValues(typeof(XrContext)))
+                Assert.LessOrEqual(XrHelp.Card(c, false, true).Split('\n').Length, 6, "a heading and at most five lines: " + c);
         }
     }
 }

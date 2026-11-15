@@ -202,6 +202,15 @@ namespace Fnmw.UI
         {
             var node = Kit.Node("Cue", parent, 0, y, UiRig.StageW, 16);
             float tw = FontBook.Width(text, 16);
+            if (XrBridge.Active)
+            {
+                // in a headset the confirm button is A: draw it as a small keycap where the Enter key would be
+                float kx = (UiRig.StageW - (16 + 8 + tw)) / 2f;
+                Kit.Frame("Key", node, c, kx, -1, 16, 18);
+                Kit.Label("KeyA", node, "A", 16, c, TextAnchor.MiddleCenter, kx, 0, 16, 16);
+                Kit.Label("Text", node, text, 16, c, TextAnchor.MiddleLeft, kx + 24, 0, tw + 4, 16);
+                return node;
+            }
             float total = 13 + 8 + tw;
             float x = (UiRig.StageW - total) / 2f;
             Kit.Pic("Key", node, Pictograms.Get("enter"), c, x, 1, 13, 13);

@@ -20,6 +20,23 @@ namespace Fnmw.Core
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
 
+        /// <summary>
+        /// Where the player should be heading: the one console the director has switched on (lowest index if
+        /// several), or the ship in the final chase. Null when there is nothing to walk to. The visor's
+        /// objective line and the VR ground guide share this, so they always agree.
+        /// </summary>
+        public static Interactable CurrentObjective(GameState s)
+        {
+            var want = s != null && s.Phase == GamePhase.Chase ? Kind.Ship : Kind.Console;
+            Interactable best = null;
+            for (int i = 0; i < All.Count; i++)
+            {
+                var it = All[i];
+                if (it && it.Enabled && it.Type == want && (best == null || it.Index < best.Index)) best = it;
+            }
+            return best;
+        }
+
         public void Interact()
         {
             if (!Enabled) return;

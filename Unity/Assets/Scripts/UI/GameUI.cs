@@ -73,6 +73,7 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             _disposed = true;
+            if (XrBridge.Active) XrBridge.LessonStage = XrLessonStage.None;
             GameEvents.BeastStageChanged -= OnBeastStage;
             _puzzle?.Close(); _escape?.Close(); _title?.Close();
             Fx?.Dispose();
@@ -165,6 +166,7 @@ namespace Fnmw.UI
         {
             if (_modal != null && _modal != next) _modal.Close();
             _modal = next;
+            if (XrBridge.Active) XrBridge.LessonStage = next == _example ? XrLessonStage.Reading : XrLessonStage.None;
             _lock = 0.2f;        // a key that closed one screen must not also act on the next
         }
 
@@ -197,6 +199,10 @@ namespace Fnmw.UI
 
         public string PromptShown => _hud.PromptShown;
         public string TutorialCueShown => _tutorial.CueShown;
+        /// <summary>The tutorial card's words ([KEY] for keycaps), for tests.</summary>
+        public string TutorialTextShown => _tutorial.TextShown;
+        /// <summary>The console's footer line while no feedback is showing, for tests.</summary>
+        public string PuzzleHint => PuzzleScreen.Hint;
         public int PuzzlePicks => _puzzle.PickCount;
         /// <summary>The worked example's step ("Barrier" … "Decoded"), for tests and automated play; "None" when it is not up.</summary>
         public string ExampleStep => _modal == _example ? _example.Current.ToString() : "None";
@@ -244,6 +250,8 @@ namespace Fnmw.UI
             bool tutorial = TutorialAllowed;
             if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
             if (tutorial) _tutorial.Tick(dt, UiInput.None);
+            if (XrBridge.Active) XrBridge.LessonStage = _modal != _example ? XrLessonStage.None
+                : _example.Current == WorkedExampleScreen.Step.Build ? XrLessonStage.Building : XrLessonStage.Reading;
             Fx.Tick(dt);
         }
     }

@@ -16,6 +16,9 @@ namespace Fnmw.Game.Intro
         readonly Text _caption, _title, _sub, _skip;
         string _captionText = "";
 
+        public const string SkipText = "SPACE  /  ESC   SKIP";
+        public const string SkipTextXr = "A  /  Y   SKIP";   // Touch: A (confirm) or a tap of Y (leave)
+
         public IntroOverlay(Transform parent)
         {
             Root = new GameObject("IntroOverlay", typeof(RectTransform));
@@ -38,7 +41,7 @@ namespace Fnmw.Game.Intro
             _title = Label("Title", font, 120, TextAnchor.MiddleCenter, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0, 40), 160);
             _sub = Label("Subtitle", font, 28, TextAnchor.MiddleCenter, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0, -60), 50);
             _skip = Label("Skip", font, 22, TextAnchor.MiddleRight, new Vector2(0.6f, 0f), new Vector2(0.98f, 0f), new Vector2(0, 30), 40);
-            _skip.text = "SPACE  /  ESC   SKIP";
+            _skip.text = Fnmw.Core.XrBridge.Active ? SkipTextXr : SkipText;
             _fade = Img("Fade", Vector2.zero, Vector2.one);
             _fade.color = Color.black;
             // Draw order: tint, bars, text, then the fade over everything.

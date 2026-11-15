@@ -41,7 +41,10 @@ namespace Fnmw.UI
         string _feedback;
         Texture2D _writeTex;
         GlyphShape _writeShape;
-        const string Hint = "KEYS PLACE  ·  BKSP UNDO  ·  ENTER SEND";
+        public const string HintKeys = "KEYS PLACE  ·  BKSP UNDO  ·  ENTER SEND";
+        public const string HintXr = "TRIGGER PLACES  ·  B UNDO  ·  A SENDS";
+        /// <summary>The footer's key line: the keyboard's, or the Touch buttons' in a headset.</summary>
+        public static string Hint => XrBridge.Active ? HintXr : HintKeys;
 
         public PuzzleScreen(GameUI ui) : base(ui, "Puzzle") { }
         public override GlassMode Glass => GlassMode.Console;

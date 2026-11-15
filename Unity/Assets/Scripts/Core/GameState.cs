@@ -25,6 +25,7 @@ namespace Fnmw.Core
         /// <summary>0..1, set by the Game thread: 1 holds the beast back (no evolution, no pressing) while the tutorial teaches.</summary>
         public float BeastGrace;
         public float SeaLevel;           // world-space height of the blood surface; World writes it, rises over the run
+        public float SeaWaveCrest;       // maximum rendered wave height above SeaLevel, written by World
         public float ShipPower => TotalPuzzles > 0 ? Mathf.Clamp01((float)PuzzlesSolved / TotalPuzzles) : 0f; // 0..1
 
         public bool IsOver => Phase == GamePhase.Escaped || Phase == GamePhase.Dead;

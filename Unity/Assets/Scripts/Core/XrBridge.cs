@@ -13,6 +13,8 @@ namespace Fnmw.Core
     /// The game reads these fields exactly where it reads the keyboard, so the rules, screens and flow stay
     /// one-to-one; only where the input comes from and where the picture goes changes.
     /// </summary>
+    public enum XrLessonStage { None, Reading, Building }
+
     public static class XrBridge
     {
         /// <summary>True only while the game runs in a headset. Never true in the desktop build.</summary>
@@ -30,6 +32,21 @@ namespace Fnmw.Core
         /// its rect, in its own space, maps 0..1 onto PointerUv.</summary>
         public static RectTransform Glass;
 
+        /// <summary>Set by the death ending for its first moment in VR: the scare plays in the world, in front of
+        /// the player's own tracked view, before the rest of the ending moves to the theater screen.</summary>
+        public static bool HoldTheater;
+
+        /// <summary>Degrees the player has turned with the right stick since the rig was built (snap or smooth,
+        /// both directions added up). The tutorial uses it to check the turn was practised.</summary>
+        public static float StickTurnDegrees;
+
+        /// <summary>The first-run tutorial is teaching right now (set by the Game thread's TutorialCoach every frame).
+        /// The controller labels then show "hold Y: skip tutorial".</summary>
+        public static bool TutorialActive;
+
+        /// <summary>The UI publishes the worked-example step for controller help.</summary>
+        public static XrLessonStage LessonStage;
+
         /// <summary>Layer the UI glass should sit on (0 normally; the theater's own layer while a cutscene is up).</summary>
         public static int GlassLayer;
 
@@ -40,7 +57,7 @@ namespace Fnmw.Core
         public static bool Interact;       // pressed this frame (E)
         public static bool Flashlight;     // pressed this frame (F)
         public static bool Leave;          // pressed this frame (Esc / Tab: walk away from the console, skip the intro)
-        public static bool SkipHeld;       // held (Q: skip the tutorial)
+        public static bool SkipHeld;       // held (Q: skip the tutorial). In VR: Y held past a tap
 
         // ---- screens (UiRig.ReadInput) ----
         public static int Digit = -1;
@@ -53,6 +70,7 @@ namespace Fnmw.Core
         public static void Reset()
         {
             Active = false; Head = null; Glass = null; CutscenePlaying = false; GlassLayer = 0;
+            HoldTheater = false; StickTurnDegrees = 0f; TutorialActive = false; LessonStage = XrLessonStage.None;
             ClearFrame();
         }
 

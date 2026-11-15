@@ -14,12 +14,18 @@ namespace Fnmw.XR
     /// <item>head tracking on the player's camera (under a CameraOffset that keeps the eyes at the game's eye
     /// height, standing or seated) and room-scale: walking in the room pushes the character capsule;</item>
     /// <item>Touch controllers read every frame into <see cref="XrBridge"/>, mapped onto the keys the game
-    /// already understands (see <see cref="ReadControls"/>);</item>
+    /// already understands (the layout lives in <see cref="TouchMapper"/>);</item>
+    /// <item>Touch-like controller bodies whose buttons light and move when pressed, with a label beside each
+    /// button saying what it does right now, and a wrist card for the current context (<see cref="XrHelp"/>);</item>
+    /// <item>a dim chevron on the ground towards the current objective (<see cref="XrGuide"/>);</item>
     /// <item>snap or smooth turning (right stick, click to switch), a comfort vignette while moving;</item>
     /// <item>a laser from the right controller onto the UI glass, the trigger clicks;</item>
     /// <item>a theater: cutscenes that fly a camera (the intro, both endings) play on a big screen in a dark
-    /// room instead of moving the player's head for them;</item>
-    /// <item>a control card on the left wrist, and a pause while the Quest system menu has focus.</item>
+    /// room instead of moving the player's head for them. The screen comes up straight ahead of wherever the
+    /// headset faces when the cutscene starts, however the player stands or has turned in their room
+    /// (<see cref="TheaterLayout"/>). The death scare first plays in the world, in the player's own view
+    /// (<see cref="XrBridge.HoldTheater"/>), then the ending moves to the theater;</item>
+    /// <item>a pause while the Quest system menu has focus.</item>
     /// </list>
     /// It lives on its own root object (the escape ending switches the player off).
     /// </summary>
@@ -32,6 +38,12 @@ namespace Fnmw.XR
         static readonly Vector3 TheaterOrigin = new Vector3(0, -2000f, 0);
 
         Transform _player, _origin, _offset, _eye, _left, _right, _aim;
+        XrControllerModel _leftModel, _rightModel;
+        XrGuide _guide;
+        Vector3 _lastHeadPos = new Vector3(0, EyeHeight, 0);
+        Quaternion _lastHeadRot = Quaternion.identity;
+        bool _realignTheater;
+        int _helpKey = -1;
         Camera _eyeCam, _theaterCam;
         TrackedPoseDriver _eyePose;
         CharacterController _cc;
@@ -48,10 +60,10 @@ namespace Fnmw.XR
         float _savedTimeScale = 1f, _vignetteA;
 
         readonly Turner _turner = new Turner();
-        readonly StickRepeater _arrows = new StickRepeater();
+        readonly TouchMapper _mapper = new TouchMapper();
         readonly List<InputAction> _actions = new List<InputAction>();
         readonly List<XRInputSubsystem> _inputs = new List<XRInputSubsystem>();
-        InputAction _move, _turn, _run, _a, _b, _x, _y, _rTrigger, _lTrigger, _menu, _lClick, _rClick;
+        InputAction _move, _turn, _run, _rGrip, _a, _b, _x, _y, _rTrigger, _lTrigger, _rTriggerAxis, _lTriggerAxis, _menu, _lClick, _rClick, _headPos, _headRot;
 
         // ------------------------------------------------------------------ build
 
@@ -75,6 +87,8 @@ namespace Fnmw.XR
 
             _left = Controller("LeftController", "{LeftHand}", out _);
             _right = Controller("RightController", "{RightHand}", out _);
+            _leftModel = new XrControllerModel(_left, left: true);
+            _rightModel = new XrControllerModel(_right, left: false);
             _aim = new GameObject("RightAim").transform;
             _aim.SetParent(_offset, false);
             AddPose(_aim.gameObject, "<XRController>{RightHand}/pointerPosition", "<XRController>{RightHand}/pointerRotation");
@@ -84,6 +98,10 @@ namespace Fnmw.XR
             BuildCard();
             BuildTheater();
             BindActions();
+            var guide = new GameObject("XrGuide");
+            guide.transform.SetParent(transform, false);
+            _guide = guide.AddComponent<XrGuide>();
+            _guide.Build(player);
 
             _turner.Smooth = PlayerPrefs.GetInt(SmoothTurnPref, 0) == 1;
             SubsystemManager.GetSubsystems(_inputs);
@@ -94,7 +112,7 @@ namespace Fnmw.XR
             }
             XrBridge.Head = _eye;
             XrBridge.GlassLayer = 0;
-            RefreshCard();
+            RefreshHelp();
         }
 
         static TrackedPoseDriver AddPose(GameObject go, string position, string rotation)
@@ -115,16 +133,6 @@ namespace Fnmw.XR
             var root = new GameObject(name).transform;
             root.SetParent(_offset, false);
             pose = AddPose(root.gameObject, "<XRController>" + hand + "/devicePosition", "<XRController>" + hand + "/deviceRotation");
-            // a plain dark grip, so the player can see their hands in the dark
-            var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Destroy(body.GetComponent<Collider>());
-            body.name = "Grip";
-            body.transform.SetParent(root, false);
-            body.transform.localPosition = new Vector3(0, -0.01f, -0.03f);
-            body.transform.localScale = new Vector3(0.035f, 0.035f, 0.11f);
-            var mr = body.GetComponent<MeshRenderer>();
-            mr.sharedMaterial = OverlayMaterial(new Color(0.16f, 0.13f, 0.12f, 1f), UnityEngine.Rendering.CompareFunction.LessEqual, 2000);
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return root;
         }
 
@@ -155,7 +163,7 @@ namespace Fnmw.XR
             _laser.enabled = false;
 
             var dot = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Destroy(dot.GetComponent<Collider>());
+            Kill(dot.GetComponent<Collider>());
             dot.name = "LaserDot";
             _dot = dot.transform;
             _dot.SetParent(transform, false);
@@ -170,7 +178,7 @@ namespace Fnmw.XR
         {
             // A head-locked ring that darkens the edge of view while the stick moves you (comfort).
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Destroy(go.GetComponent<Collider>());
+            Kill(go.GetComponent<Collider>());
             go.name = "ComfortVignette";
             go.transform.SetParent(_eye, false);
             go.transform.localPosition = new Vector3(0, 0, 0.12f);
@@ -203,50 +211,87 @@ namespace Fnmw.XR
 
         void BuildCard()
         {
+            // over the back of the left wrist: turn the wrist up to read it
             var go = new GameObject("ControlCard", typeof(RectTransform));
             go.transform.SetParent(_left, false);
-            go.transform.localPosition = new Vector3(0f, 0.06f, 0.02f);
-            go.transform.localRotation = Quaternion.Euler(50f, 0f, 0f);
-            go.transform.localScale = Vector3.one * 0.00045f;
+            go.transform.localPosition = new Vector3(0f, 0.085f, -0.075f);
+            go.transform.localRotation = Quaternion.Euler(55f, 0f, 0f);
+            go.transform.localScale = Vector3.one * 0.0004f;    // 30 px text = 12 mm
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             var rt = (RectTransform)go.transform;
-            rt.sizeDelta = new Vector2(400, 300);
+            rt.sizeDelta = new Vector2(540, 300);
             var bg = new GameObject("Back", typeof(RectTransform)).AddComponent<Image>();
             bg.transform.SetParent(go.transform, false);
-            bg.color = new Color(0.03f, 0.02f, 0.02f, 0.82f);
+            bg.color = new Color(0.03f, 0.02f, 0.02f, 0.88f);
             Stretch(bg.rectTransform);
             _card = new GameObject("Text", typeof(RectTransform)).AddComponent<Text>();
             _card.transform.SetParent(go.transform, false);
             _card.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _card.fontSize = 17;
-            _card.lineSpacing = 1.05f;
-            _card.color = new Color(0.9f, 0.84f, 0.76f);
+            _card.fontSize = 30;
+            _card.lineSpacing = 1.1f;
+            _card.supportRichText = true;
+            _card.color = new Color(0.94f, 0.88f, 0.8f);
             _card.alignment = TextAnchor.UpperLeft;
+            _card.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _card.verticalOverflow = VerticalWrapMode.Overflow;
             Stretch(_card.rectTransform);
-            _card.rectTransform.offsetMin = new Vector2(12, 10); _card.rectTransform.offsetMax = new Vector2(-12, -10);
+            _card.rectTransform.offsetMin = new Vector2(16, 12); _card.rectTransform.offsetMax = new Vector2(-16, -12);
         }
 
         static void Stretch(RectTransform r) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero; }
 
-        void RefreshCard()
+        XrContext Context => XrHelp.ContextFor(Services.State.Phase, _theater, XrBridge.LessonStage);
+
+        /// <summary>The wrist card and the button labels for what the player is doing now. Cheap when nothing changed.</summary>
+        void RefreshHelp()
         {
-            if (!_card) return;
-            _card.text = ControlCardText(_turner.Smooth);
+            var c = Context;
+            bool tut = XrBridge.TutorialActive;
+            int key = (int)c * 4 + (_turner.Smooth ? 2 : 0) + (tut ? 1 : 0);
+            if (key == _helpKey) return;      // nothing changed: no strings built, no text touched
+            _helpKey = key;
+            if (_card) _card.text = XrHelp.Card(c, _turner.Smooth, tut);
+            if (_rightModel != null)
+            {
+                XrHelp.RightLabels(c, _turner.Smooth, out var a, out var b, out var st, out var tr, out var gr);
+                _rightModel.Label(XrControllerModel.Button.Face1, a);
+                _rightModel.Label(XrControllerModel.Button.Face2, b);
+                _rightModel.Label(XrControllerModel.Button.Stick, st);
+                _rightModel.Label(XrControllerModel.Button.Trigger, tr);
+                _rightModel.Label(XrControllerModel.Button.Grip, gr);
+            }
+            if (_leftModel != null)
+            {
+                XrHelp.LeftLabels(c, tut, out var x, out var y, out var st, out var tr, out var gr);
+                _leftModel.Label(XrControllerModel.Button.Face1, x);
+                _leftModel.Label(XrControllerModel.Button.Face2, y);
+                _leftModel.Label(XrControllerModel.Button.Stick, st);
+                _leftModel.Label(XrControllerModel.Button.Trigger, tr);
+                _leftModel.Label(XrControllerModel.Button.Grip, gr);
+            }
         }
 
-        /// <summary>The wrist card. Public so tests can check every action is listed.</summary>
-        public static string ControlCardText(bool smooth) =>
-            "CONTROLS\n" +
-            "Walk: left stick     Run: hold left grip\n" +
-            "Turn: right stick (" + (smooth ? "smooth" : "snap") + ")  click R-stick: switch\n" +
-            "Use / E: A or right trigger    Light / F: B\n" +
-            "Screens: aim + right trigger, or stick + A\n" +
-            "Place tile / Space: A     Send / Enter: X\n" +
-            "Undo / Bksp: B     Clear / Del: Y\n" +
-            "Title: A starts, Y replays tutorial (T)\n" +
-            "Leave console, skip intro / Esc: menu\n" +
-            "Skip tutorial / hold Q: hold left stick";
+        /// <summary>Buttons light and move with the hands.</summary>
+        void ShowButtons()
+        {
+            if (_rightModel != null)
+            {
+                _rightModel.Show(XrControllerModel.Button.Face1, _a.IsPressed(), 0f, 0f);
+                _rightModel.Show(XrControllerModel.Button.Face2, _b.IsPressed(), 0f, _mapper.B.Progress);
+                _rightModel.Show(XrControllerModel.Button.Trigger, _rTrigger.IsPressed(), _rTriggerAxis.ReadValue<float>(), 0f);
+                _rightModel.Show(XrControllerModel.Button.Grip, _rGrip.IsPressed(), 0f, 0f);
+                _rightModel.Stick(_turn.ReadValue<Vector2>(), _rClick.IsPressed());
+            }
+            if (_leftModel != null)
+            {
+                _leftModel.Show(XrControllerModel.Button.Face1, _x.IsPressed(), 0f, 0f);
+                _leftModel.Show(XrControllerModel.Button.Face2, _y.IsPressed(), 0f, _mapper.Y.Progress);
+                _leftModel.Show(XrControllerModel.Button.Trigger, _lTrigger.IsPressed(), _lTriggerAxis.ReadValue<float>(), 0f);
+                _leftModel.Show(XrControllerModel.Button.Grip, _run.IsPressed(), 0f, 0f);
+                _leftModel.Stick(_move.ReadValue<Vector2>(), _lClick.IsPressed());
+            }
+        }
 
         void BuildTheater()
         {
@@ -273,12 +318,13 @@ namespace Fnmw.XR
             _theaterRt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32) { name = "xr_theater", antiAliasing = 2 };
             _theaterRt.Create();
             var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Destroy(screen.GetComponent<Collider>());
+            Kill(screen.GetComponent<Collider>());
             screen.name = "TheaterScreen";
             screen.layer = TheaterLayer;
-            screen.transform.SetParent(_theaterRoot, false);
-            screen.transform.localPosition = new Vector3(0, EyeHeight, 3.4f);
-            screen.transform.localScale = new Vector3(4.8f, 2.7f, 1f);
+            // under the CameraOffset, in the headset's tracking space: AlignTheater puts it in front of the face
+            screen.transform.SetParent(_theaterOffset, false);
+            screen.transform.localPosition = new Vector3(0, EyeHeight, TheaterLayout.Distance);
+            screen.transform.localScale = new Vector3(TheaterLayout.Size.x, TheaterLayout.Size.y, 1f);
             _screen = screen.GetComponent<MeshRenderer>();
             var m = OverlayMaterial(Color.white, UnityEngine.Rendering.CompareFunction.LessEqual, 2000);
             m.mainTexture = _theaterRt;
@@ -291,12 +337,20 @@ namespace Fnmw.XR
             _move = Act("Move", InputActionType.Value, "<XRController>{LeftHand}/{Primary2DAxis}");
             _turn = Act("Turn", InputActionType.Value, "<XRController>{RightHand}/{Primary2DAxis}");
             _run = Act("Run", InputActionType.Button, "<XRController>{LeftHand}/{GripButton}");
+            _rGrip = Act("RGrip", InputActionType.Button, "<XRController>{RightHand}/{GripButton}");
             _a = Act("A", InputActionType.Button, "<XRController>{RightHand}/{PrimaryButton}");
             _b = Act("B", InputActionType.Button, "<XRController>{RightHand}/{SecondaryButton}");
             _x = Act("X", InputActionType.Button, "<XRController>{LeftHand}/{PrimaryButton}");
             _y = Act("Y", InputActionType.Button, "<XRController>{LeftHand}/{SecondaryButton}");
             _rTrigger = Act("RTrigger", InputActionType.Button, "<XRController>{RightHand}/{TriggerButton}");
-            _lTrigger = Act("LTrigger", InputActionType.Button, "<XRController>{LeftHand}/{TriggerButton}");
+            _lTrigger = Act("LTrigger", InputActionType.Button, "<XRController>{LeftHand}/{TriggerButton}");   // shown, mapped to nothing
+            _rTriggerAxis = Act("RTriggerAxis", InputActionType.Value, "<XRController>{RightHand}/{Trigger}");
+            _lTriggerAxis = Act("LTriggerAxis", InputActionType.Value, "<XRController>{LeftHand}/{Trigger}");
+            // the head in tracking space, whatever a cutscene does to the camera
+            _headPos = new InputAction("HeadPos", InputActionType.Value, "<XRHMD>/centerEyePosition", expectedControlType: "Vector3");
+            _headRot = new InputAction("HeadRot", InputActionType.Value, "<XRHMD>/centerEyeRotation", expectedControlType: "Quaternion");
+            _headPos.Enable(); _headRot.Enable();
+            _actions.Add(_headPos); _actions.Add(_headRot);
             _menu = Act("Menu", InputActionType.Button, "<XRController>{LeftHand}/{MenuButton}");
             _lClick = Act("LStickClick", InputActionType.Button, "<XRController>{LeftHand}/{Primary2DAxisClick}");
             _rClick = Act("RStickClick", InputActionType.Button, "<XRController>{RightHand}/{Primary2DAxisClick}");
@@ -310,14 +364,24 @@ namespace Fnmw.XR
             return a;
         }
 
-        void OnOriginUpdated(XRInputSubsystem s) => _recalibrate = true;
+        void OnOriginUpdated(XRInputSubsystem s) { _recalibrate = true; _realignTheater = true; }
 
-        void OnDestroy()
+        /// <summary>Destroy that also works when tests build the rig in edit mode.</summary>
+        internal static void Kill(Object o)
         {
-            foreach (var a in _actions) { a.Disable(); a.Dispose(); }
+            if (!o) return;
+            if (Application.isPlaying) Destroy(o); else DestroyImmediate(o);
+        }
+
+        void OnDestroy() => Shutdown();
+
+        /// <summary>Release the input actions, the theater texture and any pause (OnDestroy; tests call it directly).</summary>
+        public void Shutdown()
+        {
+            foreach (var a in _actions) { if (a == null) continue; a.Disable(); a.Dispose(); }
             _actions.Clear();
             foreach (var s in _inputs) if (s != null) s.trackingOriginUpdated -= OnOriginUpdated;
-            if (_theaterRt) { if (_eyeCam && _eyeCam.targetTexture == _theaterRt) _eyeCam.targetTexture = null; _theaterRt.Release(); Destroy(_theaterRt); }
+            if (_theaterRt) { if (_eyeCam && _eyeCam.targetTexture == _theaterRt) _eyeCam.targetTexture = null; _theaterRt.Release(); Kill(_theaterRt); _theaterRt = null; }
             if (_paused) { Time.timeScale = _savedTimeScale; AudioListener.pause = false; }
             XrBridge.ClearFrame();
         }
@@ -331,7 +395,9 @@ namespace Fnmw.XR
             if (!XrBridge.Active) return;
             float dt = Time.unscaledDeltaTime;
             var phase = Services.State.Phase;
-            ReadControls(dt);
+            RememberHead();
+            bool onGlass = Laser(phase);
+            ReadControls(dt, onGlass);
             if (_paused) { XrBridge.ClearFrame(); return; }
 
             Calibrate();
@@ -339,7 +405,7 @@ namespace Fnmw.XR
             {
                 FollowHead();
                 float yaw = _turner.Tick(_turn.ReadValue<Vector2>().x, Time.deltaTime);
-                if (yaw != 0f) _player.Rotate(0f, yaw, 0f, Space.World);
+                if (yaw != 0f) { _player.Rotate(0f, yaw, 0f, Space.World); XrBridge.StickTurnDegrees += Mathf.Abs(yaw); }
                 bool moving = XrBridge.Move.sqrMagnitude > 0.04f || (_turner.Smooth && Mathf.Abs(_turn.ReadValue<Vector2>().x) > 0.15f);
                 _vignetteA = Mathf.MoveTowards(_vignetteA, moving ? 0.85f : 0f, dt * 4f);
             }
@@ -353,42 +419,54 @@ namespace Fnmw.XR
             {
                 _turner.Smooth = !_turner.Smooth;
                 PlayerPrefs.SetInt(SmoothTurnPref, _turner.Smooth ? 1 : 0);
-                RefreshCard();
             }
-            Laser(phase);
+            if (!_theater) { ShowButtons(); RefreshHelp(); }
         }
 
         /// <summary>
-        /// Touch controllers onto the game's keys. Every field is written every frame; each reader only looks
-        /// at the ones its phase uses (the roaming player vs. the screens), as with the keyboard.
+        /// Touch controllers onto the game's keys (the layout is <see cref="TouchMapper"/>). Every field is written
+        /// every frame; each reader only looks at the ones its phase uses (the roaming player vs. the screens), as
+        /// with the keyboard.
         /// </summary>
-        void ReadControls(float dt)
+        void ReadControls(float dt, bool onGlass)
         {
             XrBridge.ClearFrame();
-            var move = _move.ReadValue<Vector2>();
-            var turn = _turn.ReadValue<Vector2>();
-            bool a = _a.WasPressedThisFrame(), b = _b.WasPressedThisFrame(), x = _x.WasPressedThisFrame(), y = _y.WasPressedThisFrame();
-            bool trig = _rTrigger.WasPressedThisFrame(), menu = _menu.WasPressedThisFrame();
+            var f = new TouchFrame
+            {
+                LeftStick = _move.ReadValue<Vector2>(), RightStick = _turn.ReadValue<Vector2>(),
+                A = _a.IsPressed(), B = _b.IsPressed(), X = _x.IsPressed(), Y = _y.IsPressed(),
+                RightTrigger = _rTrigger.IsPressed(), LeftTrigger = _lTrigger.IsPressed(),
+                LeftGrip = _run.IsPressed(), Menu = _menu.IsPressed(), PointerOnGlass = onGlass,
+            };
+            var m = _mapper.Tick(f, dt);
+            XrBridge.Move = m.Move; XrBridge.Run = m.Run; XrBridge.Interact = m.Interact; XrBridge.Flashlight = m.Flashlight;
+            XrBridge.Leave = m.Leave; XrBridge.SkipHeld = m.SkipHeld;
+            XrBridge.Enter = m.Enter; XrBridge.Space = m.Space; XrBridge.Back = m.Back; XrBridge.Clear = m.Clear;
+            XrBridge.Replay = m.Replay; XrBridge.Click = m.Click;
+            XrBridge.Left = m.Left; XrBridge.Right = m.Right; XrBridge.Up = m.Up; XrBridge.Down = m.Down;
+            if (onGlass) { XrBridge.HasPointer = true; XrBridge.PointerUv = _pointerUv; }
+        }
 
-            // roaming
-            XrBridge.Move = move.sqrMagnitude < 0.02f ? Vector2.zero : move;
-            XrBridge.Run = _run.IsPressed();
-            XrBridge.Interact = a || trig;
-            XrBridge.Flashlight = b;
-            XrBridge.Leave = menu;
-            XrBridge.SkipHeld = _lClick.IsPressed();
+        /// <summary>The head's pose in tracking space, kept fresh while the player's own view is live (a cutscene
+        /// may re-parent the camera the same frame it starts).</summary>
+        void RememberHead()
+        {
+            if (TrackedHead(out var p, out var r)) { _lastHeadPos = p; _lastHeadRot = r; return; }
+            if (_eye && !_theater && _eye.parent == _offset && _eye.localPosition != Vector3.zero)
+            {
+                _lastHeadPos = _eye.localPosition; _lastHeadRot = _eye.localRotation;
+            }
+        }
 
-            // screens
-            XrBridge.Space = a;
-            XrBridge.Enter = x || _lTrigger.WasPressedThisFrame();
-            XrBridge.Back = b;
-            XrBridge.Clear = y;
-            XrBridge.Replay = y;
-            // either stick steps the screen cursor (tiles, quiz answers, worked-example pages)
-            var stick = turn.sqrMagnitude >= move.sqrMagnitude ? turn : move;
-            _arrows.Tick(stick, dt);
-            XrBridge.Left = _arrows.Left; XrBridge.Right = _arrows.Right; XrBridge.Up = _arrows.Up; XrBridge.Down = _arrows.Down;
-            XrBridge.Click = trig;
+        bool TrackedHead(out Vector3 pos, out Quaternion rot)
+        {
+            pos = default; rot = Quaternion.identity;
+            if (_headPos == null || _headRot == null || _headPos.activeControl == null || _headRot.activeControl == null) return false;
+            pos = _headPos.ReadValue<Vector3>();
+            rot = _headRot.ReadValue<Quaternion>();
+            float n = rot.x * rot.x + rot.y * rot.y + rot.z * rot.z + rot.w * rot.w;
+            if (n < 0.5f) return false;                 // no pose yet
+            return true;
         }
 
         void Calibrate()
@@ -420,16 +498,18 @@ namespace Fnmw.XR
             _offset.localPosition -= movedLocal;
         }
 
-        void Laser(GamePhase phase)
+        Vector2 _pointerUv;
+
+        /// <summary>The laser and its dot; true when it meets the UI glass (the UV is kept for ReadControls).</summary>
+        bool Laser(GamePhase phase)
         {
-            bool screens = !_theater && !Roaming(phase) && !Services.State.IsOver && _aim;
+            bool screens = !_theater && !Roaming(phase) && !Services.State.IsOver && _aim && !_paused;
             bool hit = false;
             Vector3 point = default;
             if (screens && XrBridge.Glass && GlassHit.Raycast(XrBridge.Glass, _aim.position, _aim.forward, out var uv, out point))
             {
                 hit = true;
-                XrBridge.HasPointer = true;
-                XrBridge.PointerUv = uv;
+                _pointerUv = uv;
             }
             if (_laser)
             {
@@ -442,17 +522,21 @@ namespace Fnmw.XR
             }
             if (_dot)
             {
-                _dot.gameObject.SetActive(hit);
+                if (_dot.gameObject.activeSelf != hit) _dot.gameObject.SetActive(hit);
                 if (hit) _dot.SetPositionAndRotation(point - XrBridge.Glass.forward * 0.005f, XrBridge.Glass.rotation);
             }
+            return hit;
         }
 
         void LateUpdate()
         {
             if (!XrBridge.Active) return;
             var s = Services.State;
-            bool want = XrBridge.CutscenePlaying || s.IsOver;
+            // the death scare's first moment plays in the world, in the player's own view (HoldTheater)
+            bool want = (XrBridge.CutscenePlaying || s.IsOver) && !XrBridge.HoldTheater;
             if (want != _theater) SetTheater(want);
+            else if (_theater && _realignTheater) AlignTheater();
+            _realignTheater = false;
             if (_theater && _eyeCam)
             {
                 // The cutscene may have replaced, re-parented or re-targeted the camera; keep it on the screen.
@@ -462,9 +546,27 @@ namespace Fnmw.XR
             }
         }
 
+        /// <summary>
+        /// Put the theater screen straight ahead of where the headset faces now, at eye level, wherever the
+        /// player stands or has turned in their room. Without this the screen sat down the room's +Z axis, so a
+        /// player who had turned (physically or with the stick's snap turns counting for nothing here) saw the
+        /// ending off to one side or behind them.
+        /// </summary>
+        void AlignTheater()
+        {
+            if (!_screen || !_theaterOffset) return;
+            Vector3 p = _lastHeadPos; Quaternion r = _lastHeadRot;
+            if (TrackedHead(out var tp, out var tr)) { p = tp; r = tr; }
+            TheaterLayout.Screen(p, r, EyeHeight - _theaterOffset.localPosition.y, out var pos, out var rot);
+            _screen.transform.localPosition = pos;
+            _screen.transform.localRotation = rot;
+        }
+
         void SetTheater(bool on)
         {
+            if (on) AlignTheater();
             _theater = on;
+            if (_guide) _guide.SetTheater(on);
             if (_eyePose) _eyePose.enabled = !on;          // the cutscene drives the camera, not the head
             if (_eyeCam)
             {
