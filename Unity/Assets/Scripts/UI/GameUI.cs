@@ -33,6 +33,7 @@ namespace Fnmw.UI
         bool _built, _disposed;
         LangPuzzle _lastPuzzle;
         List<Tile> _lastAnswer;
+        string _debrief;
 
         public static GameUI Create()
         {
@@ -95,6 +96,7 @@ namespace Fnmw.UI
 
         public void ShowTitle(Action onStart)
         {
+            _debrief = null;   // a new run starts without the last one's account
             Swap(_title);
             _title.Show(onStart);
             Fx.SetMode(GlassMode.Title, true);
@@ -147,9 +149,20 @@ namespace Fnmw.UI
         {
             State = state ?? State;
             _hud.SetPrompt(null);
-            if (escaped) { Swap(_escape); _escape.Show(State, Journal, onRestart); }
-            else { Swap(_death); _death.Show(onRestart); }
+            if (escaped) { Swap(_escape); _escape.Show(State, Journal, onRestart, _debrief); }
+            else { Swap(_death); _death.Show(onRestart, _debrief); }
         }
+
+        public void ShowDebrief(string text)
+        {
+            // kept even with no end screen up: the account is usually ready during the ending cutscene, before ShowEnd
+            _debrief = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            if (_modal == _escape) _escape.SetDebrief(_debrief);
+            else if (_modal == _death) _death.SetDebrief(_debrief);
+        }
+
+        /// <summary>The debrief printed on the end screen in front, for tests and automated play; null when there is none.</summary>
+        public string DebriefShown => _modal == _escape ? _escape.DebriefText : _modal == _death ? _death.DebriefText : null;
 
         public void HideAll()
         {
