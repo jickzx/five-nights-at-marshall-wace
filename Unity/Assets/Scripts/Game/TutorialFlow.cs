@@ -7,7 +7,7 @@ namespace Fnmw.Game
     /// The first-run tutorial as a pure state machine: which cue is live, given what the player has done.
     /// It teaches in context and only advances on the player's own actions (or a timeout, so nobody is stuck):
     ///
-    ///   (VR: Hands ->) Move -> Objective -> (walk) -> Console -> PuzzleRead -> PuzzleTiles -> PuzzleSend (-> Misfire -> PuzzleSend)
+    ///   Move -> Objective -> (walk) -> Console -> PuzzleRead -> PuzzleTiles -> PuzzleSend (-> Misfire -> PuzzleSend)
     ///   -> Reveal -> Quiz -> Beast -> NextConsole -> done
     ///
     /// The first console is the guided one. Until it is solved the beast is held back (Grace = 1). After it, the
@@ -20,11 +20,7 @@ namespace Fnmw.Game
     {
         public const float SkipHoldSeconds = 0.8f;
         public const float MoveMetres = 3f, LookDegrees = 30f, MoveTimeout = 20f;
-        /// <summary>VR only: degrees of right-stick turning the Move cue waits for (one 45 degree snap is enough).</summary>
-        public const float TurnDegrees = 40f, MoveTimeoutXr = 35f;
         public const float ObjectiveMin = 4f, ObjectiveMax = 12f, ObjectiveNear = 7f;
-        /// <summary>VR only: the Hands cue (look down at the controllers) waits this long looking down, and gives up after HandsTimeout.</summary>
-        public const float HandsLookSeconds = 1.5f, HandsMin = 2.5f, HandsTimeout = 14f;
         /// <summary>Grace just after the guided console. It falls linearly to 0 at the last console.</summary>
         public const float RampStart = 0.6f;
         public const float ReadSeconds = 6f, MisfireSeconds = 4f, BeastSeconds = 7f, NextSeconds = 7f, NextNear = 8f;
@@ -39,11 +35,6 @@ namespace Fnmw.Game
             public int Solved, Total;
             public bool SkipHeld;
             public bool ExampleOpen;     // the worked example is on the console
-            public bool NeedTurn;        // VR: the Move cue also wants the right stick turned (Turned degrees)
-            public float Turned;         // degrees turned with the right stick since the run began
-            public bool HandsStep;       // VR: start with the Hands cue (look down at the controllers)
-            public bool LookingDown;     // VR: the head is pitched down towards the hands right now
-            public bool AnyButton;       // VR: any controller button pressed this frame (the player found them)
         }
 
         public bool Active { get; private set; }
@@ -72,15 +63,15 @@ namespace Fnmw.Game
             return Mathf.Clamp01(RampStart * (1f - (solved - 1f) / (total - 1f)));
         }
 
-        float _hold, _lookedDown;
-        bool _tilePicked, _misfired, _beastShown, _objectiveShown, _handsShown, _ramp;
+        float _hold;
+        bool _tilePicked, _misfired, _beastShown, _objectiveShown, _ramp;
         GamePhase _phase;
         int _solved, _total;
 
         public void Begin()
         {
             Active = true; Taught = false; Skipped = false; _ramp = true;
-            _hold = 0; _lookedDown = 0; _tilePicked = false; _misfired = false; _beastShown = false; _objectiveShown = false; _handsShown = false;
+            _hold = 0; _tilePicked = false; _misfired = false; _beastShown = false; _objectiveShown = false;
             _phase = GamePhase.Explore; _solved = 0; _total = 0;
             Set(TutorialCue.Move);
         }
@@ -155,16 +146,10 @@ namespace Fnmw.Game
         {
             if (!Taught)
             {
-                // VR: before anything else, find the controllers in your hands
-                if (i.HandsStep && !_handsShown && Cue == TutorialCue.Move && !i.AtConsole) { _handsShown = true; Set(TutorialCue.Hands); }
                 switch (Cue)
                 {
-                    case TutorialCue.Hands:
-                        _lookedDown = i.LookingDown ? _lookedDown + dt : 0f;
-                        if ((CueTime > HandsMin && (_lookedDown >= HandsLookSeconds || i.AnyButton)) || CueTime > HandsTimeout || i.AtConsole) Set(TutorialCue.Move);
-                        break;
                     case TutorialCue.Move:
-                        if (MovePractised(i) || CueTime > (i.NeedTurn ? MoveTimeoutXr : MoveTimeout) || i.AtConsole) { _objectiveShown = true; Set(TutorialCue.Objective); }
+                        if (MovePractised(i) || CueTime > MoveTimeout || i.AtConsole) { _objectiveShown = true; Set(TutorialCue.Objective); }
                         break;
                     case TutorialCue.Objective:
                         if (i.AtConsole) Set(TutorialCue.Console);
@@ -194,9 +179,9 @@ namespace Fnmw.Game
             if (Cue != TutorialCue.NextConsole) End();
         }
 
-        /// <summary>Walked a few metres and looked around; in VR, also turned with the right stick.</summary>
+        /// <summary>Walked a few metres and looked around.</summary>
         static bool MovePractised(Inputs i) =>
-            i.Moved >= MoveMetres && i.Looked >= LookDegrees && (!i.NeedTurn || i.Turned >= TurnDegrees);
+            i.Moved >= MoveMetres && i.Looked >= LookDegrees;
 
         void Set(TutorialCue c) { Cue = c; CueTime = 0f; }
 

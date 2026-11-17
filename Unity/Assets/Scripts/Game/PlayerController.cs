@@ -28,11 +28,9 @@ namespace Fnmw.Game
         public Camera Camera => _camera;
         public float Speed { get; private set; }
         public bool Wading { get; private set; }
-        public float Pitch => XrBridge.Active && _cam ? HeadPitch() : _pitch;
-        /// <summary>Which way the player looks, in degrees: the body's yaw on desktop, the head's in VR.</summary>
-        public float ViewYaw => XrBridge.Active && _cam ? _cam.eulerAngles.y : transform.eulerAngles.y;
-
-        float HeadPitch() { float p = _cam.eulerAngles.x; return p > 180f ? p - 360f : p; }
+        public float Pitch => _pitch;
+        /// <summary>Which way the player looks, in degrees.</summary>
+        public float ViewYaw => transform.eulerAngles.y;
 
         void Awake()
         {
@@ -104,16 +102,7 @@ namespace Fnmw.Game
 
             Vector3 dir = Vector3.zero;
             bool run = false;
-            bool xr = XrBridge.Active;
-            if (move && xr)
-            {
-                // Touch: the left stick walks where the head faces; turning is the XR rig's job (snap or smooth).
-                var m = Vector2.ClampMagnitude(XrBridge.Move, 1f);
-                dir = new Vector3(m.x, 0, m.y);
-                run = XrBridge.Run;
-                if (XrBridge.Flashlight) _flashlight.enabled = !_flashlight.enabled;
-            }
-            if (move && !xr && kb != null)
+            if (move && kb != null)
             {
                 if (kb.wKey.isPressed) dir += Vector3.forward;
                 if (kb.sKey.isPressed) dir += Vector3.back;
@@ -122,19 +111,13 @@ namespace Fnmw.Game
                 run = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
                 if (kb.fKey.wasPressedThisFrame) _flashlight.enabled = !_flashlight.enabled;
             }
-            if (move && !xr && mouse != null && Cursor.lockState == CursorLockMode.Locked)
+            if (move && mouse != null && Cursor.lockState == CursorLockMode.Locked)
             {
                 var d = mouse.delta.ReadValue() * LookSensitivity;
                 transform.Rotate(0, d.x, 0);
                 _pitch = Mathf.Clamp(_pitch - d.y, -80, 80);
             }
             Vector3 worldDir = transform.TransformDirection(dir.normalized);
-            if (xr)
-            {
-                // analogue speed from the stick, relative to the head's yaw
-                float yaw = _cam ? _cam.eulerAngles.y : transform.eulerAngles.y;
-                worldDir = Quaternion.Euler(0, yaw, 0) * Vector3.ClampMagnitude(dir, 1f);
-            }
             if (move && dir == Vector3.zero && _autopilot.Count > 0)
             {
                 var target = _autopilot.Peek();
@@ -177,8 +160,8 @@ namespace Fnmw.Game
                 }
             }
             Services.UI.ShowPrompt(_focus ? _focus.Prompt : null);
-            if (_focus && (kb != null && kb.eKey.wasPressedThisFrame || xr && XrBridge.Interact)) Use(_focus);
-            if (phase == GamePhase.Puzzle && (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.tabKey.wasPressedThisFrame) || xr && XrBridge.Leave))
+            if (_focus && kb != null && kb.eKey.wasPressedThisFrame) Use(_focus);
+            if (phase == GamePhase.Puzzle && kb != null && (kb.escapeKey.wasPressedThisFrame || kb.tabKey.wasPressedThisFrame))
                 GameDirector.Instance?.AbandonPuzzle();
         }
 
@@ -198,11 +181,8 @@ namespace Fnmw.Game
             float y = s * 0.05f * _bobAmp * (Wading ? 0.6f : 1f);
             float x = Mathf.Cos(_bobPhase) * 0.035f * _bobAmp;
             float breathe = Mathf.Sin(Time.time * 1.6f) * 0.008f;
-            if (!XrBridge.Active)   // in a headset the head owns the camera: no bob, no sway (comfort)
-            {
-                _cam.localPosition = new Vector3(x, EyeHeight + y + breathe, 0);
-                _cam.localRotation = Quaternion.Euler(_pitch, 0, -x * 25f);
-            }
+            _cam.localPosition = new Vector3(x, EyeHeight + y + breathe, 0);
+            _cam.localRotation = Quaternion.Euler(_pitch, 0, -x * 25f);
             // A footfall at the bottom of each bob.
             float sign = Mathf.Sign(s);
             if (_bobAmp > 0.3f && sign < 0 && _lastStepSign > 0)

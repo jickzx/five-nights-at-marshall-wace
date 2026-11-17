@@ -479,7 +479,6 @@ namespace Fnmw.Game
             var b = FindBeast();
             var p = Services.Player;
             if (!b || !p) return;
-            // the way the player looks: the body on desktop, the head in VR (they differ once the player turns in the room)
             BeastSpot(p.position, _player ? _player.ViewYaw : p.eulerAngles.y, behind, dist, out var pos, out var rot);
             b.SetPositionAndRotation(pos, rot);
         }

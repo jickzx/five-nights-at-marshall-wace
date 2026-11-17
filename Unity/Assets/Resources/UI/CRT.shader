@@ -25,7 +25,7 @@ Shader "Fnmw/UI/CRT"
             #include "UnityCG.cginc"
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; UNITY_VERTEX_INPUT_INSTANCE_ID };
-            struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; UNITY_VERTEX_OUTPUT_STEREO };   // stereo macros: the VR port hangs this glass in the world
+            struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; UNITY_VERTEX_OUTPUT_STEREO };
 
             sampler2D _MainTex;
             sampler2D _UiTex;

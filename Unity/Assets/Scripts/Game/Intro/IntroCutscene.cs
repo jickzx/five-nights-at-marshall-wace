@@ -123,8 +123,6 @@ namespace Fnmw.Game.Intro
             _cam.farClipPlane = 8000f;
             _cam.fieldOfView = 60f;
 
-            if (XrBridge.Active) { XrBridge.CutscenePlaying = true; _overlay.BindCamera(_cam); }
-
             _playerMask = _playerCam.cullingMask;
             _maskSaved = true;
             _playerCam.cullingMask = 0;
@@ -176,7 +174,6 @@ namespace Fnmw.Game.Intro
             if (Arrived) return;
             _playing = false;
             RestorePlayerView();
-            if (XrBridge.Active) { XrBridge.CutscenePlaying = false; _overlay?.BindCamera(_playerCam); }
             if (_cam) { _cam.targetTexture = null; Destroy(_cam.gameObject); }
             _cam = null;
             _set?.Destroy();
@@ -205,7 +202,6 @@ namespace Fnmw.Game.Intro
         void Cleanup()
         {
             RestorePlayerView();
-            if (XrBridge.Active) XrBridge.CutscenePlaying = false;
             _set?.Destroy(); _set = null;
             _overlay?.Destroy(); _overlay = null;
             if (_rig) Destroy(_rig);
@@ -231,7 +227,6 @@ namespace Fnmw.Game.Intro
         static bool SkipHeld(out bool pressed)
         {
             pressed = false; bool held = false;
-            if (XrBridge.Active) { held |= XrBridge.Leave || XrBridge.Enter || XrBridge.Space; pressed |= held; }
             var kb = Keyboard.current;
             if (kb != null)
             {

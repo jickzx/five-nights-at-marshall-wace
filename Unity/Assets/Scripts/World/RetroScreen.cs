@@ -70,16 +70,6 @@ namespace Fnmw.World
                 _target = cam;
             }
             if (!cam) return;
-            if (XrBridge.Active)
-            {
-                // A headset cannot show a screen-space overlay: the eyes render the scene directly at full
-                // resolution. Never steal the camera's target (the XR theater may have set one) and stand down.
-                if (cam.targetTexture == _rt && _rt) cam.targetTexture = null;
-                _canvas.enabled = false;
-                if (_presenter && _presenter.enabled) _presenter.enabled = false;
-                Shader.SetGlobalVector("_FnmwSnapRes", Vector4.zero);
-                return;
-            }
             if (!On)
             {
                 cam.targetTexture = null;

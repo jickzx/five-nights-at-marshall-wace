@@ -81,7 +81,6 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             _disposed = true;
-            if (XrBridge.Active) { XrBridge.LessonStage = XrLessonStage.None; XrBridge.HintOffered = XrBridge.SpeakOffered = false; }
             GameEvents.BeastStageChanged -= OnBeastStage;
             _puzzle?.Close(); _escape?.Close(); _title?.Close();
             Fx?.Dispose();
@@ -210,7 +209,6 @@ namespace Fnmw.UI
         {
             if (_modal != null && _modal != next) _modal.Close();
             _modal = next;
-            if (XrBridge.Active) XrBridge.LessonStage = next == _example ? XrLessonStage.Reading : XrLessonStage.None;
             _lock = 0.2f;        // a key that closed one screen must not also act on the next
         }
 
@@ -267,10 +265,7 @@ namespace Fnmw.UI
         {
             if (_disposed) return;
             _clock += dt;
-            // In a headset the glass is a 16:9 panel in the world, not the window, so it keeps the 640x360 stage.
-            if (XrBridge.Active) Rig.Resize(1280, 720);
-            else Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
-            if (XrBridge.Active) Rig.FollowXr(dt, Services.State != null && (Services.State.Phase == GamePhase.Explore || Services.State.Phase == GamePhase.Chase) && _modal == null);
+            Rig.Resize(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
             if (_lock > 0)
             {
                 _lock -= dt;
@@ -303,14 +298,6 @@ namespace Fnmw.UI
             bool tutorial = TutorialAllowed;
             if (_tutorial.Root.gameObject.activeSelf != tutorial) { _tutorial.Root.gameObject.SetActive(tutorial); if (!tutorial) _tutorial.Hide(); }
             if (tutorial) _tutorial.Tick(dt, UiInput.None);
-            if (XrBridge.Active)
-            {
-                // what X does on this screen, for the controller labels and wrist card
-                XrBridge.HintOffered = _modal == _puzzle && _puzzle.ShipOffered;
-                XrBridge.SpeakOffered = _modal == _decode && _decode.ReplayOffered;
-            }
-            if (XrBridge.Active) XrBridge.LessonStage = _modal != _example ? XrLessonStage.None
-                : _example.Current == WorkedExampleScreen.Step.Build ? XrLessonStage.Building : XrLessonStage.Reading;
             Fx.Tick(dt);
         }
     }

@@ -147,77 +147,6 @@ namespace Fnmw.UI
             Presenter.uvRect = new Rect(-over / screenW, -over / screenH, 1f + 2f * over / screenW, 1f + 2f * over / screenH);
         }
 
-        // ---- VR ---------------------------------------------------------------------------
-        // A screen-space overlay never reaches a headset, so in VR the same glass (same texture, same CRT
-        // material, same content) hangs in the world in front of the player and follows their head.
-
-        /// <summary>Distance from the eyes to the glass in VR, metres.</summary>
-        public const float XrDistance = 1.9f;
-        /// <summary>How wide the glass is in VR, metres (about 64 degrees of view at XrDistance).</summary>
-        public const float XrWidth = 2.4f;
-        bool _xrPlaced;
-        Vector3 _xrPos;
-        Quaternion _xrRot = Quaternion.identity;
-
-        /// <summary>Glass size in VR for a texture of w x h virtual pixels: XrWidth wide, the texture's aspect.</summary>
-        public static Vector2 XrSize(int w, int h) => new Vector2(XrWidth, XrWidth * h / Mathf.Max(1f, w));
-
-        /// <summary>Called every UI frame. Does nothing on desktop.</summary>
-        public void FollowXr(float dt, bool roaming)
-        {
-            if (!XrBridge.Active || !PresenterCanvas) return;
-            var head = XrBridge.Head;
-            if (PresenterCanvas.renderMode != RenderMode.WorldSpace)
-            {
-                PresenterCanvas.renderMode = RenderMode.WorldSpace;
-                PresenterCanvas.worldCamera = null;
-                var crt = (RectTransform)PresenterCanvas.transform;
-                crt.pivot = new Vector2(0.5f, 0.5f);
-                _xrPlaced = false;
-            }
-            var rt = (RectTransform)PresenterCanvas.transform;
-            // one virtual pixel = XrWidth / W metres; the glass rect is in canvas pixels
-            rt.sizeDelta = new Vector2(W, H);
-            float s = XrWidth / Mathf.Max(1, W);
-            rt.localScale = new Vector3(s, s, s);
-            var glass = Presenter.rectTransform;
-            glass.offsetMin = glass.offsetMax = Vector2.zero;
-            Presenter.uvRect = new Rect(0, 0, 1, 1);
-            int layer = XrBridge.GlassLayer;
-            if (PresenterCanvas.gameObject.layer != layer) { PresenterCanvas.gameObject.layer = layer; glass.gameObject.layer = layer; }
-            if (!head) return;
-
-            // Where it wants to be: straight ahead of the face at XrDistance, level-ish (pitch damped).
-            Vector3 fwd = head.forward;
-            Vector3 flat = fwd; flat.y = 0;
-            if (flat.sqrMagnitude < 1e-4f) flat = head.up; flat.y = 0;
-            flat.Normalize();
-            float pitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(fwd.y, -1f, 1f)) * Mathf.Rad2Deg, -35f, 35f) * 0.6f;
-            Quaternion want = Quaternion.LookRotation(flat) * Quaternion.Euler(pitch, 0, 0);
-            Vector3 wantPos = head.position + want * Vector3.forward * XrDistance;
-            if (!_xrPlaced) { _xrPlaced = true; _xrPos = wantPos; _xrRot = want; }
-            else
-            {
-                // Roaming: the visor rides with the head (tight follow). On a screen: lazy follow, it only
-                // slides back in front once the head has turned well away, so reading is steady.
-                float off = Quaternion.Angle(_xrRot, want);
-                float rate = roaming ? 10f : off > 28f ? 4f : (Vector3.Distance(_xrPos, wantPos) > 0.6f ? 3f : 0f);
-                float k = 1f - Mathf.Exp(-rate * dt);
-                _xrRot = Quaternion.Slerp(_xrRot, want, k);
-                _xrPos = Vector3.Lerp(_xrPos, head.position + _xrRot * Vector3.forward * XrDistance, roaming ? k : Mathf.Max(k, 1f - Mathf.Exp(-8f * dt)));
-            }
-            rt.SetPositionAndRotation(_xrPos, _xrRot);
-            XrBridge.Glass = rt;
-        }
-
-        /// <summary>A 0..1 point on the glass (x right, y up) to stage space, through the CRT curve.</summary>
-        public Vector2 UvToStage(Vector2 uv, float curve)
-        {
-            var c = uv - new Vector2(0.5f, 0.5f);
-            var s = c * (1f + curve * (c.sqrMagnitude - 0.25f));
-            return new Vector2(s.x * W, s.y * H);
-        }
-
         public void Dispose()
         {
             if (Cam) Cam.targetTexture = null;
@@ -256,23 +185,6 @@ namespace Fnmw.UI
                 i.Replay = kb.tKey.wasPressedThisFrame;
                 i.Hint = kb.hKey.wasPressedThisFrame;
                 i.Speak = kb.pKey.wasPressedThisFrame;
-            }
-            if (XrBridge.Active)
-            {
-                // Touch controllers, translated by Fnmw.XR into the same keys the screens already know.
-                if (i.Digit < 0) i.Digit = XrBridge.Digit;
-                i.Enter |= XrBridge.Enter; i.Space |= XrBridge.Space; i.Back |= XrBridge.Back; i.Clear |= XrBridge.Clear;
-                i.Left |= XrBridge.Left; i.Right |= XrBridge.Right; i.Up |= XrBridge.Up; i.Down |= XrBridge.Down;
-                i.Replay |= XrBridge.Replay;
-                i.Hint |= XrBridge.Hint;
-                i.Speak |= XrBridge.Speak;
-                if (XrBridge.HasPointer)
-                {
-                    i.HasPointer = true;
-                    i.Pointer = UvToStage(XrBridge.PointerUv, curve);
-                    i.Click = XrBridge.Click;
-                }
-                return i;
             }
             var mouse = Mouse.current;
             if (mouse != null && Cursor.lockState != CursorLockMode.Locked)

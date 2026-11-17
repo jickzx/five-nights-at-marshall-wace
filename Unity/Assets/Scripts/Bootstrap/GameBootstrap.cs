@@ -5,7 +5,7 @@ namespace Fnmw
 {
     /// <summary>
     /// The only object in Main.unity. Resets Core to fakes, then lets each area install itself.
-    /// Order: services first (Ai, Lang, Audio, UI), then things that spawn (World, Monster, Game), then the VR rig.
+    /// Order: services first (Ai, Lang, Audio, UI), then things that spawn (World, Monster, Game).
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public class GameBootstrap : MonoBehaviour
@@ -14,7 +14,6 @@ namespace Fnmw
         {
             GameEvents.ClearAll();
             Services.ResetToFakes();
-            XR.XrModule.Detect();       // VR on only when a headset's XR runtime is running (never on desktop)
             Core.Ai.AiModule.Install();
             Lang.LangModule.Install();
             Audio.AudioModule.Install();
@@ -23,7 +22,6 @@ namespace Fnmw
             Monster.MonsterModule.Install();
             Game.GameModule.Install();
             Voice.VoiceModule.Install();   // optional voices; offline (no network at all) without a backend config
-            XR.XrModule.Install();      // no-op on desktop
             Debug.Log("[GameBootstrap] installed all modules");
         }
     }

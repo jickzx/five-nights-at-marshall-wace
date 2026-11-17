@@ -1,6 +1,6 @@
 {
     "name": "Fnmw.Bootstrap",
     "rootNamespace": "Fnmw",
-    "references": [ "Fnmw.Core", "Fnmw.Lang", "Fnmw.Monster", "Fnmw.World", "Fnmw.Game", "Fnmw.UI", "Fnmw.Audio", "Fnmw.Voice", "Fnmw.XR" ],
+    "references": [ "Fnmw.Core", "Fnmw.Lang", "Fnmw.Monster", "Fnmw.World", "Fnmw.Game", "Fnmw.UI", "Fnmw.Audio", "Fnmw.Voice" ],
     "autoReferenced": true
 }

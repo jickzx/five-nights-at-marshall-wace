@@ -42,24 +42,6 @@ namespace Fnmw.Tests
         void Press(UiInput input) { _ui.Tick(0.05f, input); Wait(1.2f); }
 
         [Test]
-        public void WorkedExample_PublishesActualStepForControllerHelp_AndClearsOnExit()
-        {
-            XrBridge.Active = true;
-            try
-            {
-                _ui.ShowWorkedExample(_ex, () => { });
-                Wait(1.2f);
-                Assert.AreEqual(XrLessonStage.Reading, XrBridge.LessonStage);
-                for (int i = 0; i < 10 && _ui.ExampleStep != "Build"; i++) Press(UiInput.PressEnter);
-                Assert.AreEqual("Build", _ui.ExampleStep);
-                Assert.AreEqual(XrLessonStage.Building, XrBridge.LessonStage);
-                _ui.HideAll();
-                Assert.AreEqual(XrLessonStage.None, XrBridge.LessonStage);
-            }
-            finally { XrBridge.Reset(); }
-        }
-
-        [Test]
         public void WorkedExample_EnterWalksEveryStep_AndHandsOverOnce()
         {
             Assert.IsNotNull(_ex);

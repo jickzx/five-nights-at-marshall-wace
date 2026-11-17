@@ -20,7 +20,7 @@ namespace Fnmw.Game
         /// <summary>Set by the director once the example has been walked through (or skipped).</summary>
         public bool ExampleDone;
 
-        float _moved, _looked, _lastYaw, _lastPitch, _turn0;
+        float _moved, _looked, _lastYaw, _lastPitch;
         Vector3 _lastPos;
         bool _tracking;
         PlayerController _player;
@@ -48,7 +48,6 @@ namespace Fnmw.Game
             if (!TutorialSession.WantsTutorial) return;
             Flow.Begin();
             _moved = 0; _looked = 0; _tracking = false;
-            _turn0 = XrBridge.StickTurnDegrees;
             ExampleDone = false;
             var t0 = Time.realtimeSinceStartup;
             var s = Services.State;
@@ -92,11 +91,8 @@ namespace Fnmw.Game
                 Flow.Tick(Time.deltaTime, new TutorialFlow.Inputs
                 {
                     Phase = s.Phase, Moved = _moved, Looked = _looked, ConsoleDistance = dist, AtConsole = at,
-                    Solved = s.PuzzlesSolved, Total = s.TotalPuzzles, SkipHeld = kb != null && kb.qKey.isPressed || XrBridge.SkipHeld,
+                    Solved = s.PuzzlesSolved, Total = s.TotalPuzzles, SkipHeld = kb != null && kb.qKey.isPressed,
                     ExampleOpen = d && d.ExampleOpen,
-                    // in a headset the body turns with the right stick, not the head: practise it once
-                    NeedTurn = XrBridge.Active, Turned = XrBridge.StickTurnDegrees - _turn0,
-                    HandsStep = XrBridge.Active, LookingDown = LookingAtHands(), AnyButton = AnyXrButton(),
                 });
                 if (!Flow.Active && d && d.ExampleOpen) d.EndWorkedExample();   // skipped mid-example: straight to the real puzzle
                 if (Flow.Taught && !TutorialSession.Seen || Flow.Taught && TutorialSession.ReplayRequested)
@@ -109,23 +105,10 @@ namespace Fnmw.Game
             }
             // the guided console holds the beast back; the rest of a tutorial run eases it in (TutorialFlow.GraceFor)
             s.BeastGrace = Flow.GraceFor(s.Phase, s.PuzzlesSolved, s.TotalPuzzles);
-            XrBridge.TutorialActive = Flow.Active;
-            XrBridge.TutorialCue = Flow.Active ? Flow.Cue : TutorialCue.None;
             if (s.IsOver) return;
             try { Services.UI.ShowTutorial(Flow.View(s.PuzzlesSolved, s.TotalPuzzles)); }
             catch (System.Exception ex) { Debug.LogException(ex); }
         }
-
-        /// <summary>VR: the head is pitched well down, where the hands are held.</summary>
-        static bool LookingAtHands()
-        {
-            var h = XrBridge.Head;
-            return XrBridge.Active && h && h.forward.y < -0.5f;   // ~30 degrees or more below the horizon
-        }
-
-        /// <summary>VR: any Touch button went down this frame (the bridge holds one frame of mapped input).</summary>
-        static bool AnyXrButton() => XrBridge.Active &&
-            (XrBridge.Interact || XrBridge.Flashlight || XrBridge.Enter || XrBridge.Click || XrBridge.Back || XrBridge.Leave || XrBridge.Hint);
 
         void Track()
         {

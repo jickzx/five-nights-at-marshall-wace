@@ -4,7 +4,7 @@
 
 # Five Nights at Marshall Wace
 
-**A language-learning horror game for desktop and Meta Quest 2.**
+**A language-learning horror game for desktop.**
 
 Crack real Earth languages hidden in an alien script, restart your ship,<br>
 and get off a blood-sea planet before the thing in the fog works out how you think.
@@ -80,8 +80,6 @@ Everything you hear is synthesised in C# at runtime: an 11-layer generative scor
 
 ## Run it
 
-### Desktop
-
 1. Install **Unity 6000.6.9f1** and open the `Unity/` folder.
 2. Open `Assets/Scenes/Main.unity` and press Play. Everything is spawned from code, so there is nothing to edit in the scene.
 
@@ -95,17 +93,7 @@ Everything you hear is synthesised in C# at runtime: an 11-layer generative scor
 | Ask the ship for a hint | H |
 | Demo mode (fixed seed 4242, forgiving beast) | F1, or the `-demo` launch flag |
 
-Developer keys F5 to F12 restart and skip between phases. The full desktop and Touch tables are in [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md#5-controls-touch), and [Unity/README.md](Unity/README.md) covers driving the Editor from the command line.
-
-### Meta Quest 2
-
-Install Android Build Support, enable developer mode on the headset, then in the Editor run **Fnmw > Quest > Configure project for Quest** and **Fnmw > Quest > Build APK**. With the headset connected:
-
-```bash
-adb install -r Unity/Builds/Quest/FiveNightsAtMarshallWace-Quest.apk
-```
-
-The setup guide, signing variables and batch-mode build command are in [Unity/Docs/oculus/SETUP.md](Unity/Docs/oculus/SETUP.md).
+Developer keys F5 to F12 restart and skip between phases. [Unity/README.md](Unity/README.md) covers driving the Editor from the command line.
 
 ### Optional services
 
@@ -117,7 +105,7 @@ The game plays fully offline. One optional service adds to it:
 
 | Path | What it is |
 |---|---|
-| [`Unity/`](Unity/README.md) | The game. Unity 6000.6.9f1 with URP, built code-first from one `GameBootstrap` object. Scripts are split into Core, Game, Lang, Monster, UI, Audio, World, Voice and XR, with EditMode tests. |
+| [`Unity/`](Unity/README.md) | The game. Unity 6000.6.9f1 with URP, built code-first from one `GameBootstrap` object. Scripts are split into Core, Game, Lang, Monster, UI, Audio, World and Voice, with EditMode tests. |
 | [`backend/`](backend/README.md) | Voice server in Node and TypeScript with no runtime dependencies. |
 | `src/`, `index.html` | Vite site: the early Three.js prototype from the first hours of the hackathon. |
 | [`assets/`](assets/README.md), `tools/blender/` | Procedural Blender kit that builds the game's 15 low-poly models, including the beast. |
@@ -163,12 +151,11 @@ npm run dev
 
 ## Secrets
 
-The repository is public and nothing secret is committed. `.env` files, `Unity/secrets.json`, `Unity/UserSettings/` and `Unity/Assets/Resources/Ai/` are git-ignored, and each `*.example` file lists variable names only. A build guard fails any Unity build that would bundle an OpenRouter key.
+The repository is public and nothing secret is committed. `.env` files, `Unity/secrets.json`, `Unity/UserSettings/` and `Unity/Assets/Resources/Ai/` are git-ignored, and each `*.example` file lists variable names only. A build guard fails any Unity build that would bundle a OpenRouter key.
 
 ## Status
 
-- **Quest 2.** The port, visible Touch controllers and the VR tutorial are merged and covered by EditMode tests, and the APK builds. It has not yet been played on a real headset, so comfort, readability and the scare timing still need a pass in VR.
-- **AI features.** Generated taunts, hints and the run debrief depend on OpenRouter credit. Without it the game falls back to server-written taunts, authored hints and a stock debrief, so a run never blocks on the network.
+- **AI features.** Generated taunts, hints and the run debrief use OpenRouter free models with a zero-price routing cap. Without it the game falls back to server-written taunts, authored hints and a stock debrief, so a run never blocks on the network.
 - **Voice server.** Runs as a single long-lived process and is not deployed. Standalone builds need it behind HTTPS.
 
 ## Credits

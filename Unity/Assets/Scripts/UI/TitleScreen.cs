@@ -36,7 +36,6 @@ namespace Fnmw.UI
         int _seed = 7;
 
         public const string ReplayText = "T  \u00B7  REPLAY TUTORIAL";
-        public const string ReplayTextXr = "Y  \u00B7  REPLAY TUTORIAL";   // Y tapped on the title (Fnmw.XR)
 
         const int HoleTex = 112;
         static readonly Vector2 HoleAt = new Vector2(UiRig.StageW / 2f, 50f);   // centre, stage pixels from top-left
@@ -96,8 +95,8 @@ namespace Fnmw.UI
             {
                 // top right corner, clear of the black hole and the title
                 _replay = Kit.Node("Replay", Root, 0, 14, UiRig.StageW, 18);
-                string replay = XrBridge.Active ? ReplayTextXr : ReplayText;
-                string rest = replay.Substring(1);              // the T (or Y) is drawn as a keycap
+                string replay = ReplayText;
+                string rest = replay.Substring(1);              // the T is drawn as a keycap
                 float tw = FontBook.Width(rest, 16);
                 float rx = UiRig.StageW - 24 - (18 + tw);
                 Kit.Frame("Cap", _replay, Pal.BoneDim, rx, 0, 18, 18);

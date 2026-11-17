@@ -23,7 +23,7 @@ namespace Fnmw.Core
         /// <summary>
         /// Where the player should be heading: the one console the director has switched on (lowest index if
         /// several), or the ship in the final chase. Null when there is nothing to walk to. The visor's
-        /// objective line and the VR ground guide share this, so they always agree.
+        /// objective line reads this.
         /// </summary>
         public static Interactable CurrentObjective(GameState s)
         {

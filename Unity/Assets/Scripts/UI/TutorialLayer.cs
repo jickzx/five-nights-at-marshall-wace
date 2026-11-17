@@ -67,69 +67,22 @@ namespace Fnmw.UI
                 "THE REST, THEN THE SHIP. FOLLOW THE TOP LINE.") },
         };
 
-        // In a headset (XrBridge.Active) the cues that name keys say which Touch button does it instead.
-        // Everything else is the same copy. The layout is Fnmw.XR's TouchMapper.
-        static readonly Dictionary<TutorialCue, Copy> XrScript = new Dictionary<TutorialCue, Copy>
-        {
-            { TutorialCue.Hands, new Copy("YOUR HANDS",
-                "LOOK DOWN: THOSE ARE YOUR CONTROLLERS. EVERY BUTTON IS LABELLED.",
-                "THE BUTTON THAT PULSES IS THE ONE THIS STEP WANTS.") },
-            { TutorialCue.Move, new Copy("MOVE",
-                "[L-STICK] WALK   ·   [R-STICK] TURN",
-                "TRY BOTH NOW.   HOLD [L-GRIP] TO RUN.") },
-            { TutorialCue.Objective, new Copy("OBJECTIVE",
-                "WAKE THE SHIP: DECODE {TOTAL} CONSOLES.",
-                "FOLLOW THE CHEVRON ON THE GROUND.   [X] LAMP.") },
-            { TutorialCue.Console, new Copy("CONSOLE",
-                "PRESS [A] OR PULL RIGHT [TRIGGER] TO USE THE CONSOLE.",
-                "READ IT WRONG AND THE GLASS CRACKS. THE BEAST STIRS.") },
-            { TutorialCue.PuzzleRead, new Copy("THE ROWS",
-                "SAME AS THE EXAMPLE: A MEANING, THEN ITS REAL WORDS.",
-                "COMPARE THE ROWS. FIND THE RULE.   [Y] STEP AWAY.") },
-            { TutorialCue.PuzzleTiles, new Copy("THE TILES",
-                "AIM THE RIGHT HAND AT A TILE, PULL [TRIGGER] TO PLACE IT.",
-                "BUILD THE BOTTOM ROW'S MEANING, IN ORDER.") },
-            { TutorialCue.PuzzleSend, new Copy("SEND",
-                "[A] SEND   ·   [B] TAKE ONE BACK   ·   HOLD [B] CLEAR",
-                "A MISFIRE CRACKS THE GLASS AND NAMES THE RULE YOU BROKE.") },
-            { TutorialCue.Misfire, new Copy("MISFIRE",
-                "WRONG. THE HINT BELOW NAMES THE RULE YOU BROKE.",
-                "[B] TAKE TILES BACK, FIX THE ORDER, [A] SEND AGAIN.") },
-            { TutorialCue.Reveal, new Copy("DECODED",
-                "THE WORDS WERE REAL ALL ALONG. ONLY THE GLYPHS WERE ALIEN.",
-                "READ THE RULE, THEN PRESS [A] TO NAME THE LANGUAGE.") },
-            { TutorialCue.Quiz, new Copy("QUIZ",
-                "WHICH LANGUAGE WAS IT? AIM AT IT, PULL [TRIGGER].",
-                "NO PENALTY HERE. GUESS IF YOU MUST.") },
-            { TutorialCue.Beast, new Copy("THE BEAST",
-                "IT GROWS WITH TIME, AND FASTER WITH EVERY MISFIRE.",
-                "LOOK AT IT AND IT FREEZES.   [X] LAMP   ·   HOLD [L-GRIP] RUN") },
-            { TutorialCue.NextConsole, new Copy("OBJECTIVE",
-                "{SOLVED} OF {TOTAL} CONSOLES WOKEN.",
-                "THE REST, THEN THE SHIP. [L-STICK] TO WALK.") },
-        };
-
         public const string SkipText = "HOLD Q  ·  SKIP TUTORIAL";
         public const string SkipShort = "HOLD Q · SKIP";            // on the console, in the band's left column
-        public const string SkipTextXr = "HOLD Y  ·  SKIP TUTORIAL";
-        public const string SkipShortXr = "HOLD Y · SKIP";
 
         static Copy CopyFor(TutorialCue cue)
         {
-            if (XrBridge.Active && XrScript.TryGetValue(cue, out var xr)) return xr;
             return Script.TryGetValue(cue, out var c) ? c : null;
         }
 
-        /// <summary>Tests: the cues the desktop tutorial has a card for, and a cue's headset lines (null if none).</summary>
+        /// <summary>Tests: the cues the tutorial has a card for.</summary>
         internal static IEnumerable<TutorialCue> DesktopCues => Script.Keys;
-        internal static string[] XrLines(TutorialCue cue) => XrScript.TryGetValue(cue, out var c) ? c.Lines : null;
 
         /// <summary>Every string the layer can emit, for the font-coverage test.</summary>
         public static IEnumerable<string> AllCopy()
         {
-            yield return SkipText; yield return SkipShort; yield return SkipTextXr; yield return SkipShortXr;
+            yield return SkipText; yield return SkipShort;
             foreach (var c in Script.Values) { yield return c.Tag; foreach (var l in c.Lines) yield return l; }
-            foreach (var c in XrScript.Values) { yield return c.Tag; foreach (var l in c.Lines) yield return l; }
         }
 
         /// <summary>The card's words as they will read once typed on (tests).</summary>
@@ -264,8 +217,7 @@ namespace Fnmw.UI
             if (!show) return;
             // under the tag in the band's left column while the console is open; bottom right elsewhere
             bool console = Ui.Front is PuzzleScreen || Ui.Front is WorkedExampleScreen;   // both have the band's left column free under the tag
-            bool xr = XrBridge.Active;
-            string text = console ? (xr ? SkipShortXr : SkipShort) : (xr ? SkipTextXr : SkipText);
+            string text = console ? SkipShort : SkipText;
             if (_skipText.text != text) Kit.SetText(_skipText, text);
             _skipText.alignment = console ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
             Kit.Place(_skip, console ? 30 : 410, console ? 22 : 330, 200, 20);
