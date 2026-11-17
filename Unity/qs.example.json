@@ -1,8 +1,0 @@
-{
-  "endpointUrl": "https://qs-backend-iota.vercel.app",
-  "deviceKey": "qsd_paste-the-device-key-here",
-  "microphone": true,
-  "windowSeconds": 1.0,
-  "hopSeconds": 0.5,
-  "calibrationSeconds": 20
-}
