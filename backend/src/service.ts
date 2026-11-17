@@ -12,9 +12,9 @@ import { checkHint, checkMonsterLine } from './textcheck.ts';
 import { writeMonsterLine } from './monster-lines.ts';
 import type { HintRequest, MonsterRequest, PronounceRequest, SessionRequest } from './validate.ts';
 import { ProviderError, type Fetch } from './providers/common.ts';
-import { geminiGenerate } from './providers/gemini.ts';
+import { openRouterGenerate } from './providers/openrouter.ts';
 import { SAMPLE_RATE, synthesize, type Channel } from './providers/elevenlabs.ts';
-import { mockGemini, mockTts } from './providers/mock.ts';
+import { mockOpenRouter, mockTts } from './providers/mock.ts';
 
 export type ErrorCode =
   | 'unauthorized' | 'bad_request' | 'too_large' | 'not_found' | 'rate_limited' | 'invalid_generation'
@@ -79,11 +79,11 @@ export class VoiceService {
   readonly #sessions = new Map<string, Session>();
   readonly #ipSessions: WindowCounter;
   readonly #ipRequests: WindowCounter;
-  readonly geminiGate: Gate;
+  readonly openRouterGate: Gate;
   readonly ttsGate: Gate;
-  readonly dailyGemini: DailyBudget;
+  readonly dailyOpenRouter: DailyBudget;
   readonly dailySpeech: DailyBudget;
-  readonly geminiSwitch: ProviderSwitch;
+  readonly openRouterSwitch: ProviderSwitch;
   readonly elevenSwitch: ProviderSwitch;
   readonly #hintCache: LruCache<{ text: string; kind: 'generated' | 'guided'; rows: number[] }>;
   readonly speechCache: LruCache<CachedAudio>;
@@ -99,11 +99,11 @@ export class VoiceService {
     this.signer = new SessionSigner(this.cfg.sessionSecret);
     this.#ipSessions = new WindowCounter(L.sessionsPerIpPerWindow, L.ipWindowS * 1000, this.now);
     this.#ipRequests = new WindowCounter(L.requestsPerIpPerWindow, L.ipWindowS * 1000, this.now);
-    this.geminiGate = new Gate(L.geminiConcurrency);
+    this.openRouterGate = new Gate(L.openRouterConcurrency);
     this.ttsGate = new Gate(L.ttsConcurrency);
-    this.dailyGemini = new DailyBudget(L.daily.geminiCalls, this.now);
+    this.dailyOpenRouter = new DailyBudget(L.daily.openRouterCalls, this.now);
     this.dailySpeech = new DailyBudget(L.daily.speechChars, this.now);
-    this.geminiSwitch = new ProviderSwitch(L.providerDisableS * 1000, this.now);
+    this.openRouterSwitch = new ProviderSwitch(L.providerDisableS * 1000, this.now);
     this.elevenSwitch = new ProviderSwitch(L.providerDisableS * 1000, this.now);
     this.#hintCache = new LruCache({ maxEntries: L.hintCacheEntries, maxBytes: 4 * 1024 * 1024, ttlMs: L.hintCacheTtlS * 1000, now: this.now, size: (v) => v.text.length * 2 + 64 });
     this.speechCache = new LruCache({ maxEntries: 4096, maxBytes: L.speechCacheBytes, ttlMs: L.speechCacheTtlS * 1000, now: this.now, size: (v) => v.pcm.length + 64 });
@@ -157,8 +157,8 @@ export class VoiceService {
     const f = features(this.cfg);
     return {
       monster: f.monster && !this.elevenSwitch.off,
-      hint: f.hint && !this.geminiSwitch.off,
-      hint_speech: f.hint_speech && !this.geminiSwitch.off && !this.elevenSwitch.off,
+      hint: f.hint && !this.openRouterSwitch.off,
+      hint_speech: f.hint_speech && !this.openRouterSwitch.off && !this.elevenSwitch.off,
       pronounce: f.pronounce && !this.elevenSwitch.off,
     };
   }
@@ -177,39 +177,39 @@ export class VoiceService {
     s.used[what]++;
   }
 
-  // ---------------------------------------------------------------- Gemini
+  // ---------------------------------------------------------------- OpenRouter
 
   async #generate(kind: 'monster' | 'hint', user: Record<string, unknown>, schema: object, signal: AbortSignal): Promise<unknown> {
-    if (this.geminiSwitch.off) throw new ApiError('disabled');
-    if (!this.geminiGate.tryEnter()) throw new ApiError('rate_limited', 500);
-    const deadline = this.cfg.limits.geminiDeadlineMs[kind];
+    if (this.openRouterSwitch.off) throw new ApiError('disabled');
+    if (!this.openRouterGate.tryEnter()) throw new ApiError('rate_limited', 500);
+    const deadline = this.cfg.limits.openRouterDeadlineMs[kind];
     const t0 = this.now();
     try {
-      if (this.mock) return await withDeadline((sig) => mockGemini(kind, user, this.cfg.mockFault, sig), deadline, signal);
+      if (this.mock) return await withDeadline((sig) => mockOpenRouter(kind, user, this.cfg.mockFault, sig), deadline, signal);
       // reserve a call plus its one possible retry; with only one left, the retry is skipped
-      const reserved = this.dailyGemini.reserve(2) ? 2 : this.dailyGemini.reserve(1) ? 1 : 0;
+      const reserved = this.dailyOpenRouter.reserve(2) ? 2 : this.dailyOpenRouter.reserve(1) ? 1 : 0;
       if (reserved === 0) throw new ApiError('budget_exhausted');
       let calls = 0;
       const counting: Fetch = (url, init) => { calls++; return this.#fetch(url, init); };
       try {
-        return await geminiGenerate(
-          { fetch: counting, key: this.cfg.geminiKey!, model: this.cfg.geminiModel, maxBytes: this.cfg.limits.maxGeminiBytes },
+        return await openRouterGenerate(
+          { fetch: counting, key: this.cfg.openRouterKey!, model: this.cfg.openRouterModel, maxBytes: this.cfg.limits.maxOpenRouterBytes },
           { system: kind === 'monster' ? MONSTER_SYSTEM : HINT_SYSTEM, user, schema, temperature: kind === 'monster' ? 0.9 : 0.4, deadlineMs: deadline },
           this.now, signal, reserved === 2,
         );
       } finally {
         const unused = reserved - Math.min(calls, reserved);
-        if (unused > 0) this.dailyGemini.refund(unused);
+        if (unused > 0) this.dailyOpenRouter.refund(unused);
       }
     } catch (e) {
-      throw this.#providerError(e, 'gemini', kind);
+      throw this.#providerError(e, 'openRouter', kind);
     } finally {
-      this.geminiGate.leave();
-      this.log.info({ event: 'provider', provider: this.mock ? 'mock' : 'gemini', feature: kind, ms: this.now() - t0 });
+      this.openRouterGate.leave();
+      this.log.info({ event: 'provider', provider: this.mock ? 'mock' : 'openRouter', feature: kind, ms: this.now() - t0 });
     }
   }
 
-  #providerError(e: unknown, provider: 'gemini' | 'elevenlabs', feature: string): ApiError {
+  #providerError(e: unknown, provider: 'openRouter' | 'elevenlabs', feature: string): ApiError {
     if (e instanceof ApiError) return e;
     if (!(e instanceof ProviderError)) return new ApiError('provider_unavailable');
     this.log.info({ event: 'provider_error', provider: this.mock ? 'mock' : provider, provider_status: e.status, code: e.code, feature });
@@ -217,9 +217,9 @@ export class VoiceService {
       case 'timeout': return new ApiError('provider_timeout');
       case 'rate_limited': return new ApiError('rate_limited', 2000);
       case 'auth':
-        (provider === 'gemini' ? this.geminiSwitch : this.elevenSwitch).trip();
+        (provider === 'openRouter' ? this.openRouterSwitch : this.elevenSwitch).trip();
         return new ApiError('disabled');
-      case 'invalid': return new ApiError(provider === 'gemini' ? 'invalid_generation' : 'provider_unavailable');
+      case 'invalid': return new ApiError(provider === 'openRouter' ? 'invalid_generation' : 'provider_unavailable');
       default: return new ApiError('provider_unavailable');
     }
   }
@@ -365,7 +365,7 @@ export class VoiceService {
     if (!this.features().monster) throw new ApiError('disabled');
     this.#quota(s, 'monster');
     let line: string | null = null;
-    if (this.mock || (this.cfg.geminiKey && !this.geminiSwitch.off)) {
+    if (this.mock || (this.cfg.openRouterKey && !this.openRouterSwitch.off)) {
       const user: Record<string, unknown> = { ...req, what_happened: TRIGGER_MEANING[req.trigger] };
       if (req.meaning === null) delete user.meaning;
       const schema = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] };
@@ -377,7 +377,7 @@ export class VoiceService {
         const v = checkMonsterLine(line, s.recentLines);
         if (!v.ok) { this.log.info({ event: 'rejected', feature: 'monster', code: v.reason }); throw new ApiError('invalid_generation'); }
       } catch (e) {
-        // Gemini gone (no credits, bad key, daily budget): write the line here instead. Other errors stay errors.
+        // OpenRouter gone (no credits, bad key, daily budget): write the line here instead. Other errors stay errors.
         if (this.mock || !(e instanceof ApiError) || (e.code !== 'disabled' && e.code !== 'budget_exhausted')) throw e;
         line = null;
       }
@@ -399,7 +399,7 @@ export class VoiceService {
     this.#quota(s, 'hint');
     // the key covers the whole validated request (not a client-chosen puzzle id) and every version that shapes the output
     const { seq: _seq, attempts: _attempts, ...context } = req;
-    const key = createHash('sha256').update(JSON.stringify([PROMPT_VERSION, FACTS_VERSION, this.cfg.mode, this.cfg.geminiModel, context])).digest('hex');
+    const key = createHash('sha256').update(JSON.stringify([PROMPT_VERSION, FACTS_VERSION, this.cfg.mode, this.cfg.openRouterModel, context])).digest('hex');
     let entry = this.#hintCache.get(key);
     let source: Source = this.mock ? 'mock' : 'cache';
     if (!entry) {

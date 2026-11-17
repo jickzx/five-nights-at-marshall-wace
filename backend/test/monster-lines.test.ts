@@ -37,8 +37,8 @@ test('server lines never repeat a recent line', () => {
   }
 });
 
-test('no Gemini key: the monster still talks, about the sentence, in the monster voice', async () => {
-  const h = await start({ GEMINI_API_KEY: '' });
+test('no OpenRouter key: the monster still talks, about the sentence, in the monster voice', async () => {
+  const h = await start({ OPENROUTER_API_KEY: '' });
   try {
     const t = await h.session();
     h.fake.queue.push(() => pcm(4800));
@@ -46,13 +46,13 @@ test('no Gemini key: the monster still talks, about the sentence, in the monster
     assert.equal(r.status, 200);
     const j = (await r.json()) as { text: string; speech: { id: string } | null };
     assert.ok(j.speech, 'speech requested');
-    assert.equal(h.fake.gemini().length, 0);
+    assert.equal(h.fake.openRouter().length, 0);
     assert.equal((await (await h.get(`/v1/speech/${j.speech!.id}`, t)).arrayBuffer()).byteLength, 9600);
   } finally { await h.close(); }
 });
 
 test('meaning: optional, plain English only', async () => {
-  const h = await start({ GEMINI_API_KEY: '' });
+  const h = await start({ OPENROUTER_API_KEY: '' });
   try {
     const t = await h.session();
     h.fake.fallback = () => pcm();

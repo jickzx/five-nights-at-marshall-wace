@@ -111,7 +111,7 @@ The setup guide, signing variables and batch-mode build command are in [Unity/Do
 
 The game plays fully offline. Two optional services add to it:
 
-- **Voice server** ([backend/](backend/README.md)). Gemini writes the beast's taunts and the ship's hints from what is happening in the run, and ElevenLabs speaks them and pronounces the decoded sentence. It has a keyless mock mode: `cd backend && npm install && npm run dev`.
+- **Voice server** ([backend/](backend/README.md)). OpenRouter writes the beast's taunts and the ship's hints from what is happening in the run, and ElevenLabs speaks them and pronounces the decoded sentence. It has a keyless mock mode: `cd backend && npm install && npm run dev`.
 - **QS telemetry** ([qs-backend/](qs-backend/README.md)). With the player's consent, the headset streams head, hand and breathing data to a FastAPI service on Vercel backed by Supabase. It turns that into one record per question and a plain-language summary for a live employer page at `/qs/`. It is off by default.
 
 ## What's in the repository
@@ -126,7 +126,7 @@ The game plays fully offline. Two optional services add to it:
 | [`docs/`](docs/PITCH.md) | Pitch notes and answer sheet, the answer-key tool, sponsor integration research and the security review. |
 
 ```
-Unity game ──▶ backend/ (voice) ──▶ Gemini (text), ElevenLabs (speech)
+Unity game ──▶ backend/ (voice) ──▶ OpenRouter (text), ElevenLabs (speech)
      │
      └──(opt-in)──▶ qs-backend/ (Vercel) ──▶ Supabase Postgres + Realtime ──▶ /qs/ employer page
 ```
@@ -178,12 +178,12 @@ npm run dev
 
 ## Secrets
 
-The repository is public and nothing secret is committed. `.env` files, `Unity/secrets.json`, `Unity/UserSettings/`, `Unity/Assets/Resources/Ai/` and `Unity/Assets/Resources/Qs/` are git-ignored, and each `*.example` file lists variable names only. A build guard fails any Unity build that would bundle a Gemini key.
+The repository is public and nothing secret is committed. `.env` files, `Unity/secrets.json`, `Unity/UserSettings/`, `Unity/Assets/Resources/Ai/` and `Unity/Assets/Resources/Qs/` are git-ignored, and each `*.example` file lists variable names only. A build guard fails any Unity build that would bundle a OpenRouter key.
 
 ## Status
 
 - **Quest 2.** The port, visible Touch controllers and the VR tutorial are merged and covered by EditMode tests, and the APK builds. It has not yet been played on a real headset, so comfort, readability and the scare timing still need a pass in VR.
-- **AI features.** Generated taunts, hints and the run debrief depend on Gemini credit. Without it the game falls back to server-written taunts, authored hints and a stock debrief, so a run never blocks on the network.
+- **AI features.** Generated taunts, hints and the run debrief use OpenRouter free models with a zero-price routing cap. Without it the game falls back to server-written taunts, authored hints and a stock debrief, so a run never blocks on the network.
 - **Voice server.** Runs as a single long-lived process and is not deployed. Standalone builds need it behind HTTPS.
 - **QS employer page.** Deployed and reading live data from the demo employer. The employer names on it are placeholders.
 
@@ -195,4 +195,4 @@ Built at a hackathon by the team listed on the [contributors page](https://githu
 
 The code in this repository is released under the [MIT License](LICENSE).
 
-The bundled fonts keep their own licenses: **DotGothic16** and **Unifont** are under the SIL Open Font License 1.1 (the full texts sit next to the fonts in `Unity/Assets/Resources/UI/Fonts/`, and DotGothic16's also in `public/qs/fonts/`). The Unity engine and its packages are not part of this repository and are covered by Unity's own terms. Gemini, ElevenLabs, Supabase and Vercel are used under their providers' terms.
+The bundled fonts keep their own licenses: **DotGothic16** and **Unifont** are under the SIL Open Font License 1.1 (the full texts sit next to the fonts in `Unity/Assets/Resources/UI/Fonts/`, and DotGothic16's also in `public/qs/fonts/`). The Unity engine and its packages are not part of this repository and are covered by Unity's own terms. OpenRouter, ElevenLabs, Supabase and Vercel are used under their providers' terms.

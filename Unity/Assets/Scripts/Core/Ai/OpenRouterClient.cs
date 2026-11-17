@@ -7,13 +7,13 @@ using UnityEngine.Networking;
 
 namespace Fnmw.Core.Ai
 {
-    /// <summary>IAiText over Gemini's generateContent, sent from a coroutine so nothing blocks a frame.</summary>
-    public sealed class GeminiClient : IAiText
+    /// <summary>IAiText over OpenRouter chat completions, sent from a coroutine so nothing blocks a frame.</summary>
+    public sealed class OpenRouterClient : IAiText
     {
         readonly AiConfig _config;
         readonly AiBudget _budget;
 
-        public GeminiClient(AiConfig config, AiBudget budget = null)
+        public OpenRouterClient(AiConfig config, AiBudget budget = null)
         {
             _config = config ?? new AiConfig();
             _budget = budget ?? new AiBudget();
@@ -41,10 +41,10 @@ namespace Fnmw.Core.Ai
             try
             {
                 www = new UnityWebRequest(_config.Endpoint(), UnityWebRequest.kHttpVerbPOST);
-                www.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(GeminiWire.BuildBody(request)));
+                www.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(OpenRouterWire.BuildBody(request, _config.Model)));
                 www.downloadHandler = new DownloadHandlerBuffer();
                 www.SetRequestHeader("Content-Type", "application/json");
-                if (!_config.UsesProxy) www.SetRequestHeader("x-goog-api-key", _config.ApiKey);
+                if (!_config.UsesProxy) www.SetRequestHeader("Authorization", "Bearer " + _config.ApiKey);
                 var runner = AiRunner.Get();
                 var live = new LiveRequest { Www = www, Handle = handle, Budget = _budget };
                 runner.Live.Add(live);
@@ -92,11 +92,11 @@ namespace Fnmw.Core.Ai
                 return AiResponse.Fail(AiStatus.NetworkError, www.error);
             if (www.result == UnityWebRequest.Result.ProtocolError)
             {
-                GeminiWire.TryReadText(body, out _, out string detail);
+                OpenRouterWire.TryReadText(body, out _, out string detail);
                 var status = www.responseCode == 429 ? AiStatus.Throttled : AiStatus.BadResponse;
                 return AiResponse.Fail(status, "HTTP " + www.responseCode + (string.IsNullOrEmpty(detail) ? "" : ": " + detail));
             }
-            if (!GeminiWire.TryReadText(body, out string text, out string error))
+            if (!OpenRouterWire.TryReadText(body, out string text, out string error))
                 return AiResponse.Fail(AiStatus.BadResponse, error);
             return new AiResponse { Status = AiStatus.Ok, Text = text };
         }

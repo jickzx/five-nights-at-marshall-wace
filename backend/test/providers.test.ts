@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geminiJson, hang, hintBody, monsterBody, pcm, SECRETS, start } from './helpers.ts';
+import { openRouterJson, hang, hintBody, monsterBody, pcm, SECRETS, start } from './helpers.ts';
 
 const LINE = { line: 'You keep stumbling on the same thing.' };
 
@@ -8,7 +8,7 @@ test('V1-style success: monster line, then its speech', async () => {
   const h = await start();
   try {
     const t = await h.session();
-    h.fake.queue.push(() => geminiJson(LINE));
+    h.fake.queue.push(() => openRouterJson(LINE));
     h.fake.queue.push(() => pcm(4800));
     const r = await h.post('/v1/monster-line', monsterBody(), t);
     assert.equal(r.status, 200);
@@ -23,35 +23,35 @@ test('V1-style success: monster line, then its speech', async () => {
   } finally { await h.close(); }
 });
 
-test('B9: Gemini 429 then 200 -> one retry, then success', async () => {
+test('B9: OpenRouter 429 then 200 -> one retry, then success', async () => {
   const h = await start();
   try {
     const t = await h.session();
     h.fake.queue.push(() => new Response('{}', { status: 429 }));
-    h.fake.queue.push(() => geminiJson(LINE));
+    h.fake.queue.push(() => openRouterJson(LINE));
     h.fake.queue.push(() => pcm());
     const r = await h.post('/v1/monster-line', monsterBody(), t);
     assert.equal(r.status, 200);
-    assert.equal(h.fake.gemini().length, 2);
+    assert.equal(h.fake.openRouter().length, 2);
   } finally { await h.close(); }
 });
 
-test('B10: Gemini 429 twice, 500 twice, a timeout -> mapped error with at most two calls', async () => {
-  const h = await start({}, (c) => { c.limits.geminiDeadlineMs.monster = 1500; });
+test('B10: OpenRouter 429 twice, 500 twice, a timeout -> mapped error with at most two calls', async () => {
+  const h = await start({}, (c) => { c.limits.openRouterDeadlineMs.monster = 1500; });
   try {
     const t = await h.session();
     h.fake.queue.push(() => new Response('', { status: 429 }), () => new Response('', { status: 429 }));
     let r = await h.post('/v1/monster-line', monsterBody(), t);
     assert.equal(r.status, 429);
-    assert.equal(h.fake.gemini().length, 2);
+    assert.equal(h.fake.openRouter().length, 2);
     h.fake.queue.push(() => new Response('', { status: 500 }), () => new Response('', { status: 500 }));
     r = await h.post('/v1/monster-line', monsterBody({ seq: 2 }), t);
     assert.deepEqual(await r.json(), { error: { code: 'provider_unavailable' } });
-    assert.equal(h.fake.gemini().length, 4);
+    assert.equal(h.fake.openRouter().length, 4);
     h.fake.queue.push(hang);
     r = await h.post('/v1/monster-line', monsterBody({ seq: 3 }), t);
     assert.equal(r.status, 504);
-    assert.equal(h.fake.gemini().length, 5, 'a timeout is not retried');
+    assert.equal(h.fake.openRouter().length, 5, 'a timeout is not retried');
   } finally { await h.close(); }
 });
 
@@ -105,10 +105,10 @@ test('B13: prose, extra key, empty, MAX_TOKENS, blockReason -> invalid_generatio
   try {
     const t = await h.session();
     const bad = [
-      () => geminiJson('Here is a scary line: boo'),
-      () => geminiJson({ line: 'You slipped.', extra: 'x' }),
-      () => geminiJson({ line: '' }),
-      () => geminiJson(LINE, 'MAX_TOKENS'),
+      () => openRouterJson('Here is a scary line: boo'),
+      () => openRouterJson({ line: 'You slipped.', extra: 'x' }),
+      () => openRouterJson({ line: '' }),
+      () => openRouterJson(LINE, 'MAX_TOKENS'),
       () => new Response(JSON.stringify({ promptFeedback: { blockReason: 'SAFETY' } }), { status: 200 }),
       () => new Response('<html>not json</html>', { status: 200 }),
       () => new Response(JSON.stringify({ candidates: [] }), { status: 200 }),
@@ -130,20 +130,20 @@ test('B14: a 300-character line, a language name, a URL, non-Latin text, a repea
     const t = await h.session();
     const lines = [
       'You '.repeat(75), 'Your Japanese is terrible.', 'Visit www.example.com now.', 'Je te vois, petit.', '我看见你了',
-      'I remember you from last night.', 'Gemini told me where you are.',
+      'I remember you from last night.', 'OpenRouter told me where you are.',
     ];
     let seq = 0;
     for (const line of lines) {
-      h.fake.queue.push(() => geminiJson({ line }));
+      h.fake.queue.push(() => openRouterJson({ line }));
       const r = await h.post('/v1/monster-line', monsterBody({ seq: seq++ }), t);
       if (line === 'Je te vois, petit.') { // plain Latin letters pass the character check; it is just odd, not a leak
         assert.equal(r.status, 200); h.fake.calls.pop(); continue;
       }
       assert.equal(r.status, 502, line);
     }
-    h.fake.queue.push(() => geminiJson(LINE), () => pcm());
+    h.fake.queue.push(() => openRouterJson(LINE), () => pcm());
     assert.equal((await h.post('/v1/monster-line', monsterBody({ seq: 50 }), t)).status, 200);
-    h.fake.queue.push(() => geminiJson({ line: 'you keep stumbling on the same thing!' }));
+    h.fake.queue.push(() => openRouterJson({ line: 'you keep stumbling on the same thing!' }));
     assert.equal((await h.post('/v1/monster-line', monsterBody({ seq: 51 }), t)).status, 502, 'repeat of a recent line');
   } finally { await h.close(); }
 });
@@ -161,7 +161,7 @@ test('B15: a hint quoting two tiles or carrying an injection falls back to a gui
     ] as const) {
       h.fake.queue.length = 0;
       h.fake.fallback = () => pcm(); // identical guided text hits the speech cache, so audio is not always requested
-      h.fake.queue.push(() => geminiJson({ rows: [2, 3], hint }));
+      h.fake.queue.push(() => openRouterJson({ rows: [2, 3], hint }));
       const r = await h.post('/v1/hint', hintBody({ level, target_meaning: `Please open door ${['one', 'two', 'three', 'four'][i++]}.` }), t);
       if (r.status !== 200) { assert.fail(`status ${r.status} for ${hint}`); }
       const j = (await r.json()) as { text: string; kind: string; rows: number[] };
@@ -171,7 +171,7 @@ test('B15: a hint quoting two tiles or carrying an injection falls back to a gui
       assert.ok(j.text.startsWith('Compare rows 2 and 3') || j.text.endsWith('Look at row 2.'), j.text);
     }
     h.fake.queue.length = 0;
-    h.fake.queue.push(() => geminiJson({ rows: [5], hint: 'Compare the rows.' }));
+    h.fake.queue.push(() => openRouterJson({ rows: [5], hint: 'Compare the rows.' }));
     assert.equal((await h.post('/v1/hint', hintBody({ target_meaning: 'Please eat the fish.' }), t)).status, 502, 'rows outside 1..3');
   } finally { await h.close(); }
 });
@@ -191,14 +191,14 @@ test('B16/B17: same pronunciation twice -> second is cache with one ElevenLabs c
     assert.equal((await h.get(`/v1/speech/${second.speech.id}`, t)).headers.get('x-fnmw-source'), 'cache');
     assert.equal(h.fake.eleven().length, 1);
     // a hint served twice comes from the hint cache; the key hashes the whole request, not a client id
-    h.fake.queue.push(() => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
     const hint1 = (await (await h.post('/v1/hint', hintBody(), t)).json()) as { source: string };
     const hint2 = (await (await h.post('/v1/hint', hintBody({ seq: 9, attempts: 7 }), t)).json()) as { source: string };
     assert.equal(hint1.source, 'live'); assert.equal(hint2.source, 'cache');
     const changed = hintBody({ tiles: ['akete', 'tobira', 'o', 'kudasai', 'mado'] });
-    h.fake.queue.push(() => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
     assert.equal(((await (await h.post('/v1/hint', changed, t)).json()) as { source: string }).source, 'live', 'other tiles, other key');
-    assert.equal(h.fake.gemini().length, 2);
+    assert.equal(h.fake.openRouter().length, 2);
   } finally { await h.close(); }
   const a = await start(), b = await start({ FNMW_VOICE_NATIVE: 'voiceNative02' }), c = await start({ FNMW_TTS_MODEL: 'eleven_multilingual_v2' });
   try {
@@ -215,25 +215,25 @@ test('B16/B17: same pronunciation twice -> second is cache with one ElevenLabs c
   } finally { await a.close(); await b.close(); await c.close(); }
 });
 
-test('B18: the Gemini request: constant host/path, key only in the header, structured output, safety; no answer or language', async () => {
+test('B18: the OpenRouter request: constant host/path, key only in the header, structured output, safety; no answer or language', async () => {
   const h = await start();
   try {
     const t = await h.session();
-    h.fake.queue.push(() => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }), () => pcm());
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }), () => pcm());
     await (await h.post('/v1/hint', hintBody(), t)).json();
-    const call = h.fake.gemini()[0]!;
-    assert.equal(call.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
-    assert.ok(!call.url.includes(SECRETS.gemini));
-    assert.equal(call.headers['x-goog-api-key'], SECRETS.gemini);
+    const call = h.fake.openRouter()[0]!;
+    assert.equal(call.url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.ok(!call.url.includes(SECRETS.openRouter));
+    assert.equal(call.headers.authorization, `Bearer ${SECRETS.openRouter}`);
     assert.equal(call.init.redirect, 'error');
-    const gc = call.body.generationConfig;
-    assert.equal(gc.responseMimeType, 'application/json');
-    assert.deepEqual(gc.responseJsonSchema.required, ['rows', 'hint']);
-    assert.equal(gc.thinkingConfig.thinkingLevel, 'MINIMAL');
-    assert.equal(gc.maxOutputTokens, 200);
-    assert.equal(call.body.safetySettings.length, 4);
-    assert.ok(call.body.systemInstruction.parts[0].text.includes('Never give the answer'));
-    const userTurn = call.body.contents[0].parts[0].text as string;
+    assert.equal(call.body.model, 'openrouter/free');
+    assert.equal(call.body.response_format.type, 'json_schema');
+    assert.deepEqual(call.body.response_format.json_schema.schema.required, ['rows', 'hint']);
+    assert.deepEqual(call.body.provider.max_price, { prompt: 0, completion: 0 });
+    assert.equal(call.body.provider.require_parameters, true);
+    assert.equal(call.body.max_tokens, 200);
+    assert.ok(call.body.messages[0].content.includes('Never give the answer'));
+    const userTurn = call.body.messages[1].content as string;
     for (const leak of ['Japanese', '"ja"', 'Nihongo', 'answer', 'solution']) assert.ok(!userTurn.includes(leak), leak);
     assert.ok(userTurn.includes('approved_rule'));
   } finally { await h.close(); }
@@ -278,7 +278,7 @@ test('malformed audio: odd length, empty, over the size cap -> no audio', async 
   } finally { await h.close(); }
 });
 
-test('B23: a client that disconnects mid-request aborts the upstream Gemini call', async () => {
+test('B23: a client that disconnects mid-request aborts the upstream OpenRouter call', async () => {
   const h = await start();
   try {
     const t = await h.session();
@@ -293,12 +293,12 @@ test('B23: a client that disconnects mid-request aborts the upstream Gemini call
     await p;
     await new Promise((r) => setTimeout(r, 100));
     assert.ok(aborted, 'upstream call aborted');
-    assert.equal(h.svc.geminiGate.active, 0);
+    assert.equal(h.svc.openRouterGate.active, 0);
   } finally { await h.close(); }
 });
 
 test('B24: mock mode serves every route with source "mock" and never calls fetch', async () => {
-  const h = await start({ FNMW_PROVIDER_MODE: 'mock', GEMINI_API_KEY: undefined, ELEVENLABS_API_KEY: undefined, FNMW_VOICE_MONSTER: undefined, FNMW_VOICE_SHIP: undefined, FNMW_VOICE_NATIVE: undefined });
+  const h = await start({ FNMW_PROVIDER_MODE: 'mock', OPENROUTER_API_KEY: undefined, ELEVENLABS_API_KEY: undefined, FNMW_VOICE_MONSTER: undefined, FNMW_VOICE_SHIP: undefined, FNMW_VOICE_NATIVE: undefined });
   try {
     const s = (await (await h.post('/v1/session', { proto: 1, build: 'x' }, SECRETS.game)).json()) as { session: string; mode: string; features: Record<string, boolean> };
     assert.equal(s.mode, 'mock');
@@ -323,7 +323,7 @@ test('B24: mock mode serves every route with source "mock" and never calls fetch
 
 test('mock faults: 429, 500, timeout and garbage map to the same errors as live', async () => {
   for (const [fault, status] of [['429', 429], ['500', 503], ['garbage', 502], ['timeout', 504]] as const) {
-    const h = await start({ FNMW_PROVIDER_MODE: 'mock', FNMW_MOCK_FAULT: fault }, (c) => { c.limits.geminiDeadlineMs.monster = 300; });
+    const h = await start({ FNMW_PROVIDER_MODE: 'mock', FNMW_MOCK_FAULT: fault }, (c) => { c.limits.openRouterDeadlineMs.monster = 300; });
     try {
       const t = await h.session();
       assert.equal((await h.post('/v1/monster-line', monsterBody(), t)).status, status, fault);

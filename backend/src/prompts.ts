@@ -1,4 +1,4 @@
-// System instructions for Gemini. PROMPT_VERSION is part of every cache key and the config version.
+// System instructions for OpenRouter. PROMPT_VERSION is part of every cache key and the config version.
 // The model only ever sees game facts the server validated; the instructions say the user turn is data.
 export const PROMPT_VERSION = 'p2';
 

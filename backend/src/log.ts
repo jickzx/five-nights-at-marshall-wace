@@ -6,7 +6,7 @@ export interface LogFields {
   status?: number;
   ms?: number;
   cache?: boolean;
-  provider?: 'gemini' | 'elevenlabs' | 'mock';
+  provider?: 'openRouter' | 'elevenlabs' | 'mock';
   provider_status?: number;
   code?: string;
   chars?: number;
