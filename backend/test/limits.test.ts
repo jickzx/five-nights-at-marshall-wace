@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geminiJson, hang, hintBody, pcm, SECRETS, start } from './helpers.ts';
+import { openRouterJson, hang, hintBody, pcm, SECRETS, start } from './helpers.ts';
 import { LruCache } from '../src/cache.ts';
 import { WindowCounter } from '../src/limits.ts';
 
@@ -26,16 +26,16 @@ test('B6: session quota, IP session limit, IP request limit and the daily budget
 });
 
 test('B7: a new session does not reset IP or global counters', async () => {
-  const h = await start({}, (c) => { c.limits.daily.geminiCalls = 2; c.limits.sessionsPerIpPerWindow = 10; });
+  const h = await start({}, (c) => { c.limits.daily.openRouterCalls = 2; c.limits.sessionsPerIpPerWindow = 10; });
   try {
-    h.fake.fallback = () => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' });
+    h.fake.fallback = () => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' });
     const a = await h.session();
     assert.equal((await h.post('/v1/hint', hintBody({ level: 1 }), a)).status, 200);
     assert.equal((await h.post('/v1/hint', hintBody({ level: 2 }), a)).status, 200);
     const b = await h.session();
     const r = await h.post('/v1/hint', hintBody({ level: 1, target_meaning: 'Please open the window.' }), b);
-    assert.equal(r.status, 503, 'the daily Gemini budget is global, not per session');
-    assert.equal(h.fake.gemini().length, 2);
+    assert.equal(r.status, 503, 'the daily OpenRouter budget is global, not per session');
+    assert.equal(h.fake.openRouter().length, 2);
   } finally { await h.close(); }
   const h2 = await start({}, (c) => { c.limits.requestsPerIpPerWindow = 3; c.limits.sessionsPerIpPerWindow = 10; });
   try {
@@ -95,7 +95,7 @@ test('the text response completing does not cancel speech: audio is fetched afte
     const t = await h.session();
     let finish!: () => void;
     const slow = new Promise<void>((r) => { finish = r; });
-    h.fake.queue.push(() => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
     h.fake.queue.push(async () => { await slow; return pcm(1200); });
     const r = await h.post('/v1/hint', hintBody(), t);
     assert.equal(r.status, 200);

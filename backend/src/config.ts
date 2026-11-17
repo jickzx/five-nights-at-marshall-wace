@@ -2,6 +2,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { PROMPT_VERSION } from './prompts.ts';
 import { FACTS_VERSION } from './hintfacts.ts';
+import { isFreeModel } from './providers/openrouter.ts';
 import { canonicalIp } from './client-ip.ts';
 
 export const LANGS = ['ja', 'fr', 'es', 'de', 'tr', 'zh', 'ar'] as const;
@@ -22,8 +23,8 @@ export interface Limits {
   requestsPerIpPerWindow: number;
   ipWindowS: number;
   perSession: { monster: number; hint: number; pronounce: number; speechChars: number; speechFetches: number };
-  daily: { geminiCalls: number; speechChars: number };
-  geminiConcurrency: number;
+  daily: { openRouterCalls: number; speechChars: number };
+  openRouterConcurrency: number;
   ttsConcurrency: number;
   ttsPerSessionConcurrency: number;
   speechJobTtlS: number;
@@ -34,11 +35,11 @@ export interface Limits {
   hintCacheEntries: number;
   hintCacheTtlS: number;
   providerDisableS: number;
-  geminiDeadlineMs: { monster: number; hint: number };
+  openRouterDeadlineMs: { monster: number; hint: number };
   ttsDeadlineMs: number;
   speechWaitMs: number;
   maxAudioBytes: number;
-  maxGeminiBytes: number;
+  maxOpenRouterBytes: number;
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -51,8 +52,8 @@ export const DEFAULT_LIMITS: Limits = {
   requestsPerIpPerWindow: 120,
   ipWindowS: 600,
   perSession: { monster: 80, hint: 40, pronounce: 40, speechChars: 8000, speechFetches: 200 },
-  daily: { geminiCalls: 2000, speechChars: 60000 },
-  geminiConcurrency: 4,
+  daily: { openRouterCalls: 2000, speechChars: 60000 },
+  openRouterConcurrency: 4,
   ttsConcurrency: 2,
   ttsPerSessionConcurrency: 2,
   speechJobTtlS: 600,
@@ -63,11 +64,11 @@ export const DEFAULT_LIMITS: Limits = {
   hintCacheEntries: 500,
   hintCacheTtlS: 24 * 3600,
   providerDisableS: 600,
-  geminiDeadlineMs: { monster: 4000, hint: 3000 },
+  openRouterDeadlineMs: { monster: 4000, hint: 3000 },
   ttsDeadlineMs: 8000,
   speechWaitMs: 7000,
   maxAudioBytes: 1_500_000,
-  maxGeminiBytes: 64 * 1024,
+  maxOpenRouterBytes: 64 * 1024,
 };
 
 export interface Voices {
@@ -84,9 +85,9 @@ export interface Config {
   trustedProxies: string[];
   gameTokens: string[];
   sessionSecret: Buffer;
-  geminiKey?: string;
+  openRouterKey?: string;
   elevenKey?: string;
-  geminiModel: string;
+  openRouterModel: string;
   ttsModel: string;
   voices: Voices;
   limits: Limits;
@@ -143,9 +144,9 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   else if (mode === 'live') throw new ConfigError('live mode needs FNMW_SESSION_SECRET of at least 32 bytes');
   else sessionSecret = randomBytes(32); // mock: sessions last for this process only
 
-  const geminiKey = (env.GEMINI_API_KEY ?? '').trim() || undefined;
+  const openRouterKey = (env.OPENROUTER_API_KEY ?? '').trim() || undefined;
   const elevenKey = (env.ELEVENLABS_API_KEY ?? '').trim() || undefined;
-  for (const [name, v] of [['GEMINI_API_KEY', geminiKey], ['ELEVENLABS_API_KEY', elevenKey]] as const)
+  for (const [name, v] of [['OPENROUTER_API_KEY', openRouterKey], ['ELEVENLABS_API_KEY', elevenKey]] as const)
     if (v !== undefined && !/^[\x21-\x7e]{8,512}$/.test(v)) throw new ConfigError(`${name} has unexpected characters`);
 
   const voices: Voices = {
@@ -164,21 +165,22 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   if (faultRaw !== 'none' && mode !== 'mock') throw new ConfigError('FNMW_MOCK_FAULT is for mock mode only');
 
   const limits: Limits = structuredClone(DEFAULT_LIMITS);
-  limits.daily.geminiCalls = int(env, 'FNMW_DAILY_GEMINI_CALLS', limits.daily.geminiCalls, 0, 1_000_000);
+  limits.daily.openRouterCalls = int(env, 'FNMW_DAILY_OPENROUTER_CALLS', limits.daily.openRouterCalls, 0, 1_000_000);
   limits.daily.speechChars = int(env, 'FNMW_DAILY_SPEECH_CHARS', limits.daily.speechChars, 0, 10_000_000);
   limits.perSession.speechChars = int(env, 'FNMW_SESSION_SPEECH_CHARS', limits.perSession.speechChars, 0, 1_000_000);
   limits.sessionsPerIpPerWindow = int(env, 'FNMW_SESSIONS_PER_IP', limits.sessionsPerIpPerWindow, 1, 1000);
   limits.requestsPerIpPerWindow = int(env, 'FNMW_REQUESTS_PER_IP', limits.requestsPerIpPerWindow, 1, 100_000);
 
-  const geminiModel = id(env, 'FNMW_GEMINI_MODEL', 'gemini-3.5-flash-lite')!;
+  const openRouterModel = (env.FNMW_OPENROUTER_MODEL ?? 'openrouter/free').trim() || 'openrouter/free';
+  if (!isFreeModel(openRouterModel)) throw new ConfigError('FNMW_OPENROUTER_MODEL must be openrouter/free or a provider/model:free id');
   const ttsModel = id(env, 'FNMW_TTS_MODEL', 'eleven_flash_v2_5')!;
   const configVersion = createHash('sha256')
-    .update(JSON.stringify([mode, geminiModel, ttsModel, voices, PROMPT_VERSION, FACTS_VERSION, VOICE_SETTINGS_VERSION]))
+    .update(JSON.stringify([mode, openRouterModel, ttsModel, voices, PROMPT_VERSION, FACTS_VERSION, VOICE_SETTINGS_VERSION]))
     .digest('hex')
     .slice(0, 16);
 
   return {
-    mode, host, port, trustedProxies, gameTokens, sessionSecret, geminiKey, elevenKey, geminiModel, ttsModel, voices, limits,
+    mode, host, port, trustedProxies, gameTokens, sessionSecret, openRouterKey, elevenKey, openRouterModel, ttsModel, voices, limits,
     mockFault: faultRaw as MockFault, configVersion,
   };
 }
@@ -192,9 +194,9 @@ export function nativeVoice(cfg: Config, lang: Lang): string | undefined {
 /** A feature whose key or voice is missing is off; mock mode needs neither. */
 export function features(cfg: Config): Features {
   if (cfg.mode === 'mock') return { monster: true, hint: true, hint_speech: true, pronounce: true };
-  const g = !!cfg.geminiKey, e = !!cfg.elevenKey;
+  const g = !!cfg.openRouterKey, e = !!cfg.elevenKey;
   return {
-    monster: e && !!cfg.voices.monster,   // Gemini optional: without it the server writes the line itself
+    monster: e && !!cfg.voices.monster,   // OpenRouter optional: without it the server writes the line itself
     hint: g,
     hint_speech: g && e && !!cfg.voices.ship,
     pronounce: e && LANGS.every((l) => !!nativeVoice(cfg, l)),

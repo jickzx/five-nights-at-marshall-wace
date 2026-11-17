@@ -39,7 +39,7 @@ test('hint attacks are rejected: indirect names, one token per sentence, look-al
 test('monster lines: short, plain, no names, no claims, no repeats', () => {
   assert.ok(checkMonsterLine('You keep stumbling on the same thing.', []).ok);
   for (const l of ['', 'a'.repeat(121), 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen',
-    'Your French is weak.', 'I remember you.', 'Ask Gemini for help.', 'See http now', 'Count to 3.', 'You little shit.'])
+    'Your French is weak.', 'I remember you.', 'Ask OpenRouter for help.', 'See http now', 'Count to 3.', 'You little shit.'])
     assert.equal(checkMonsterLine(l, []).ok, false, l);
   assert.equal(checkMonsterLine('You slipped.', ['you slipped!']).ok, false);
 });

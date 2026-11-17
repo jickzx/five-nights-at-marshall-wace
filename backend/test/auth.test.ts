@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ConfigError, loadConfig } from '../src/config.ts';
 import { SessionSigner } from '../src/auth.ts';
-import { env, geminiJson, hintBody, monsterBody, pcm, SECRETS, start } from './helpers.ts';
+import { env, openRouterJson, hintBody, monsterBody, pcm, SECRETS, start } from './helpers.ts';
 
 test('B1: no auth, wrong game token, tampered/expired/other-secret session -> 401 and no provider call', async () => {
   const h = await start();
@@ -68,13 +68,13 @@ test('B21: a missing key or voice id turns that feature off; the server still st
     assert.deepEqual(await m.json(), { error: { code: 'disabled' } });
     assert.equal(h.fake.calls.length, 0);
   } finally { await h.close(); }
-  const none = loadConfig(env({ GEMINI_API_KEY: undefined, ELEVENLABS_API_KEY: undefined }));
+  const none = loadConfig(env({ OPENROUTER_API_KEY: '', ELEVENLABS_API_KEY: undefined }));
   assert.equal(none.mode, 'live', 'live is the default; without keys every feature is off');
 });
 
 test('B22: live mode refuses a short session secret, a bad model id, and a missing game token', () => {
   assert.throws(() => loadConfig(env({ FNMW_SESSION_SECRET: 'short' })), ConfigError);
-  assert.throws(() => loadConfig(env({ FNMW_GEMINI_MODEL: 'models/../x' })), ConfigError);
+  assert.throws(() => loadConfig(env({ FNMW_OPENROUTER_MODEL: 'models/../x' })), ConfigError);
   assert.throws(() => loadConfig(env({ FNMW_VOICE_SHIP: 'a/b' })), ConfigError);
   assert.throws(() => loadConfig(env({ FNMW_GAME_TOKENS: '' })), ConfigError);
   assert.throws(() => loadConfig(env({ FNMW_PROVIDER_MODE: 'yolo' })), ConfigError);
@@ -87,19 +87,19 @@ test('B20: no log line carries a secret, token, request text or generated text',
   const h = await start();
   try {
     const token = await h.session();
-    h.fake.queue.push(() => geminiJson({ line: 'You keep stumbling on the same thing.' }));
+    h.fake.queue.push(() => openRouterJson({ line: 'You keep stumbling on the same thing.' }));
     h.fake.queue.push(() => pcm());
     const m = await h.post('/v1/monster-line', monsterBody(), token);
     const mj = (await m.json()) as { speech: { id: string } };
     await (await h.get(`/v1/speech/${mj.speech.id}`, token)).arrayBuffer();
-    h.fake.queue.push(() => geminiJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 3], hint: 'Compare rows 1 and 3: where does the action word wait?' }));
     h.fake.queue.push(() => pcm());
     await (await h.post('/v1/hint', hintBody(), token)).json();
     h.fake.queue.push(() => new Response('{"detail":{"message":"secret provider detail"}}', { status: 401 }));
     await (await h.post('/v1/pronounce', { seq: 1, lang: 'de', text: 'Der Hund schläft.' }, token)).json();
     const all = h.logs.join('\n');
     assert.ok(h.logs.length > 5);
-    for (const needle of [SECRETS.game, SECRETS.session, SECRETS.gemini, SECRETS.eleven, token, token.split('.')[1]!, 'stumbling',
+    for (const needle of [SECRETS.game, SECRETS.session, SECRETS.openRouter, SECRETS.eleven, token, token.split('.')[1]!, 'stumbling',
       'action word', 'Der Hund', 'tobira', 'Please open', 'secret provider detail', '127.0.0.1', 'voiceMonster01'])
       assert.ok(!all.includes(needle), `log leaked: ${needle}`);
     for (const line of h.logs) assert.doesNotThrow(() => JSON.parse(line));
@@ -115,4 +115,14 @@ test('healthz says ok and nothing else; unknown routes are 404 with no CORS head
     assert.equal(n.status, 404);
     assert.equal(n.headers.get('access-control-allow-origin'), null);
   } finally { await h.close(); }
+});
+
+
+test('OpenRouter configuration allows only free model ids and requires a local key', () => {
+  const cfg = loadConfig(env({ OPENROUTER_API_KEY: undefined }));
+  assert.equal(cfg.openRouterKey, undefined);
+  assert.equal(cfg.openRouterModel, 'openrouter/free');
+  assert.equal(loadConfig(env({ FNMW_OPENROUTER_MODEL: 'test/model:free' })).openRouterModel, 'test/model:free');
+  for (const model of ['test/paid', 'openrouter/auto', 'test/model:free/other'])
+    assert.throws(() => loadConfig(env({ FNMW_OPENROUTER_MODEL: model })), ConfigError);
 });

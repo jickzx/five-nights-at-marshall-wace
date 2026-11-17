@@ -13,11 +13,11 @@ namespace Fnmw.Core.Ai
             {
                 Debug.Log(config.Disabled
                     ? "[Ai] switched off; using stock lines"
-                    : (Application.isEditor ? "[Ai] no Gemini key or proxy found" : "[Ai] no AI proxy configured (builds never use a direct key)") + " (see Docs/ai/README.md); using stock lines");
+                    : "[Ai] no usable free model, key or proxy configured" + " (see Docs/ai/README.md); using stock lines");
                 return;
             }
-            Services.Ai = new GeminiClient(config);
-            Debug.Log("[Ai] Gemini ready: model " + config.Model + (config.UsesProxy ? " via proxy" : ", direct") + ", settings from " + config.Source);
+            Services.Ai = new OpenRouterClient(config);
+            Debug.Log("[Ai] OpenRouter ready: model " + config.Model + (config.UsesProxy ? " via proxy" : ", direct") + ", settings from " + config.Source);
         }
     }
 }

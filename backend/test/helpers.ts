@@ -10,7 +10,7 @@ import type { Fetch } from '../src/providers/common.ts';
 export const SECRETS = {
   game: 'test-game-token-0123456789abcdef',
   session: 'test-session-secret-0123456789abcdef-0123456789',
-  gemini: 'AIzaTEST-gemini-key-do-not-log-1234567890',
+  openRouter: 'AIzaTEST-openRouter-key-do-not-log-1234567890',
   eleven: 'sk_test_eleven_key_do_not_log_1234567890',
 };
 
@@ -19,7 +19,7 @@ export function env(over: Record<string, string | undefined> = {}): NodeJS.Proce
     FNMW_PROVIDER_MODE: 'live',
     FNMW_GAME_TOKENS: SECRETS.game,
     FNMW_SESSION_SECRET: SECRETS.session,
-    GEMINI_API_KEY: SECRETS.gemini,
+    OPENROUTER_API_KEY: SECRETS.openRouter,
     ELEVENLABS_API_KEY: SECRETS.eleven,
     FNMW_VOICE_MONSTER: 'voiceMonster01',
     FNMW_VOICE_SHIP: 'voiceShip01',
@@ -43,12 +43,12 @@ export class FakeFetch {
     const r = this.queue.shift() ?? this.fallback;
     return await r(call, this.calls.length - 1);
   };
-  gemini(): Call[] { return this.calls.filter((c) => c.url.startsWith('https://generativelanguage.googleapis.com/')); }
+  openRouter(): Call[] { return this.calls.filter((c) => c.url.startsWith('https://openrouter.ai/')); }
   eleven(): Call[] { return this.calls.filter((c) => c.url.startsWith('https://api.elevenlabs.io/')); }
 }
 
-export function geminiJson(obj: unknown, finishReason = 'STOP'): Response {
-  return new Response(JSON.stringify({ candidates: [{ finishReason, content: { parts: [{ text: typeof obj === 'string' ? obj : JSON.stringify(obj) }] } }] }), {
+export function openRouterJson(obj: unknown, finishReason = 'stop'): Response {
+  return new Response(JSON.stringify({ choices: [{ finish_reason: finishReason, message: { content: typeof obj === 'string' ? obj : JSON.stringify(obj) } }] }), {
     status: 200, headers: { 'content-type': 'application/json' },
   });
 }

@@ -35,10 +35,10 @@ const LANGUAGE_WORDS: string[] = (() => {
   return [...set];
 })();
 
-const PRODUCT_WORDS = ['gemini', 'google', 'elevenlabs', 'eleven labs', 'openai', 'chatgpt', 'claude', 'anthropic', 'ai', 'llm', 'model', 'prompt', 'assistant', 'chatbot', 'api'];
+const PRODUCT_WORDS = ['openrouter', 'gemini', 'google', 'elevenlabs', 'eleven labs', 'openai', 'chatgpt', 'claude', 'anthropic', 'ai', 'llm', 'model', 'prompt', 'assistant', 'chatbot', 'api'];
 const INJECTION_WORDS = ['ignore', 'instruction', 'instructions', 'system prompt', 'disregard', 'as an', 'json', 'override'];
 const MEMORY_CLAIMS = ['remember', 'last time', 'last game', 'previous game', 'other night', 'i chose', 'i choose', 'i picked', 'i control'];
-// a short list; the system prompt forbids profanity, and Gemini safety settings block worse
+// a short list; the system prompt forbids profanity, and generated text is checked again below
 const PROFANITY = ['fuck', 'fucking', 'shit', 'bitch', 'cunt', 'bastard', 'damn', 'dick', 'cock', 'pussy', 'whore', 'slut', 'rape', 'nigger', 'fag'];
 const URL_RE = /\b(?:https?|www)\b|[a-z]\.[a-z]/;
 

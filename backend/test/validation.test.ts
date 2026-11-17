@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hintBody, monsterBody, start } from './helpers.ts';
+import { hintBody, monsterBody, start, openRouterJson } from './helpers.ts';
 
 test('B3: oversized, invalid JSON, unknown field, wrong type, out of range, unknown enum -> 413/400, no provider call', async () => {
   const h = await start();
@@ -48,7 +48,7 @@ test('B4: hint with 2 or 4 examples, a 25-character word, braces/newlines/URLs i
     ]) assert.equal((await h.post('/v1/hint', bad, t)).status, 400, JSON.stringify(bad).slice(0, 120));
     assert.equal(h.fake.calls.length, 0);
     // real puzzles show short phrases as one unit (German "Ich weiß, dass"): accepted
-    h.fake.queue.push(() => new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"rows":[1,2],"hint":"Compare rows 1 and 2: where does the action word sit?"}' }] } }] }), { status: 200 }));
+    h.fake.queue.push(() => openRouterJson({ rows: [1, 2], hint: 'Compare rows 1 and 2: where does the action word sit?' }));
     h.fake.fallback = () => new Response(Buffer.alloc(200), { status: 200 });
     const ok = await h.post('/v1/hint', hintBody({ examples: [{ meaning: 'I know that he sleeps.', words: ['Ich weiß, dass', 'er', 'schläft.'] }, ...ex.slice(1)] }), t);
     assert.equal(ok.status, 200);

@@ -2,7 +2,7 @@
 
 A small Node service that sits between the Unity game and two providers, so provider keys never ship with the game:
 
-- **Gemini** (`generateContent`) writes short monster lines and ship hints from validated game facts.
+- **OpenRouter** (`chat/completions`) writes short monster lines and ship hints from validated game facts.
 - **ElevenLabs** (text to speech) speaks those lines, and the decoded sentence after the language quiz.
 
 Everything is optional. With no backend configured, the game makes no network request and shows authored hints only. With this backend running and no provider keys, every feature reports itself off. `mock` mode serves canned text and a beeping placeholder tone so the whole pipeline can be exercised without keys. Mock output is labelled `mock` at every step, and the game labels it on screen. Mock output is not speech and does not demonstrate either provider.
@@ -38,12 +38,12 @@ Unity's player setting "Allow downloads over HTTP" is off in this project. The E
 
 ## Live mode setup
 
-1. Gemini: create an API key, restrict it to the Gemini API, and set a budget alert on the Google Cloud project. A budget alert only notifies you; it does not stop spending. For a hard stop, use whatever spending limit or quota controls the account offers.
+1. OpenRouter: set `OPENROUTER_API_KEY` in the git-ignored `backend/.env` file. Missing or empty keys disable text generation. `FNMW_OPENROUTER_MODEL` defaults to `openrouter/free`; overrides must end in `:free`. Requests cap prompt and completion prices at zero.
 2. ElevenLabs: create a key scoped to text to speech, and give it a credit quota. That quota is the hard stop on ElevenLabs spending.
 3. Choose voices your account may use through the API: an original Voice Design voice, or a stock or library voice you are licensed for. Put their ids in `FNMW_VOICE_MONSTER`, `FNMW_VOICE_SHIP` and `FNMW_VOICE_NATIVE`. You can override the native voice per language with `FNMW_VOICE_NATIVE_JA` and so on. Do not clone or imitate a real person's voice. Nothing in the code uploads audio samples, and nothing in it names a voice.
 4. Set `FNMW_SESSION_SECRET` to at least 32 bytes (`openssl rand -hex 32`). Live mode refuses to start without it.
 
-A feature whose key or voice id is missing is reported off in the session reply. The monster needs only ElevenLabs and `FNMW_VOICE_MONSTER`: when Gemini is missing, out of credits, disabled by an auth error, or over its daily budget, the server writes the line itself (`src/monster-lines.ts`) from the trigger and the words of `meaning`, runs the same check on it, and ElevenLabs speaks it.
+A feature whose key or voice id is missing is reported off in the session reply. The monster needs only ElevenLabs and `FNMW_VOICE_MONSTER`: when OpenRouter is missing, out of credits, disabled by an auth error, or over its daily budget, the server writes the line itself (`src/monster-lines.ts`) from the trigger and the words of `meaning`, runs the same check on it, and ElevenLabs speaks it.
 
 ### Monster triggers
 
@@ -73,19 +73,19 @@ Text comes back first, and speech is generated in the background, so a hint's te
 - audio is held only in a 64 MB LRU cache with a 24-hour TTL (a job whose audio was evicted returns `404`);
 - character reservations are refunded when the provider certainly billed nothing, such as an HTTP error or a refused connection. They are kept after a timeout, because the provider may still have charged.
 
-Gemini calls, unlike TTS, are tied to their request: a client that disconnects aborts the upstream call.
+OpenRouter calls, unlike TTS, are tied to their request: a client that disconnects aborts the upstream call.
 
 ## Hints: what is and is not guaranteed
 
 The request carries only what the player can see: the target meaning, the three example rows, and the tiles. It does not carry the answer, the language name or code, native script, or rule text. The server adds the approved rule for the concept from `data/hint-facts.json`. An EditMode test in Unity fails if that file drifts from the game's `HintFacts`.
 
-Gemini returns `{rows, hint}`. Checks happen in this order:
+OpenRouter returns `{rows, hint}`. Checks happen in this order:
 
 1. The server checks the hint text. It rejects language, country or script names, instruction words, digits other than row numbers, URLs and injection markers. It also rejects more than one puzzle word, and any puzzle word next to an ordering word ("first", "last", "before" and so on).
 2. If the text fails, the server builds a guided hint instead, from approved text and the rows the model chose, for example: "Compare rows 1 and 3: look at where the action word sits." The model then contributes only the choice of rows.
 3. The game's language engine runs the final check, because only the engine knows the answer (`IsHintSafe`). It applies the same checks, and also rejects any hint that mentions an English meaning of an answer word together with an ordering word. If the engine rejects a hint, the game shows its authored hint and never fetches that hint's audio.
 
-Residual risk, stated plainly: these checks block the known ways a hint gives the answer away, but they cannot prove that no paraphrase does. Approved rule statements say things like "the action word can wait until the end of its clause". That narrows the answer by design: it is the rule the puzzle teaches. The per-concept statements in `hint-facts.json` were written for this game and still need a teacher's review. Validating the structure of the output does not make it true. Limiting characters does not prevent prompt injection: puzzle words do reach Gemini, which is why the output checks and the guided fallback exist.
+Residual risk, stated plainly: these checks block the known ways a hint gives the answer away, but they cannot prove that no paraphrase does. Approved rule statements say things like "the action word can wait until the end of its clause". That narrows the answer by design: it is the rule the puzzle teaches. The per-concept statements in `hint-facts.json` were written for this game and still need a teacher's review. Validating the structure of the output does not make it true. Limiting characters does not prevent prompt injection: puzzle words do reach OpenRouter, which is why the output checks and the guided fallback exist.
 
 ## Limits and what they do not do
 
@@ -94,11 +94,11 @@ Defaults are in `src/config.ts`:
 - per session: 40 monster lines, 40 hints, 40 pronunciations, 8,000 speech characters and 200 speech fetches;
 - per IP, per 10 minutes: 3 sessions and 120 requests;
 - sessions: server-chosen 128-bit ids, valid for two hours, signed with HMAC and bound to a salted hash of the client IP, with at most 500 alive at once;
-- global, per UTC day: 2,000 Gemini calls and 60,000 speech characters;
-- concurrency: 4 Gemini calls and 2 TTS calls, refused at once rather than queued;
+- global, per UTC day: 2,000 OpenRouter calls and 60,000 speech characters;
+- concurrency: 4 OpenRouter calls and 2 TTS calls, refused at once rather than queued;
 - a provider that answers 401, 402 or 403 turns its features off for 10 minutes, so a bad key cannot cause a retry storm.
 
-These limits exist in memory, in one process. A restart resets them. Several instances (serverless or autoscaled) would each keep their own counts, so the limits would not hold. Run a single long-lived process: the demo laptop on loopback, or one small VM. They are brakes, not spending caps. The only hard stops on money are the ElevenLabs key's credit quota and whatever spending limit you configure on the Google project.
+These limits exist in memory, in one process. A restart resets them. Several instances (serverless or autoscaled) would each keep their own counts, so the limits would not hold. Run a single long-lived process: the demo laptop on loopback, or one small VM. They are brakes, not spending caps. The only hard stops on money are the ElevenLabs key's credit quota and the free-only OpenRouter routing constraint.
 
 The game token ships inside the game build and can be extracted. It is a speed bump. Someone who has it can get short generic speech in seven languages (at most 80 characters each) and hints for made-up puzzles, within the limits above.
 
@@ -108,7 +108,7 @@ Logs are allow-listed JSON fields: route, status, latency, provider status code,
 
 No key was available, and no test calls a provider. All of the following are unverified:
 
-- Gemini: that `generateContent` accepts the `x-goog-api-key` header (the docs show it on the Interactions API), and that `gemini-3.5-flash-lite` accepts `responseJsonSchema` and `thinkingLevel: "MINIMAL"`. All three are documented, but none has been tried.
+- OpenRouter: free-model availability, latency and generated text quality can vary. The client uses Bearer authentication, chat messages and JSON Schema output; local tests mock upstream responses.
 - ElevenLabs: that `eleven_flash_v2_5` honours `language_code` for all seven languages, that `pcm_24000` comes back raw (no header) as expected, and that the chosen voice ids are usable through the API on the account's plan.
 - The quality of generated lines and hints, and how often validation rejects them.
 - Pronunciation correctness, which needs fluent listeners. Arabic words are stored without vowel marks, and Japanese kanji readings and Mandarin tones are known risks.

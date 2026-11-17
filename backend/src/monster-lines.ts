@@ -1,4 +1,4 @@
-// Monster lines written on the server when Gemini is unavailable (no key, key disabled, out of credits, or daily
+// Monster lines written on the server when OpenRouter is unavailable (no key, key disabled, out of credits, or daily
 // budget spent). The line is put together on the spot from the trigger and the words of the sentence the player is
 // decoding, so the beast still talks about what the player is doing. Every line still passes checkMonsterLine.
 import { randomInt } from 'node:crypto';
@@ -122,7 +122,7 @@ function pick<T>(xs: readonly T[], rand: (n: number) => number): T { return xs[r
 
 /**
  * One line for this trigger, using the sentence's words when there are any. Tries word lines first, then plain
- * ones, and returns the first that passes the same check as a Gemini line (so it is never a recent repeat).
+ * ones, and returns the first that passes the same check as a OpenRouter line (so it is never a recent repeat).
  */
 export function writeMonsterLine(req: Pick<MonsterRequest, 'trigger' | 'meaning' | 'distance'>, recent: readonly string[],
   rand: (n: number) => number = randomInt): string | null {

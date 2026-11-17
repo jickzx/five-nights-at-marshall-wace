@@ -12,7 +12,7 @@ namespace Fnmw.Core.Ai
         public string System;
         /// <summary>The facts for this call.</summary>
         public string Prompt;
-        /// <summary>JSON Schema for the reply (Gemini's subset), as a JSON object string. Null or empty asks for plain text.
+        /// <summary>JSON Schema for the reply (OpenRouter's subset), as a JSON object string. Null or empty asks for plain text.
         /// The schema fixes the reply's shape only: check length, truth and leaks yourself.</summary>
         public string SchemaJson;
         public int MaxOutputTokens = 512;

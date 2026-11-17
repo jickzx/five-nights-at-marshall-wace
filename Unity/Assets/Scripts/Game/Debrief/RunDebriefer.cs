@@ -7,7 +7,7 @@ namespace Fnmw.Game.Debrief
 {
     /// <summary>
     /// Records the run from GameEvents and, when it ends, puts the stock debrief on the end screen at once and asks
-    /// Gemini for a better one. A plain class so EditMode tests can drive it without a scene; RunDebrief hosts it.
+    /// OpenRouter for a better one. A plain class so EditMode tests can drive it without a scene; RunDebrief hosts it.
     /// </summary>
     public sealed class RunDebriefer
     {

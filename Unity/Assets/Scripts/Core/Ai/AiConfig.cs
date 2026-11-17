@@ -4,17 +4,13 @@ using UnityEngine;
 
 namespace Fnmw.Core.Ai
 {
-    /// <summary>
-    /// Where the Gemini settings come from. Environment variables win over the secrets file, which is gitignored.
-    /// A key must never be committed: this repository is public. A direct key is honoured only inside the Editor
-    /// (local development); a player build talks to Gemini through a proxy URL or not at all, so a key on the
-    /// build machine can never ship in, or be used by, a build (see Load and AiKeyBuildGuard).
-    /// </summary>
+    /// <summary>OpenRouter settings from local environment or secrets.json. Direct keys are used only
+    /// in the Editor; player builds use a configured proxy.</summary>
     public sealed class AiConfig
     {
-        public const string DefaultModel = "gemini-3.5-flash-lite";
-        public const string EnvKey = "GEMINI_API_KEY";
-        public const string EnvModel = "GEMINI_MODEL";
+        public const string DefaultModel = "openrouter/free";
+        public const string EnvKey = "OPENROUTER_API_KEY";
+        public const string EnvModel = "OPENROUTER_MODEL";
         public const string EnvProxy = "FNMW_AI_PROXY_URL";
         public const string EnvDisabled = "FNMW_AI_DISABLED";
         public const string SecretsFileName = "secrets.json";
@@ -28,30 +24,31 @@ namespace Fnmw.Core.Ai
         public string Source = "none";
 
         public bool UsesProxy => !string.IsNullOrEmpty(ProxyUrl);
-        public bool Usable => !Disabled && (UsesProxy || !string.IsNullOrEmpty(ApiKey));
+        public bool Usable => !Disabled && IsFreeModel(Model) && (UsesProxy || !string.IsNullOrEmpty(ApiKey));
 
-        /// <summary>The URL to POST a generateContent body to.</summary>
+        public static bool IsFreeModel(string model) => model == DefaultModel ||
+            (!string.IsNullOrEmpty(model) && System.Text.RegularExpressions.Regex.IsMatch(model,
+                @"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+:free$"));
+
+        /// <summary>The OpenRouter-compatible chat completions endpoint.</summary>
         public string Endpoint()
         {
-            // Accept the "models/<id>" form that Google's model list prints.
-            string id = Model.StartsWith("models/", StringComparison.Ordinal) ? Model.Substring(7) : Model;
-            string model = Uri.EscapeDataString(id);
-            if (UsesProxy) return ProxyUrl + (ProxyUrl.Contains("?") ? "&" : "?") + "model=" + model;
-            return "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
+            if (!IsFreeModel(Model)) throw new InvalidOperationException("Only OpenRouter free models are allowed");
+            if (UsesProxy) return ProxyUrl;
+            return "https://openrouter.ai/api/v1/chat/completions";
         }
 
         [Serializable]
         class SecretsFile
         {
-            public string geminiApiKey;
-            public string geminiModel;
+            public string openRouterApiKey;
+            public string openRouterModel;
             public string aiProxyUrl;
             public bool aiDisabled;
         }
 
         /// <summary>Pure: build a config from the text of secrets.json (may be null) and an environment lookup (may be null).
-        /// With <paramref name="allowDirectKey"/> false (player builds) every key is ignored and only a proxy URL can
-        /// make the config usable.</summary>
+        /// With <paramref name="allowDirectKey"/> false (player builds) keys are ignored and only a proxy can make the config usable.</summary>
         public static AiConfig From(string secretsJson, Func<string, string> env, bool allowDirectKey = true)
         {
             var cfg = new AiConfig();
@@ -62,8 +59,8 @@ namespace Fnmw.Core.Ai
                     var file = JsonUtility.FromJson<SecretsFile>(secretsJson);
                     if (file != null)
                     {
-                        if (allowDirectKey && !string.IsNullOrWhiteSpace(file.geminiApiKey)) { cfg.ApiKey = file.geminiApiKey.Trim(); cfg.Source = SecretsFileName; }
-                        if (!string.IsNullOrWhiteSpace(file.geminiModel)) cfg.Model = file.geminiModel.Trim();
+                        if (allowDirectKey && !string.IsNullOrWhiteSpace(file.openRouterApiKey)) { cfg.ApiKey = file.openRouterApiKey.Trim(); cfg.Source = SecretsFileName; }
+                        if (!string.IsNullOrWhiteSpace(file.openRouterModel)) cfg.Model = file.openRouterModel.Trim();
                         if (!string.IsNullOrWhiteSpace(file.aiProxyUrl)) { cfg.ProxyUrl = file.aiProxyUrl.Trim(); cfg.Source = SecretsFileName; }
                         cfg.Disabled = file.aiDisabled;
                     }
@@ -76,7 +73,7 @@ namespace Fnmw.Core.Ai
             if (env != null)
             {
                 string key = env(EnvKey), model = env(EnvModel), proxy = env(EnvProxy), off = env(EnvDisabled);
-                // An environment key means "call Gemini directly with this", so it also overrides a proxy from the file.
+                // An environment key means "call OpenRouter directly with this", so it also overrides a proxy from the file.
                 if (allowDirectKey && !string.IsNullOrWhiteSpace(key)) { cfg.ApiKey = key.Trim(); cfg.ProxyUrl = ""; cfg.Source = "environment"; }
                 if (!string.IsNullOrWhiteSpace(model)) cfg.Model = model.Trim();
                 if (!string.IsNullOrWhiteSpace(proxy)) { cfg.ProxyUrl = proxy.Trim(); cfg.Source = "environment"; }
@@ -85,7 +82,7 @@ namespace Fnmw.Core.Ai
             return cfg;
         }
 
-        /// <summary>Pure: true when the text of a secrets file holds a non-empty Gemini key. The build guard uses it to
+        /// <summary>Pure: true when the text of a secrets file holds a non-empty OpenRouter key. The build guard uses it to
         /// refuse a build that would bundle one.</summary>
         public static bool HoldsKey(string secretsJson)
         {
@@ -93,17 +90,17 @@ namespace Fnmw.Core.Ai
             try
             {
                 var file = JsonUtility.FromJson<SecretsFile>(secretsJson);
-                return file != null && !string.IsNullOrWhiteSpace(file.geminiApiKey);
+                return file != null && !string.IsNullOrWhiteSpace(file.openRouterApiKey);
             }
             catch (Exception)
             {
                 // unreadable JSON could still hide a key: treat it as one so the build stops and someone looks
-                return secretsJson.IndexOf("geminiApiKey", StringComparison.OrdinalIgnoreCase) >= 0;
+                return secretsJson.IndexOf("openRouterApiKey", StringComparison.OrdinalIgnoreCase) >= 0;
             }
         }
 
         /// <summary>Resources path of the baked-in settings file (Assets/Resources/Ai/secrets.json, gitignored). In a
-        /// build it may only carry aiProxyUrl/geminiModel/aiDisabled: AiKeyBuildGuard fails the build if it holds a key.</summary>
+        /// build it may only carry aiProxyUrl/openRouterModel/aiDisabled: AiKeyBuildGuard fails the build if it holds a key.</summary>
         public const string ResourcePath = "Ai/secrets";
 
         /// <summary>

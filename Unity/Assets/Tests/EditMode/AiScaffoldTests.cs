@@ -86,22 +86,22 @@ namespace Fnmw.Tests
         [Test]
         public void Config_ReadsTheSecretsFile()
         {
-            var cfg = AiConfig.From("{\"geminiApiKey\":\" k1 \",\"geminiModel\":\"m1\"}", null);
+            var cfg = AiConfig.From("{\"openRouterApiKey\":\" k1 \",\"openRouterModel\":\"test/m1:free\"}", null);
             Assert.IsTrue(cfg.Usable);
             Assert.AreEqual("k1", cfg.ApiKey);
-            Assert.AreEqual("m1", cfg.Model);
+            Assert.AreEqual("test/m1:free", cfg.Model);
             Assert.AreEqual(AiConfig.SecretsFileName, cfg.Source);
-            StringAssert.EndsWith("/models/m1:generateContent", cfg.Endpoint());
+            Assert.AreEqual("https://openrouter.ai/api/v1/chat/completions", cfg.Endpoint());
             StringAssert.DoesNotContain("k1", cfg.Endpoint());
         }
 
         [Test]
         public void Config_EnvironmentWinsOverTheFile()
         {
-            var env = new Dictionary<string, string> { { AiConfig.EnvKey, "envkey" }, { AiConfig.EnvModel, "envmodel" } };
-            var cfg = AiConfig.From("{\"geminiApiKey\":\"filekey\",\"geminiModel\":\"filemodel\"}", k => env.TryGetValue(k, out var v) ? v : null);
+            var env = new Dictionary<string, string> { { AiConfig.EnvKey, "envkey" }, { AiConfig.EnvModel, "test/envmodel:free" } };
+            var cfg = AiConfig.From("{\"openRouterApiKey\":\"filekey\",\"openRouterModel\":\"test/filemodel:free\"}", k => env.TryGetValue(k, out var v) ? v : null);
             Assert.AreEqual("envkey", cfg.ApiKey);
-            Assert.AreEqual("envmodel", cfg.Model);
+            Assert.AreEqual("test/envmodel:free", cfg.Model);
             Assert.AreEqual("environment", cfg.Source);
         }
 
@@ -111,14 +111,14 @@ namespace Fnmw.Tests
             var cfg = AiConfig.From("{\"aiProxyUrl\":\"https://example.test/api/ai\"}", null);
             Assert.IsTrue(cfg.Usable);
             Assert.IsTrue(cfg.UsesProxy);
-            Assert.AreEqual("https://example.test/api/ai?model=" + AiConfig.DefaultModel, cfg.Endpoint());
+            Assert.AreEqual("https://example.test/api/ai", cfg.Endpoint());
         }
 
         [Test]
         public void Config_CanBeSwitchedOff()
         {
-            Assert.IsFalse(AiConfig.From("{\"geminiApiKey\":\"k\",\"aiDisabled\":true}", null).Usable);
-            Assert.IsFalse(AiConfig.From("{\"geminiApiKey\":\"k\"}", k => k == AiConfig.EnvDisabled ? "1" : null).Usable);
+            Assert.IsFalse(AiConfig.From("{\"openRouterApiKey\":\"k\",\"aiDisabled\":true}", null).Usable);
+            Assert.IsFalse(AiConfig.From("{\"openRouterApiKey\":\"k\"}", k => k == AiConfig.EnvDisabled ? "1" : null).Usable);
         }
 
         [Test]
@@ -163,52 +163,26 @@ namespace Fnmw.Tests
         // ---- wire ----
 
         [Test]
-        public void Body_EscapesText_AndCarriesTheSchema()
+        public void Body_UsesChatMessagesAndFreeRouting()
         {
-            string body = GeminiWire.BuildBody(new AiRequest
-            {
-                System = "Be \"brief\".",
-                Prompt = "line one\nline two\\",
-                SchemaJson = "{\"type\":\"OBJECT\",\"properties\":{\"line\":{\"type\":\"STRING\"}}}",
-                Temperature = 0.5f,
-                MaxOutputTokens = 100,
-            });
-            StringAssert.Contains("\"systemInstruction\":{\"parts\":[{\"text\":\"Be \\\"brief\\\".\"}]}", body);
-            StringAssert.Contains("\"text\":\"line one\\nline two\\\\\"", body);
-            StringAssert.Contains("\"temperature\":0.5", body);
-            StringAssert.Contains("\"maxOutputTokens\":100", body);
-            StringAssert.Contains("\"responseMimeType\":\"application/json\"", body);
-            StringAssert.Contains("\"responseSchema\":{\"type\":\"OBJECT\"", body);
-            Assert.DoesNotThrow(() => UnityEngine.JsonUtility.FromJson<Line>(body), "body must be valid JSON");
+            string body = OpenRouterWire.BuildBody(new AiRequest { Prompt = "hi\nthere", System = "Be brief.", SchemaJson = "{\"type\":\"object\"}" });
+            StringAssert.Contains("\"model\":\"openrouter/free\"", body);
+            StringAssert.Contains("\"role\":\"system\"", body);
+            StringAssert.Contains("\"content\":\"hi\\nthere\"", body);
+            StringAssert.Contains("\"response_format\":{\"type\":\"json_schema\"", body);
+            StringAssert.Contains("\"max_price\":{\"prompt\":0,\"completion\":0}", body);
+            Assert.Throws<ArgumentException>(() => OpenRouterWire.BuildBody(new AiRequest(), "paid/model"));
         }
 
         [Test]
-        public void Body_WithoutSchemaOrSystem_AsksForPlainText()
+        public void Reply_ReadsCompletedContent_AndRejectsTruncatedOrInvalidReplies()
         {
-            string body = GeminiWire.BuildBody(new AiRequest { Prompt = "hi" });
-            StringAssert.DoesNotContain("responseSchema", body);
-            StringAssert.DoesNotContain("systemInstruction", body);
-        }
-
-        [Test]
-        public void Reply_TextIsJoined_AndThoughtPartsSkipped()
-        {
-            string json = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hidden\",\"thought\":true},{\"text\":\"{\\\"line\\\":\"},{\"text\":\"\\\"hi\\\"}\"}]},\"finishReason\":\"STOP\"}]}";
-            Assert.IsTrue(GeminiWire.TryReadText(json, out string text, out string error), error);
-            Assert.AreEqual("{\"line\":\"hi\"}", text);
-        }
-
-        [Test]
-        public void Reply_ErrorsAreReported()
-        {
-            Assert.IsFalse(GeminiWire.TryReadText("{\"error\":{\"code\":400,\"message\":\"API key not valid\",\"status\":\"INVALID_ARGUMENT\"}}", out _, out string e1));
-            StringAssert.Contains("API key not valid", e1);
-            Assert.IsFalse(GeminiWire.TryReadText("{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}", out _, out string e2));
-            StringAssert.Contains("SAFETY", e2);
-            Assert.IsFalse(GeminiWire.TryReadText("{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\"}]}", out _, out string e3));
-            StringAssert.Contains("MAX_TOKENS", e3);
-            Assert.IsFalse(GeminiWire.TryReadText("<html>", out _, out _));
-            Assert.IsFalse(GeminiWire.TryReadText("", out _, out _));
+            Assert.IsTrue(OpenRouterWire.TryReadText("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"hello\"}}]}", out string text, out _));
+            Assert.AreEqual("hello", text);
+            Assert.IsFalse(OpenRouterWire.TryReadText("{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"partial\"}}]}", out _, out _));
+            Assert.IsFalse(OpenRouterWire.TryReadText("{\"error\":{\"code\":401,\"message\":\"secret\"}}", out _, out string error));
+            StringAssert.DoesNotContain("secret", error);
+            Assert.IsFalse(OpenRouterWire.TryReadText("<html>", out _, out _));
         }
 
         // ---- reply checks ----
@@ -276,7 +250,7 @@ namespace Fnmw.Tests
         [Test]
         public void Body_NeverWritesNaN_AndEscapesControlCharacters()
         {
-            string body = GeminiWire.BuildBody(new AiRequest { Prompt = "a\u0001b 猫", Temperature = float.NaN });
+            string body = OpenRouterWire.BuildBody(new AiRequest { Prompt = "a\u0001b 猫", Temperature = float.NaN });
             StringAssert.DoesNotContain("NaN", body);
             StringAssert.Contains("a\\u0001b 猫", body);
         }
@@ -293,43 +267,42 @@ namespace Fnmw.Tests
         public void Config_InABuild_IgnoresEveryKey_AndNeedsAProxy()
         {
             var env = new Dictionary<string, string> { { AiConfig.EnvKey, "envkey" } };
-            var cfg = AiConfig.From("{\"geminiApiKey\":\"filekey\"}", k => env.TryGetValue(k, out var v) ? v : null, allowDirectKey: false);
+            var cfg = AiConfig.From("{\"openRouterApiKey\":\"filekey\"}", k => env.TryGetValue(k, out var v) ? v : null, allowDirectKey: false);
             Assert.AreEqual("", cfg.ApiKey);
-            Assert.IsFalse(cfg.Usable, "a build with only a key must stay on stock lines");
+            Assert.IsFalse(cfg.Usable);
         }
 
         [Test]
         public void Config_InABuild_KeepsTheFileProxy_EvenWithAnEnvironmentKey()
         {
-            var cfg = AiConfig.From("{\"aiProxyUrl\":\"https://example.test/api/ai\",\"geminiApiKey\":\"filekey\"}",
+            var cfg = AiConfig.From("{\"aiProxyUrl\":\"https://example.test/api/ai\",\"openRouterApiKey\":\"filekey\"}",
                 k => k == AiConfig.EnvKey ? "envkey" : null, allowDirectKey: false);
             Assert.IsTrue(cfg.Usable);
             Assert.IsTrue(cfg.UsesProxy);
             Assert.AreEqual("", cfg.ApiKey);
-            StringAssert.StartsWith("https://example.test/api/ai?model=", cfg.Endpoint());
+            Assert.AreEqual("https://example.test/api/ai", cfg.Endpoint());
         }
 
         [Test]
         public void HoldsKey_FlagsOnlyANonEmptyKey()
         {
-            Assert.IsTrue(AiConfig.HoldsKey("{\"geminiApiKey\":\"k\"}"));
-            Assert.IsFalse(AiConfig.HoldsKey("{\"geminiApiKey\":\"  \",\"aiProxyUrl\":\"https://example.test\"}"));
+            Assert.IsTrue(AiConfig.HoldsKey("{\"openRouterApiKey\":\"k\"}"));
+            Assert.IsFalse(AiConfig.HoldsKey("{\"openRouterApiKey\":\"  \",\"aiProxyUrl\":\"https://example.test\"}"));
             Assert.IsFalse(AiConfig.HoldsKey(null));
-            Assert.IsTrue(AiConfig.HoldsKey("{ not json, geminiApiKey"), "unreadable text that mentions a key must stop the build");
+            Assert.IsTrue(AiConfig.HoldsKey("{ not json, openRouterApiKey"), "unreadable text that mentions a key must stop the build");
         }
 
         [Test]
-        public void Config_AcceptsTheModelsPrefix()
+        public void Config_RejectsPaidModels()
         {
-            var cfg = AiConfig.From("{\"geminiApiKey\":\"k\",\"geminiModel\":\"models/m2\"}", null);
-            StringAssert.EndsWith("/v1beta/models/m2:generateContent", cfg.Endpoint());
+            Assert.IsFalse(AiConfig.From("{\"openRouterModel\":\"paid/model\"}", null).Usable);
         }
 
         [Test]
         public void ExampleSecretsFile_HoldsNoKey()
         {
             string path = System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "secrets.example.json");
-            Assert.IsFalse(AiConfig.From(System.IO.File.ReadAllText(path), null).Usable, "the tracked example must never make AI usable");
+            Assert.IsFalse(AiConfig.HoldsKey(System.IO.File.ReadAllText(path)));
         }
     }
 }

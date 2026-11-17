@@ -129,34 +129,33 @@ test('in-flight speech is deduplicated and cannot be evicted by another request'
   } finally { release(); await h.close(); }
 });
 
-test('Gemini invalid-key HTTP 400 disables all Gemini features without a retry or leaking its error body', async () => {
+test('OpenRouter invalid-key HTTP 401 disables all OpenRouter features without a retry or leaking its error body', async () => {
   const h = await start();
   try {
     const token = await h.session();
-    h.fake.fallback = () => Response.json({ error: {
-      message: 'PROVIDER SECRET TEXT', status: 'INVALID_ARGUMENT',
-      details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', domain: 'googleapis.com', reason: 'API_KEY_INVALID' }],
-    } }, { status: 400 });
-    // the monster keeps talking: with Gemini disabled the server writes the line itself, and ElevenLabs speaks it
+    h.fake.fallback = (call) => call.url.startsWith('https://api.elevenlabs.io/') ? new Response(Buffer.alloc(200), { status: 200 }) : Response.json({ error: {
+      message: 'PROVIDER SECRET TEXT', code: 401,
+    } }, { status: 401 });
+    // the monster keeps talking: with OpenRouter disabled the server writes the line itself, and ElevenLabs speaks it
     const r = await h.post('/v1/monster-line', monsterBody(), token);
     assert.equal(r.status, 200);
-    const spent = h.svc.dailyGemini.used;
+    const spent = h.svc.dailyOpenRouter.used;
     assert.equal((await h.post('/v1/monster-line', monsterBody({ seq: 2 }), token)).status, 200);
-    assert.equal(h.fake.gemini().length, 1, 'no second Gemini call once the key is known bad');
-    assert.equal(h.svc.dailyGemini.used, spent);
+    assert.equal(h.fake.openRouter().length, 1, 'no second OpenRouter call once the key is known bad');
+    assert.equal(h.svc.dailyOpenRouter.used, spent);
     assert.deepEqual(h.svc.features(), { monster: true, hint: false, hint_speech: false, pronounce: true });
     assert.ok(!h.logs.join('').includes('PROVIDER SECRET TEXT'));
   } finally { await h.close(); }
 });
 
-test('other, malformed and oversized Gemini 400 bodies stay bounded and do not disable valid credentials', async () => {
-  const h = await start({}, (c) => { c.limits.maxGeminiBytes = 1024; });
+test('other, malformed and oversized OpenRouter 400 bodies stay bounded and do not disable valid credentials', async () => {
+  const h = await start({}, (c) => { c.limits.maxOpenRouterBytes = 1024; });
   try {
     const token = await h.session();
     for (const [body, status, code] of [
       ['not json', 502, 'invalid_generation'],
       [JSON.stringify({ error: { status: 'INVALID_ARGUMENT', message: 'API_KEY_INVALID' } }), 502, 'invalid_generation'],
-      ['x'.repeat(2048), 503, 'provider_unavailable'],
+      ['x'.repeat(2048), 502, 'invalid_generation'],
     ] as const) {
       h.fake.queue.push(() => new Response(body, { status: 400 }));
       const response = await h.post('/v1/monster-line', monsterBody(), token);
@@ -164,6 +163,6 @@ test('other, malformed and oversized Gemini 400 bodies stay bounded and do not d
       assert.deepEqual(await response.json(), { error: { code } });
       assert.equal(h.svc.features().monster, true);
     }
-    assert.equal(h.fake.gemini().length, 3);
+    assert.equal(h.fake.openRouter().length, 3);
   } finally { await h.close(); }
 });

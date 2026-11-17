@@ -7,7 +7,7 @@ using Fnmw.Core.Ai;
 namespace Fnmw.Game.Debrief
 {
     /// <summary>
-    /// The run debrief's text: the stock account built from the log, the Gemini request, and the reply check. All pure.
+    /// The run debrief's text: the stock account built from the log, the OpenRouter request, and the reply check. All pure.
     /// </summary>
     public static class DebriefWriter
     {
@@ -19,7 +19,7 @@ namespace Fnmw.Game.Debrief
         [Serializable] public class Reply { public string debrief; }
 
         public const string SchemaJson =
-            "{\"type\":\"OBJECT\",\"properties\":{\"debrief\":{\"type\":\"STRING\"}},\"required\":[\"debrief\"]}";
+            "{\"type\":\"object\",\"properties\":{\"debrief\":{\"type\":\"string\"}},\"required\":[\"debrief\"],\"additionalProperties\":false}";
 
         public static readonly string SystemPrompt =
             "You write the debrief shown on the end screen of a short horror game. The player decodes consoles written in real " +

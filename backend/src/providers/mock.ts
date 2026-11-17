@@ -13,7 +13,7 @@ const MONSTER_LINES: Record<string, string[]> = {
   final_chase: ['Run. I am right behind you.', 'The ship is far. I am not.'],
 };
 
-export async function mockGemini(kind: 'monster' | 'hint', user: Record<string, unknown>, fault: MockFault, signal?: AbortSignal): Promise<unknown> {
+export async function mockOpenRouter(kind: 'monster' | 'hint', user: Record<string, unknown>, fault: MockFault, signal?: AbortSignal): Promise<unknown> {
   await applyFault(fault, signal);
   if (fault === 'garbage') return 'not the json you asked for';
   if (kind === 'monster') {
